@@ -30,32 +30,55 @@ uses
   System.SysUtils,
   System.TypInfo,
   Dext.Collections.Base,
+  Dext.Collections.Memory,
   Dext.Collections.Raw,
   Dext.Collections;
 
 type
-  /// <summary>Stack implementation backed by TRawList</summary>
-  TStack<T> = class(TInterfacedObject, IStack<T>, IEnumerable<T>)
+  /// <summary>High-performance record-based enumerator for TStack<T></summary>
+  TStackRecordEnumerator<T> = record
   private
     FCore: TRawList;
-    function GetCount: Integer;
+    FIndex: Integer;
   public
-    constructor Create;
-    destructor Destroy; override;
+    constructor Create(ACore: TRawList);
+    function MoveNext: Boolean; inline;
+    function GetCurrent: T; inline;
+    property Current: T read GetCurrent;
+  end;
 
-    procedure Push(const Value: T);
-    function Pop: T;
-    function Peek: T;
-    function TryPop(out Value: T): Boolean;
-    function TryPeek(out Value: T): Boolean;
-    procedure Clear;
-    function Contains(const Value: T): Boolean;
-    function ToArray: TArray<T>;
-
+  /// <summary>Base class avoiding Delphi explicit interface method mapping bug</summary>
+  TStackBase<T> = class(TInterfacedObject, IEnumerable<T>)
+  public
+    function GetInterfaceEnumerator: IEnumerator<T>; virtual; abstract;
     function GetEnumerator: IEnumerator<T>;
   end;
 
-  /// <summary>Simple LIFO enumerator</summary>
+
+  /// <summary>Stack implementation backed by TRawList</summary>
+  TStack<T> = class(TStackBase<T>, IStack<T>)
+  private
+    FCore: TRawList;
+    function GetCount: Integer; inline;
+  public
+    function GetInterfaceEnumerator: IEnumerator<T>; override;
+
+    constructor Create;
+    destructor Destroy; override;
+
+    procedure Push(const Value: T); inline;
+    function Pop: T; inline;
+    function Peek: T; inline;
+    function TryPop(out Value: T): Boolean; inline;
+    function TryPeek(out Value: T): Boolean; inline;
+    procedure Clear; inline;
+    function Contains(const Value: T): Boolean;
+    function ToArray: TArray<T>;
+
+    function GetEnumerator: TStackRecordEnumerator<T>; reintroduce; inline;
+  end;
+
+  /// <summary>Simple LIFO enumerator (Class-based for interface compatibility)</summary>
   TStackEnumerator<T> = class(TInterfacedObject, IEnumerator<T>)
   private
     FCore: TRawList;
@@ -69,6 +92,13 @@ type
   end;
 
 implementation
+
+{ TStackBase<T> }
+
+function TStackBase<T>.GetEnumerator: IEnumerator<T>;
+begin
+  Result := GetInterfaceEnumerator;
+end;
 
 { TStack<T> }
 
@@ -93,7 +123,6 @@ function TStack<T>.Contains(const Value: T): Boolean;
 var
   I: Integer;
 begin
-  // Linear search from top to bottom
   for I := FCore.Count - 1 downto 0 do
     if CompareMem(FCore.GetItemPtr(I), @Value, SizeOf(T)) then
       Exit(True);
@@ -105,7 +134,12 @@ begin
   Result := FCore.Count;
 end;
 
-function TStack<T>.GetEnumerator: IEnumerator<T>;
+function TStack<T>.GetEnumerator: TStackRecordEnumerator<T>;
+begin
+  Result := TStackRecordEnumerator<T>.Create(FCore);
+end;
+
+function TStack<T>.GetInterfaceEnumerator: IEnumerator<T>;
 begin
   Result := TStackEnumerator<T>.Create(FCore);
 end;
@@ -113,7 +147,7 @@ end;
 function TStack<T>.Peek: T;
 begin
   if FCore.Count = 0 then
-    raise EListError.Create('Stack is empty');
+    raise Exception.Create('Stack is empty');
   FCore.GetRawItem(FCore.Count - 1, @Result);
 end;
 
@@ -134,7 +168,7 @@ var
 begin
   SetLength(Result, FCore.Count);
   for I := 0 to FCore.Count - 1 do
-    FCore.GetRawItem(FCore.Count - 1 - I, @Result[I]); // Stack order: top first
+    FCore.GetRawItem(FCore.Count - 1 - I, @Result[I]);
 end;
 
 function TStack<T>.TryPeek(out Value: T): Boolean;
@@ -156,6 +190,25 @@ begin
     Exit(True);
   end;
   Result := False;
+end;
+
+{ TStackRecordEnumerator<T> }
+
+constructor TStackRecordEnumerator<T>.Create(ACore: TRawList);
+begin
+  FCore := ACore;
+  FIndex := FCore.Count;
+end;
+
+function TStackRecordEnumerator<T>.GetCurrent: T;
+begin
+  FCore.GetRawItem(FIndex, @Result);
+end;
+
+function TStackRecordEnumerator<T>.MoveNext: Boolean;
+begin
+  Dec(FIndex);
+  Result := FIndex >= 0;
 end;
 
 { TStackEnumerator<T> }

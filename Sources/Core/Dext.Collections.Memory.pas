@@ -65,7 +65,7 @@ procedure RawFinalize(Dest: Pointer; Count: NativeInt;
 ///   unmanaged types uses System.Move.
 /// </summary>
 procedure RawCopy(Dest, Source: Pointer; Count: NativeInt;
-  ElementSize: NativeInt; ATypeInfo: PTypeInfo);
+  ElementSize: NativeInt; ATypeInfo: PTypeInfo); inline;
 
 /// <summary>
 ///   Moves Count elements from Source to Dest, then zeros Source memory.
@@ -73,7 +73,7 @@ procedure RawCopy(Dest, Source: Pointer; Count: NativeInt;
 ///   addref/release overhead. Safe for overlapping regions if Dest < Source.
 /// </summary>
 procedure RawMove(Dest, Source: Pointer; Count: NativeInt;
-  ElementSize: NativeInt; ATypeInfo: PTypeInfo);
+  ElementSize: NativeInt; ATypeInfo: PTypeInfo); inline;
 
 /// <summary>
 ///   Copies a single element from Source to Dest. Handles managed types.
@@ -158,10 +158,19 @@ begin
 
   TotalSize := Count * ElementSize;
 
-  if IsManagedType(ATypeInfo) then
+  if (ATypeInfo <> nil) and IsManagedType(ATypeInfo) then
     System.CopyArray(Dest, Source, ATypeInfo, Count)
   else
-    System.Move(Source^, Dest^, TotalSize);
+  begin
+    case TotalSize of
+      1: PByte(Dest)^ := PByte(Source)^;
+      2: PWord(Dest)^ := PWord(Source)^;
+      4: PCardinal(Dest)^ := PCardinal(Source)^;
+      8: PUInt64(Dest)^ := PUInt64(Source)^;
+    else
+      System.Move(Source^, Dest^, TotalSize);
+    end;
+  end;
 end;
 
 procedure RawMove(Dest, Source: Pointer; Count: NativeInt;
@@ -191,10 +200,19 @@ end;
 procedure RawCopyElement(Dest, Source: Pointer;
   ElementSize: NativeInt; ATypeInfo: PTypeInfo);
 begin
-  if IsManagedType(ATypeInfo) then
+  if (ATypeInfo <> nil) and IsManagedType(ATypeInfo) then
     System.CopyArray(Dest, Source, ATypeInfo, 1)
   else
-    System.Move(Source^, Dest^, ElementSize);
+  begin
+    case ElementSize of
+      1: PByte(Dest)^ := PByte(Source)^;
+      2: PWord(Dest)^ := PWord(Source)^;
+      4: PCardinal(Dest)^ := PCardinal(Source)^;
+      8: PUInt64(Dest)^ := PUInt64(Source)^;
+    else
+      System.Move(Source^, Dest^, ElementSize);
+    end;
+  end;
 end;
 
 procedure RawFinalizeElement(Dest: Pointer;

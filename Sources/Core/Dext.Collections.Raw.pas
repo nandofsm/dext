@@ -76,13 +76,15 @@ type
   /// </summary>
   TRawList = class
   private
+    // Field alignment: keep pointers/native-sized first, then integers, then booleans
+    // to minimize padding and maximize CPU cache line density.
     FData: PByte;
+    FTypeInfo: PTypeInfo;
+    FOnNotify: TRawNotifyEvent;
     FCount: Integer;
     FCapacity: Integer;
     FElementSize: Integer;
-    FTypeInfo: PTypeInfo;
     FIsManaged: Boolean;
-    FOnNotify: TRawNotifyEvent;
   protected // protected just to make compiler happy for now
     procedure SetCapacity(ACapacity: Integer);
     procedure Grow;
@@ -92,16 +94,18 @@ type
     constructor Create(AElementSize: Integer; ATypeInfo: PTypeInfo);
     destructor Destroy; override;
 
-    /// <summary>
-    ///   Returns a pointer to the element at Index.
-    ///   No bounds checking in release builds for maximum performance.
-    /// </summary>
+    /// <returns>Index of the element</returns>
     function GetItemPtr(Index: Integer): Pointer; inline;
 
     /// <summary>
     ///   Appends Value to the end of the list. Returns the new index.
     /// </summary>
-    function AddRaw(Value: Pointer): Integer;
+    function AddRaw(Value: Pointer): Integer; inline;
+
+    /// <summary>
+    ///   Fast path for TList<T> to increment count after manual Move.
+    /// </summary>
+    procedure FastIncrementCount; inline;
 
     /// <summary>
     ///   Inserts Value at the specified Index, shifting subsequent elements.
@@ -132,7 +136,7 @@ type
     ///   Clears all elements, finalizing managed types.
     ///   Does NOT free memory (capacity remains).
     /// </summary>
-    procedure Clear;
+    procedure Clear; inline;
 
     /// <summary>
     ///   Searches for Value using EqualityFunc.
@@ -149,13 +153,13 @@ type
     ///   Copies the value at Index into Dest.
     ///   Handles managed type copy semantics correctly.
     /// </summary>
-    procedure GetRawItem(Index: Integer; Dest: Pointer);
+    procedure GetRawItem(Index: Integer; Dest: Pointer); inline;
 
     /// <summary>
     ///   Sets the value at Index from Value.
     ///   Handles managed type finalize-old + copy-new correctly.
     /// </summary>
-    procedure SetRawItem(Index: Integer; Value: Pointer);
+    procedure SetRawItem(Index: Integer; Value: Pointer); inline;
 
     /// <summary>
     ///   Copies all elements into a preallocated destination buffer.
@@ -192,6 +196,11 @@ implementation
 
 const
   INITIAL_CAPACITY = 4;
+
+procedure TRawList.FastIncrementCount;
+begin
+  Inc(FCount);
+end;
 
 { TRawList }
 
@@ -278,16 +287,13 @@ begin
 end;
 
 procedure TRawList.Grow;
-var
-  NewCap: Integer;
 begin
   if FCapacity = 0 then
-    NewCap := INITIAL_CAPACITY
+    SetCapacity(INITIAL_CAPACITY)
   else if FCapacity < 64 then
-    NewCap := FCapacity * 2
+    SetCapacity(FCapacity * 2)
   else
-    NewCap := FCapacity + (FCapacity div 4); // 25% growth for large lists
-  SetCapacity(NewCap);
+    SetCapacity(FCapacity + (FCapacity shr 2)); // 25% growth for large lists
 end;
 
 procedure TRawList.GrowTo(AMinCapacity: Integer);
@@ -325,10 +331,23 @@ begin
   Result := FCount;
   Dest := FData + (Result * FElementSize);
 
-  RawCopyElement(Dest, Value, FElementSize, FTypeInfo);
-  Inc(FCount);
+  if FIsManaged then
+    System.CopyArray(Dest, Value, FTypeInfo, 1)
+  else
+  begin
+    case FElementSize of
+      1: PByte(Dest)^ := PByte(Value)^;
+      2: PWord(Dest)^ := PWord(Value)^;
+      4: PCardinal(Dest)^ := PCardinal(Value)^;
+      8: PUInt64(Dest)^ := PUInt64(Value)^;
+    else
+      System.Move(Value^, Dest^, FElementSize);
+    end;
+  end;
 
-  DoNotify(Dest, rcnAdded);
+  Inc(FCount);
+  if Assigned(FOnNotify) then
+    FOnNotify(Dest, rcnAdded);
 end;
 
 procedure TRawList.InsertRaw(Index: Integer; Value: Pointer);
@@ -467,9 +486,16 @@ begin
 
   // Finalize all managed elements
   if FIsManaged then
-    RawFinalize(FData, FCount, FElementSize, FTypeInfo);
+    RawFinalize(FData, FCount, FElementSize, FTypeInfo)
+  else
+  begin
+    // For unmanaged types, just reset count. No need to zero memory if not managed,
+    // as it will be overwritten by future Adds.
+    FCount := 0;
+    Exit;
+  end;
 
-  // Zero all memory
+  // Zero all memory (only reached if managed)
   FillChar(FData^, FCount * FElementSize, 0);
   FCount := 0;
 end;
@@ -562,6 +588,8 @@ var
   TempBuf: array[0..255] of Byte;
   TempPtr: Pointer;
   NeedFree: Boolean;
+  T4: Cardinal;
+  T8: UInt64;
 begin
   if Index1 = Index2 then
     Exit;
@@ -578,7 +606,23 @@ begin
   P1 := FData + (Index1 * FElementSize);
   P2 := FData + (Index2 * FElementSize);
 
-  // Use stack buffer for small elements, heap for large
+  // Micro-optimized inline swap for primitive sizes
+  case FElementSize of
+    4: begin
+         T4 := PCardinal(P1)^;
+         PCardinal(P1)^ := PCardinal(P2)^;
+         PCardinal(P2)^ := T4;
+         Exit;
+       end;
+    8: begin
+         T8 := PUInt64(P1)^;
+         PUInt64(P1)^ := PUInt64(P2)^;
+         PUInt64(P2)^ := T8;
+         Exit;
+       end;
+  end;
+
+  // Use stack buffer for medium elements, heap for very large
   NeedFree := FElementSize > SizeOf(TempBuf);
   if NeedFree then
     GetMem(TempPtr, FElementSize)
@@ -597,49 +641,107 @@ begin
 end;
 
 procedure TRawList.SortRaw(CompareFunc: TRawCompareFunc);
+var
+  LData: PByte;
+  LElementSize: Integer;
+
+  procedure InsertionSort(L, R: Integer);
+  var
+    I, J: Integer;
+    TempBuf: array[0..255] of Byte;
+    TempPtr: Pointer;
+    NeedFree: Boolean;
+    CurrentItem, PrevItem: PByte;
+  begin
+    NeedFree := LElementSize > SizeOf(TempBuf);
+    if NeedFree then GetMem(TempPtr, LElementSize) else TempPtr := @TempBuf[0];
+    try
+      for I := L + 1 to R do
+      begin
+        CurrentItem := LData + (I * LElementSize);
+        System.Move(CurrentItem^, TempPtr^, LElementSize);
+        J := I - 1;
+        while (J >= L) do
+        begin
+          PrevItem := LData + (J * LElementSize);
+          if CompareFunc(PrevItem, TempPtr) <= 0 then Break;
+          System.Move(PrevItem^, (PrevItem + LElementSize)^, LElementSize);
+          Dec(J);
+        end;
+        System.Move(TempPtr^, (LData + ((J + 1) * LElementSize))^, LElementSize);
+      end;
+    finally
+      if NeedFree then FreeMem(TempPtr);
+    end;
+  end;
 
   procedure QuickSort(L, R: Integer);
   var
     I, J, Mid: Integer;
+    PivotBuf: array[0..255] of Byte;
+    PivotPtr: Pointer;
+    NeedFreePivot: Boolean;
+    P1, P2: PByte;
+    T4: Cardinal;
+    T8: UInt64;
   begin
-    repeat
-      I := L;
-      J := R;
+    while R - L > 16 do
+    begin
       Mid := (L + R) shr 1;
+      // Median-of-three 
+      if CompareFunc(LData + (L * LElementSize), LData + (Mid * LElementSize)) > 0 then ExchangeRaw(L, Mid);
+      if CompareFunc(LData + (L * LElementSize), LData + (R * LElementSize)) > 0 then ExchangeRaw(L, R);
+      if CompareFunc(LData + (Mid * LElementSize), LData + (R * LElementSize)) > 0 then ExchangeRaw(Mid, R);
 
-      repeat
-        while CompareFunc(FData + (I * FElementSize),
-                          FData + (Mid * FElementSize)) < 0 do
-          Inc(I);
-        while CompareFunc(FData + (J * FElementSize),
-                          FData + (Mid * FElementSize)) > 0 do
-          Dec(J);
-
-        if I <= J then
-        begin
-          if I <> J then
+      NeedFreePivot := LElementSize > SizeOf(PivotBuf);
+      if NeedFreePivot then GetMem(PivotPtr, LElementSize) else PivotPtr := @PivotBuf[0];
+      try
+        System.Move((LData + (Mid * LElementSize))^, PivotPtr^, LElementSize);
+        I := L;
+        J := R;
+        repeat
+          while CompareFunc(LData + (I * LElementSize), PivotPtr) < 0 do Inc(I);
+          while CompareFunc(LData + (J * LElementSize), PivotPtr) > 0 do Dec(J);
+          if I <= J then
           begin
-            ExchangeRaw(I, J);
-            // Track pivot after swap
-            if Mid = I then
-              Mid := J
-            else if Mid = J then
-              Mid := I;
+            if I <> J then
+            begin
+              // Micro-swap inline for common sizes
+              P1 := LData + (I * LElementSize);
+              P2 := LData + (J * LElementSize);
+              case LElementSize of
+                4: begin T4 := PCardinal(P1)^; PCardinal(P1)^ := PCardinal(P2)^; PCardinal(P2)^ := T4; end;
+                8: begin T8 := PUInt64(P1)^; PUInt64(P1)^ := PUInt64(P2)^; PUInt64(P2)^ := T8; end;
+              else
+                ExchangeRaw(I, J);
+              end;
+            end;
+            Inc(I);
+            Dec(J);
           end;
-          Inc(I);
-          Dec(J);
-        end;
-      until I > J;
+        until I > J;
+      finally
+        if NeedFreePivot then FreeMem(PivotPtr);
+      end;
 
-      if L < J then
-        QuickSort(L, J);
-      L := I;
-    until I >= R;
+      if J - L < R - I then
+      begin
+        if L < J then QuickSort(L, J);
+        L := I;
+      end
+      else
+      begin
+        if I < R then QuickSort(I, R);
+        R := J;
+      end;
+    end;
+    if L < R then InsertionSort(L, R);
   end;
 
 begin
-  if FCount < 2 then
-    Exit;
+  if FCount < 2 then Exit;
+  LData := FData;
+  LElementSize := FElementSize;
   QuickSort(0, FCount - 1);
 end;
 

@@ -1593,15 +1593,15 @@ begin
     // Ensure the list owns its objects if they are classes
     if (ElementType.Kind = tkClass) then
     begin
-       var Collection: IDextCollection;
+       var Collection: ICollection;
        if Result.Kind = tkInterface then
        begin
-         if Supports(Result.AsInterface, IDextCollection, Collection) then
+         if Supports(Result.AsInterface, ICollection, Collection) then
            Collection.OwnsObjects := True;
        end
        else if Result.Kind = tkClass then
        begin
-        if Supports(Result.AsObject, IDextCollection, Collection) then
+        if Supports(Result.AsObject, ICollection, Collection) then
           Collection.OwnsObjects := True
         else
         begin

@@ -41,6 +41,7 @@ Abaixo, comparamos o Dext com as principais alternativas do mercado Delphi e sua
 *\* O Dext utiliza Tasks e Futures para operações assíncronas onde possível.*
 
 **Legenda:**
+
 - ✅ = Suporte completo e nativo
 - ⚠️ = Suporte parcial ou requer configuração adicional
 - ❌ = Não suportado ou requer biblioteca externa
@@ -50,6 +51,7 @@ Abaixo, comparamos o Dext com as principais alternativas do mercado Delphi e sua
 ## 📅 Roadmap Detalhado para v1.0
 
 ### 1. Core & Arquitetura (✅ Concluído)
+
 - [x] **IHost / IWebApplication**: Abstração do ciclo de vida da aplicação.
 - [x] **Dependency Injection**: Container IOC completo (Singleton, Scoped, Transient).
 - [x] **Activator**: Suporte a Pure DI, Manual, e Hybrid Injection.
@@ -57,6 +59,7 @@ Abaixo, comparamos o Dext com as principais alternativas do mercado Delphi e sua
 - [x] **Logging**: Abstração `ILogger` com múltiplos sinks (Console, File).
 
 ### 2. HTTP & Routing (✅ Concluído)
+
 - [x] **HttpContext**: Abstração robusta de Request/Response.
 - [x] **RemoteIpAddress**: Identificação real do cliente por IP.
 - [x] **Routing**: Árvore de rotas eficiente, parâmetros de rota, constraints.
@@ -66,6 +69,7 @@ Abaixo, comparamos o Dext com as principais alternativas do mercado Delphi e sua
 - [x] **Content Negotiation**: Suporte a JSON nativo (`Dext.Json`).
 
 ### 3. Middleware & Pipeline (✅ Concluído)
+
 - [x] **Middleware Factory**: Criação e injeção de middlewares tipados.
 - [x] **Singleton Middleware**: Suporte a middlewares com estado persistente.
 - [x] **Exception Handling**: Middleware global de tratamento de erros (RFC 7807 Problem Details).
@@ -75,6 +79,7 @@ Abaixo, comparamos o Dext com as principais alternativas do mercado Delphi e sua
 - [x] **Response Compression**: Middleware para compressão GZip.
 
 ### 4. Funcionalidades Avançadas (✅ Concluído)
+
 - [x] **Controllers**: Suporte a Controllers baseados em classes com Atributos (`[HttpGet]`, `[Route]`).
 - [x] **Authentication**: Sistema base (`IIdentity`, `IPrincipal`) e JWT Bearer.
 - [x] **Caching**: Abstração `IDistributedCache` com implementações Memory e Response Cache.
@@ -96,6 +101,7 @@ Abaixo, comparamos o Dext com as principais alternativas do mercado Delphi e sua
   - [x] Short-circuit support
   - [x] Exception handling em filtros
   - [x] Filtros built-in (LogAction, RequireHeader, ResponseCache, AddHeader)
+
 # 🗺️ Project Dext - Roadmap & Status
 
 Bem-vindo ao documento oficial de roadmap do **Project Dext**. Este documento serve como ponto central para acompanhar o progresso do desenvolvimento, entender a visão do projeto e comparar funcionalidades com outros frameworks.
@@ -137,6 +143,7 @@ Abaixo, comparamos o Dext com as principais alternativas do mercado Delphi e sua
 *\* O Dext utiliza Tasks e Futures para operações assíncronas onde possível.*
 
 **Legenda:**
+
 - ✅ = Suporte completo e nativo
 - ⚠️ = Suporte parcial ou requer configuração adicional
 - ❌ = Não suportado ou requer biblioteca externa
@@ -148,24 +155,31 @@ Abaixo, comparamos o Dext com as principais alternativas do mercado Delphi e sua
 O desenvolvimento do Dext é dividido em três grandes áreas. Consulte os roadmaps específicos para detalhes:
 
 ### 1. [🌐 Web Framework Roadmap](Docs/WEB_ROADMAP.md)
+
 Foco em APIs, MVC, Views, OpenTelemetry e DX.
 
 ### 2. [🗺️ ORM Roadmap](Docs/ORM_ROADMAP.md)
+
 Foco no Dext Entity, banco de dados, performance e queries.
 
 ### 3. [🏗️ Infrastructure Roadmap](Docs/INFRA_ROADMAP.md)
+
 Foco em performance extrema (http.sys, epoll), gerenciamento de memória e otimizações de baixo nível.
 
 ### 4. [☁️ Cloud & Microservices Roadmap](Docs/CLOUD_ROADMAP.md)
+
 Foco em orquestração (Aspire-like), service discovery, resiliência e componentes distribuídos.
 
 ### 5. [🧠 AI Roadmap](Docs/AI_ROADMAP.md)
+
 Foco em GenAI, Semantic Kernel, RAG e integração com LLMs.
 
 ### 6. [🛠️ IDE Integration Roadmap](Docs/IDE_ROADMAP.md)
+
 Foco em produtividade, code intelligence, wizards e integração com a IDE do Delphi.
 
 ### 7. [🚀 Strategic Improvements (Dec 2025)](framework-improvements-2025-12.md)
+
 Plano estratégico focado em Dext SO4 (Fórum/Social) e melhorias de Core (Nullable 2.0, Immutability).
 
 ---
@@ -173,6 +187,7 @@ Plano estratégico focado em Dext SO4 (Fórum/Social) e melhorias de Core (Nulla
 ## 📅 Roadmap Geral (High Level)
 
 ### 1. Core & Arquitetura (✅ Concluído)
+
 - [x] **IHost / IWebApplication**: Abstração do ciclo de vida da aplicação.
   - ✅ **Application States**: `Starting`, `Migrating`, `Running`, `Stopping`.
   - ✅ **Lifecycle Events**: `Started`, `Stopping`, `Stopped` (via `CancellationToken`).
@@ -188,6 +203,7 @@ Plano estratégico focado em Dext SO4 (Fórum/Social) e melhorias de Core (Nulla
   - [x] **Integration**: Seamless integration with Dext Core.
 
 ### 2. HTTP & Routing (✅ Concluído)
+
 - [x] **HttpContext**: Abstração robusta de Request/Response.
 - [x] **RemoteIpAddress**: Identificação real do cliente por IP.
 - [x] **Routing**: Árvore de rotas eficiente, parâmetros de rota, constraints.
@@ -199,6 +215,7 @@ Plano estratégico focado em Dext SO4 (Fórum/Social) e melhorias de Core (Nulla
 - [x] **Cookies**: Suporte completo a leitura e escrita (`TCookieOptions`).
 
 ### 3. Middleware & Pipeline (✅ Concluído)
+
 - [x] **Middleware Factory**: Criação e injeção de middlewares tipados.
 - [x] **Singleton Middleware**: Suporte a middlewares com estado persistente.
 - [x] **Exception Handling**: Middleware global de tratamento de erros (RFC 7807 Problem Details).
@@ -208,6 +225,7 @@ Plano estratégico focado em Dext SO4 (Fórum/Social) e melhorias de Core (Nulla
 - [x] **Response Compression**: Middleware para compressão GZip.
 
 ### 4. Funcionalidades Avançadas (✅ Concluído)
+
 - [x] **Controllers**: Suporte a Controllers baseados em classes com Atributos (`[HttpGet]`, `[Route]`).
 - [x] **Authentication**: Sistema base (`IIdentity`, `IPrincipal`) e JWT Bearer.
 - [x] **Caching**: Abstração `IDistributedCache` com implementações Memory e Response Cache.
@@ -235,8 +253,8 @@ Plano estratégico focado em Dext SO4 (Fórum/Social) e melhorias de Core (Nulla
 - [x] **Options Pattern**: Configuração fortemente tipada via `IOptions<T>`.
 - [ ] **Real-Time (WebSockets/SSE)**: Suporte a comunicação bidirecional (Dext Forum).
 
-
 ### 5. Entity ORM (✅ Alpha 0.6 - Funcional)
+
 - [x] **Basic CRUD**: Operações Create, Read, Update, Delete.
 - [x] **Composite Keys**: Suporte a chaves primárias compostas.
 - [x] **Fluent API**: Consultas fluentes (`Query()`, `Where()`, `Skip()`, `Take()`).
@@ -295,14 +313,17 @@ Plano estratégico focado em Dext SO4 (Fórum/Social) e melhorias de Core (Nulla
   - ✅ **Dynamic Specification Mapping**: Filtragem avançada via QueryString (`_gt`, `_lt`, etc).
 
 ### 6. Ecossistema & Tooling (📅 Planejado para v1.1)
+
 - [ ] **Templates**: Templates de projeto para Delphi (IDE Wizards).
 - [ ] **Web Stencils**: Integração com engine de renderização server-side.
 - [ ] **Docker**: Imagens oficiais e exemplos de deploy.
 - [ ] **Distributed Cache**: Implementação Redis para `IDistributedCache`.
 - [ ] **Distributed Rate Limiting**: Suporte a Redis para Rate Limiting distribuído.
 - [ ] **Feature Toggle**: Sistema de gerenciamento de features (flags) para habilitar/desabilitar funcionalidades dinamicamente.
+- [ ] **Modern CLI Args Parser**: Implementar um parser de argumentos de linha de comando moderno e fortemente tipado, substituindo o uso do `FindCmdLineSwitch` por uma abordagem baseada em classes/atributos (estilo .NET).
 
 ### 8. Networking (Dext.Net) (✅ Beta 0.96)
+
 - [x] **High Performance Client**: Wrapper otimizado sobre `THttpClient` com Connection Pooling nativo.
 - [x] **Fluent Request Builder**: API fluente para construção de requisições (`Get`, `Post`, `Header`, `Body`).
 - [x] **Authentication**: Providers nativos (Bearer, Basic, ApiKey).
@@ -311,6 +332,7 @@ Plano estratégico focado em Dext SO4 (Fórum/Social) e melhorias de Core (Nulla
 - [ ] **WebSockets**: Suporte a cliente WebSocket full-duplex.
 
 ### 7. Documentação & Qualidade (🚧 Em Andamento)
+
 - [x] **Integration Tests**: Testes de integração completos (MinimalAPITest, ControllerExample).
 - [x] **Configuration Docs**: Documentação do sistema de configuração.
 - [x] **Rate Limiting Docs**: Documentação completa do sistema de Rate Limiting.
@@ -324,7 +346,6 @@ Plano estratégico focado em Dext SO4 (Fórum/Social) e melhorias de Core (Nulla
 - [ ] **Documentation**: Site de documentação oficial (VitePress/Docusaurus).
 - [ ] **Samples**: Repositório de exemplos "Real World".
   - [ ] **Dext Forum**: Showcase completo de comunidade (Real-time, Auth, Complex Queries).
-
 
 ---
 
@@ -342,11 +363,12 @@ Plano estratégico focado em Dext SO4 (Fórum/Social) e melhorias de Core (Nulla
 ## 🤝 Como Contribuir
 
 O projeto é Open Source e aceita contribuições!
-1.  Faça um Fork do repositório.
-2.  Crie uma branch para sua feature (`git checkout -b feature/AmazingFeature`).
-3.  Commit suas mudanças (`git commit -m 'Add some AmazingFeature'`).
-4.  Push para a branch (`git push origin feature/AmazingFeature`).
-5.  Abra um Pull Request.
+
+1. Faça um Fork do repositório.
+2. Crie uma branch para sua feature (`git checkout -b feature/AmazingFeature`).
+3. Commit suas mudanças (`git commit -m 'Add some AmazingFeature'`).
+4. Push para a branch (`git push origin feature/AmazingFeature`).
+5. Abra um Pull Request.
 
 ---
 

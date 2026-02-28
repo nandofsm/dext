@@ -111,9 +111,9 @@ type
     /// </summary>
     procedure ForEachRaw(Callback: TFunc<Pointer, Pointer, Boolean>);
 
-    function IsSlotOccupied(Index: Integer): Boolean;
-    function GetKeyPtrAtIndex(Index: Integer): Pointer;
-    function GetValuePtrAtIndex(Index: Integer): Pointer;
+    function IsSlotOccupied(Index: Integer): Boolean; inline;
+    function GetKeyPtrAtIndex(Index: Integer): Pointer; inline;
+    function GetValuePtrAtIndex(Index: Integer): Pointer; inline;
 
     property Count: Integer read FCount;
     property Capacity: Integer read FCapacity;
@@ -132,6 +132,11 @@ function StringRawHash(Key: Pointer; KeySize: Integer): Cardinal;
 
 /// <summary>Equality function for string keys</summary>
 function StringRawEqual(A, B: Pointer; KeySize: Integer): Boolean;
+
+function FastHash4(Key: Pointer; KeySize: Integer): Cardinal;
+function FastHash8(Key: Pointer; KeySize: Integer): Cardinal;
+function FastEqual4(A, B: Pointer; KeySize: Integer): Boolean;
+function FastEqual8(A, B: Pointer; KeySize: Integer): Boolean;
 
 implementation
 
@@ -188,6 +193,29 @@ begin
   Result := PString(A)^ = PString(B)^;
 end;
 
+function FastHash4(Key: Pointer; KeySize: Integer): Cardinal;
+begin
+  Result := PCardinal(Key)^;
+  // Simple rejuvenation for power-of-2 distributions
+  Result := Result xor (Result shr 16);
+end;
+
+function FastHash8(Key: Pointer; KeySize: Integer): Cardinal;
+begin
+  var V := PUInt64(Key)^;
+  Result := Cardinal(V) xor Cardinal(V shr 32);
+end;
+
+function FastEqual4(A, B: Pointer; KeySize: Integer): Boolean;
+begin
+  Result := PCardinal(A)^ = PCardinal(B)^;
+end;
+
+function FastEqual8(A, B: Pointer; KeySize: Integer): Boolean;
+begin
+  Result := PUInt64(A)^ = PUInt64(B)^;
+end;
+
 {$IFDEF DEBUG}
   {$OVERFLOWCHECKS ON}
   {$RANGECHECKS ON}
@@ -210,8 +238,21 @@ begin
   FValueTypeInfo := AValueTypeInfo;
   FKeyIsManaged := IsManagedType(AKeyTypeInfo);
   FValueIsManaged := IsManagedType(AValueTypeInfo);
-  FHashFunc := AHashFunc;
-  FEqualFunc := AEqualFunc;
+  if PTypeInfo(AKeyTypeInfo).Kind in [tkUString, tkLString, tkWString] then
+  begin
+    FHashFunc := @StringRawHash;
+    FEqualFunc := @StringRawEqual;
+  end
+  else
+  begin
+    case AKeySize of
+      4: begin FHashFunc := @FastHash4; FEqualFunc := @FastEqual4; end;
+      8: begin FHashFunc := @FastHash8; FEqualFunc := @FastEqual8; end;
+    else
+      begin FHashFunc := @DefaultRawHash; FEqualFunc := @DefaultRawEqual; end;
+    end;
+  end;
+
   FCount := 0;
 
   // Round up to power of 2
@@ -269,8 +310,8 @@ var
   Mask: Integer;
   Idx: Integer;
   FirstTombstone: Integer;
+  MetaPtr: PByte;
   Meta: Byte;
-  SlotPtr: Pointer;
 begin
   Hash := FHashFunc(Key, FKeySize);
   Mask := FCapacity - 1;
@@ -280,15 +321,13 @@ begin
 
   while True do
   begin
-    Meta := PByte(NativeUInt(FMetadata) + NativeUInt(Idx))^;
+    MetaPtr := FMetadata + Idx;
+    Meta := MetaPtr^;
 
     if Meta = SLOT_EMPTY then
     begin
-      // Not found — return first tombstone or this empty slot for insertion
-      if FirstTombstone >= 0 then
-        SlotIndex := FirstTombstone
-      else
-        SlotIndex := Idx;
+      if FirstTombstone >= 0 then SlotIndex := FirstTombstone
+      else SlotIndex := Idx;
       Exit;
     end
     else if Meta = SLOT_TOMBSTONE then
@@ -298,10 +337,9 @@ begin
     end
     else // SLOT_OCCUPIED
     begin
-      SlotPtr := GetSlotPtr(Idx);
-      if FEqualFunc(GetKeyPtr(SlotPtr), Key, FKeySize) then
+      // Direct pointer access to avoid GetSlotPtr call overhead
+      if FEqualFunc(Pointer(NativeUInt(FSlots) + NativeUInt(Idx * FSlotSize)), Key, FKeySize) then
       begin
-        // Found
         SlotIndex := Idx;
         Result := True;
         Exit;

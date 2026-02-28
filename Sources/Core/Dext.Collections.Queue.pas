@@ -20,8 +20,33 @@ uses
   Dext.Collections;
 
 type
+  /// <summary>High-performance record-based enumerator for TQueue<T></summary>
+  TQueueRecordEnumerator<T> = record
+  private
+    FData: PByte;
+    FHead: Integer;
+    FCapacity: Integer;
+    FCount: Integer;
+    FIndex: Integer;
+    FElementSize: Integer;
+    FTypeInfo: PTypeInfo;
+  public
+    constructor Create(AData: PByte; AHead, ACapacity, ACount, AElementSize: Integer; ATypeInfo: PTypeInfo);
+    function MoveNext: Boolean; inline;
+    function GetCurrent: T; inline;
+    property Current: T read GetCurrent;
+  end;
+
+  /// <summary>Base class avoiding Delphi explicit interface method mapping bug</summary>
+  TQueueBase<T> = class(TInterfacedObject, IEnumerable<T>)
+  public
+    function GetInterfaceEnumerator: IEnumerator<T>; virtual; abstract;
+    function GetEnumerator: IEnumerator<T>;
+  end;
+
+
   /// <summary>Queue implementation using a circular buffer for O(1) ops</summary>
-  TQueue<T> = class(TInterfacedObject, IQueue<T>, IEnumerable<T>)
+  TQueue<T> = class(TQueueBase<T>, IQueue<T>)
   private
     FData: PByte;
     FCount: Integer;
@@ -34,32 +59,39 @@ type
 
     procedure SetCapacity(ACapacity: Integer);
     procedure Grow;
-    function GetCount: Integer;
+    function GetCount: Integer; inline;
   public
+    function GetInterfaceEnumerator: IEnumerator<T>; override;
+
     constructor Create;
     destructor Destroy; override;
 
-    procedure Enqueue(const Value: T);
-    function Dequeue: T;
-    function Peek: T;
-    function TryDequeue(out Value: T): Boolean;
-    function TryPeek(out Value: T): Boolean;
-    procedure Clear;
+    procedure Enqueue(const Value: T); inline;
+    function Dequeue: T; inline;
+    function Peek: T; inline;
+    function TryDequeue(out Value: T): Boolean; inline;
+    function TryPeek(out Value: T): Boolean; inline;
+    procedure Clear; inline;
     function Contains(const Value: T): Boolean;
     function ToArray: TArray<T>;
 
-    function GetEnumerator: IEnumerator<T>;
+    function GetEnumerator: TQueueRecordEnumerator<T>; reintroduce; inline;
+    
     property Count: Integer read GetCount;
   end;
 
-  /// <summary>FIFO enumerator for circular buffer</summary>
+  /// <summary>FIFO enumerator for circular buffer (Class-based for interface compatibility)</summary>
   TQueueEnumerator<T> = class(TInterfacedObject, IEnumerator<T>)
   private
-    FQueue: TQueue<T>;
-    FIndex: Integer; // 0..Count-1
-    FCurrent: T;
+    FData: PByte;
+    FHead: Integer;
+    FCapacity: Integer;
+    FCount: Integer;
+    FIndex: Integer;
+    FElementSize: Integer;
+    FTypeInfo: PTypeInfo;
   public
-    constructor Create(AQueue: TQueue<T>);
+    constructor Create(AData: PByte; AHead, ACapacity, ACount, AElementSize: Integer; ATypeInfo: PTypeInfo);
     function GetCurrent: T;
     function MoveNext: Boolean;
     procedure Reset;
@@ -70,6 +102,13 @@ implementation
 
 const
   INITIAL_CAPACITY = 4;
+
+{ TQueueBase<T> }
+
+function TQueueBase<T>.GetEnumerator: IEnumerator<T>;
+begin
+  Result := GetInterfaceEnumerator;
+end;
 
 { TQueue<T> }
 
@@ -131,7 +170,7 @@ end;
 function TQueue<T>.Dequeue: T;
 begin
   if not TryDequeue(Result) then
-    raise EListError.Create('Queue is empty');
+    raise Exception.Create('Queue is empty');
 end;
 
 procedure TQueue<T>.Enqueue(const Value: T);
@@ -149,9 +188,14 @@ begin
   Result := FCount;
 end;
 
-function TQueue<T>.GetEnumerator: IEnumerator<T>;
+function TQueue<T>.GetEnumerator: TQueueRecordEnumerator<T>;
 begin
-  Result := TQueueEnumerator<T>.Create(Self);
+  Result := TQueueRecordEnumerator<T>.Create(FData, FHead, FCapacity, FCount, FElementSize, FTypeInfo);
+end;
+
+function TQueue<T>.GetInterfaceEnumerator: IEnumerator<T>;
+begin
+  Result := TQueueEnumerator<T>.Create(FData, FHead, FCapacity, FCount, FElementSize, FTypeInfo);
 end;
 
 procedure TQueue<T>.Grow;
@@ -168,7 +212,7 @@ end;
 function TQueue<T>.Peek: T;
 begin
   if not TryPeek(Result) then
-    raise EListError.Create('Queue is empty');
+    raise Exception.Create('Queue is empty');
 end;
 
 procedure TQueue<T>.SetCapacity(ACapacity: Integer);
@@ -187,11 +231,9 @@ begin
   
   if FCount > 0 then
   begin
-    // Copy elements in order to the beginning of the new buffer
     for I := 0 to FCount - 1 do
     begin
       Idx := (FHead + I) mod FCapacity;
-      // We move raw bytes because we are reallocating the whole buffer
       System.Move((FData + (Idx * FElementSize))^, (NewData + (I * FElementSize))^, FElementSize);
     end;
   end;
@@ -228,7 +270,6 @@ begin
   end;
   
   RawCopyElement(@Value, FData + (FHead * FElementSize), FElementSize, FTypeInfo);
-  // We need to zero the memory in the buffer so it doesn't hold a reference.
   FillChar((FData + (FHead * FElementSize))^, FElementSize, 0);
   
   FHead := (FHead + 1) mod FCapacity;
@@ -247,32 +288,59 @@ begin
   Result := True;
 end;
 
+{ TQueueRecordEnumerator<T> }
+
+constructor TQueueRecordEnumerator<T>.Create(AData: PByte; AHead, ACapacity, ACount, AElementSize: Integer; ATypeInfo: PTypeInfo);
+begin
+  FData := AData;
+  FHead := AHead;
+  FCapacity := ACapacity;
+  FCount := ACount;
+  FElementSize := AElementSize;
+  FTypeInfo := ATypeInfo;
+  FIndex := -1;
+end;
+
+function TQueueRecordEnumerator<T>.GetCurrent: T;
+var
+  RealIdx: Integer;
+begin
+  RealIdx := (FHead + FIndex) mod FCapacity;
+  RawCopyElement(@Result, FData + (RealIdx * FElementSize), FElementSize, FTypeInfo);
+end;
+
+function TQueueRecordEnumerator<T>.MoveNext: Boolean;
+begin
+  Inc(FIndex);
+  Result := FIndex < FCount;
+end;
+
 { TQueueEnumerator<T> }
 
-constructor TQueueEnumerator<T>.Create(AQueue: TQueue<T>);
+constructor TQueueEnumerator<T>.Create(AData: PByte; AHead, ACapacity, ACount, AElementSize: Integer; ATypeInfo: PTypeInfo);
 begin
   inherited Create;
-  FQueue := AQueue;
+  FData := AData;
+  FHead := AHead;
+  FCapacity := ACapacity;
+  FCount := ACount;
+  FElementSize := AElementSize;
+  FTypeInfo := ATypeInfo;
   FIndex := -1;
 end;
 
 function TQueueEnumerator<T>.GetCurrent: T;
-begin
-  Result := FCurrent;
-end;
-
-function TQueueEnumerator<T>.MoveNext: Boolean;
 var
   RealIdx: Integer;
 begin
+  RealIdx := (FHead + FIndex) mod FCapacity;
+  RawCopyElement(@Result, FData + (RealIdx * FElementSize), FElementSize, FTypeInfo);
+end;
+
+function TQueueEnumerator<T>.MoveNext: Boolean;
+begin
   Inc(FIndex);
-  if FIndex < FQueue.FCount then
-  begin
-    RealIdx := (FQueue.FHead + FIndex) mod FQueue.FCapacity;
-    RawCopyElement(@FCurrent, FQueue.FData + (RealIdx * FQueue.FElementSize), FQueue.FElementSize, FQueue.FTypeInfo);
-    Exit(True);
-  end;
-  Result := False;
+  Result := FIndex < FCount;
 end;
 
 procedure TQueueEnumerator<T>.Reset;

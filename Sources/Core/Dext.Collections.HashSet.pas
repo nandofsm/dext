@@ -21,30 +21,53 @@ uses
   Dext.Collections;
 
 type
-  /// <summary>HashSet implementation backed by TRawDictionary</summary>
-  THashSet<T> = class(TInterfacedObject, IHashSet<T>, IEnumerable<T>)
+  /// <summary>High-performance record-based enumerator for THashSet<T></summary>
+  THashSetRecordEnumerator<T> = record
   private
     FCore: TRawDictionary;
-    function GetCount: Integer;
+    FIndex: Integer;
+    FCapacity: Integer;
   public
-    constructor Create(ACapacity: Integer = 0);
-    destructor Destroy; override;
+    constructor Create(ACore: TRawDictionary);
+    function MoveNext: Boolean; inline;
+    function GetCurrent: T; inline;
+    property Current: T read GetCurrent;
+  end;
 
-    function Add(const Value: T): Boolean;
-    function Remove(const Value: T): Boolean;
-    procedure Clear;
-    function Contains(const Value: T): Boolean;
-    function ToArray: TArray<T>;
-
+  /// <summary>Base class avoiding Delphi explicit interface method mapping bug</summary>
+  THashSetBase<T> = class(TInterfacedObject, IEnumerable<T>)
+  public
+    function GetInterfaceEnumerator: IEnumerator<T>; virtual; abstract;
     function GetEnumerator: IEnumerator<T>;
   end;
 
-  /// <summary>HashSet enumerator</summary>
+
+  /// <summary>HashSet implementation backed by TRawDictionary</summary>
+  THashSet<T> = class(THashSetBase<T>, IHashSet<T>)
+  private
+    FCore: TRawDictionary;
+    function GetCount: Integer; inline;
+  public
+    function GetInterfaceEnumerator: IEnumerator<T>; override;
+
+    constructor Create(ACapacity: Integer = 0);
+    destructor Destroy; override;
+
+    function Add(const Value: T): Boolean; inline;
+    function Remove(const Value: T): Boolean; inline;
+    procedure Clear; inline;
+    function Contains(const Value: T): Boolean; inline;
+    function ToArray: TArray<T>;
+
+    function GetEnumerator: THashSetRecordEnumerator<T>; reintroduce; inline;
+  end;
+
+  /// <summary>HashSet enumerator (Class-based for interface compatibility)</summary>
   THashSetEnumerator<T> = class(TInterfacedObject, IEnumerator<T>)
   private
     FCore: TRawDictionary;
     FIndex: Integer;
-    FTotalBuckets: Integer;
+    FCapacity: Integer;
   public
     constructor Create(ACore: TRawDictionary);
     function GetCurrent: T;
@@ -54,6 +77,13 @@ type
   end;
 
 implementation
+
+{ THashSetBase<T> }
+
+function THashSetBase<T>.GetEnumerator: IEnumerator<T>;
+begin
+  Result := GetInterfaceEnumerator;
+end;
 
 { THashSet<T> }
 
@@ -77,7 +107,6 @@ begin
     EqualFunc := DefaultRawEqual;
   end;
 
-  // Key is T, Value is just a dummy Byte (1 byte)
   FCore := TRawDictionary.Create(SizeOf(T), 1, TInfo, nil, HashFunc, EqualFunc, ACapacity);
 end;
 
@@ -114,7 +143,12 @@ begin
   Result := FCore.Count;
 end;
 
-function THashSet<T>.GetEnumerator: IEnumerator<T>;
+function THashSet<T>.GetEnumerator: THashSetRecordEnumerator<T>;
+begin
+  Result := THashSetRecordEnumerator<T>.Create(FCore);
+end;
+
+function THashSet<T>.GetInterfaceEnumerator: IEnumerator<T>;
 begin
   Result := THashSetEnumerator<T>.Create(FCore);
 end;
@@ -141,13 +175,36 @@ begin
   Result := Arr;
 end;
 
+{ THashSetRecordEnumerator<T> }
+
+constructor THashSetRecordEnumerator<T>.Create(ACore: TRawDictionary);
+begin
+  FCore := ACore;
+  FCapacity := FCore.Capacity;
+  FIndex := -1;
+end;
+
+function THashSetRecordEnumerator<T>.GetCurrent: T;
+begin
+  RawCopyElement(@Result, FCore.GetKeyPtrAtIndex(FIndex), SizeOf(T), TypeInfo(T));
+end;
+
+function THashSetRecordEnumerator<T>.MoveNext: Boolean;
+begin
+  repeat
+    Inc(FIndex);
+  until (FIndex >= FCapacity) or FCore.IsSlotOccupied(FIndex);
+  
+  Result := FIndex < FCapacity;
+end;
+
 { THashSetEnumerator<T> }
 
 constructor THashSetEnumerator<T>.Create(ACore: TRawDictionary);
 begin
   inherited Create;
   FCore := ACore;
-  FTotalBuckets := FCore.Capacity;
+  FCapacity := FCore.Capacity;
   FIndex := -1;
 end;
 
@@ -160,9 +217,9 @@ function THashSetEnumerator<T>.MoveNext: Boolean;
 begin
   repeat
     Inc(FIndex);
-  until (FIndex >= FTotalBuckets) or FCore.IsSlotOccupied(FIndex);
+  until (FIndex >= FCapacity) or FCore.IsSlotOccupied(FIndex);
   
-  Result := FIndex < FTotalBuckets;
+  Result := FIndex < FCapacity;
 end;
 
 procedure THashSetEnumerator<T>.Reset;

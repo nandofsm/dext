@@ -34,6 +34,7 @@ uses
   System.SysUtils,
   System.TypInfo,
   Dext.Collections.Base,
+  Dext.Collections.Memory,
   Dext.Collections.RawDict;
 
 type
@@ -45,7 +46,7 @@ type
   end;
 
   /// <summary>Generic dictionary interface</summary>
-  IDictionary<K, V> = interface(IEnumerable<TPair<K, V>>)
+  IDictionary<K, V> = interface(Dext.Collections.Base.IEnumerable<TPair<K, V>>)
     ['{A7E3F294-60B1-4C01-B8D5-4E5F3A2C1D70}']
     function GetCount: Integer;
     function GetItem(const Key: K): V;
@@ -62,14 +63,46 @@ type
     function Keys: TArray<K>;
     function Values: TArray<V>;
     function ToArray: TArray<TPair<K, V>>;
-    function GetEnumerator: IEnumerator<TPair<K, V>>;
 
     property Count: Integer read GetCount;
     property Items[const Key: K]: V read GetItem write SetItem; default;
   end;
 
+  /// <summary>Enumerator for TDictionary (Record-based for performance)</summary>
+  TDictionaryEnumerator<K, V> = record
+  private
+    FCore: TRawDictionary;
+    FIndex: Integer;
+    FCapacity: Integer;
+  public
+    constructor Create(ACore: TRawDictionary);
+    function MoveNext: Boolean; inline;
+    function GetCurrent: TPair<K, V>; inline;
+    property Current: TPair<K, V> read GetCurrent;
+  end;
+
+  /// <summary>Enumerator for TDictionary (Class-based for interface compatibility)</summary>
+  TDictEnumerator<K, V> = class(TInterfacedObject, IEnumerator<TPair<K, V>>)
+  private
+    FCore: TRawDictionary;
+    FIndex: Integer;
+  public
+    constructor Create(ACore: TRawDictionary);
+    function GetCurrent: TPair<K, V>;
+    function MoveNext: Boolean;
+    property Current: TPair<K, V> read GetCurrent;
+  end;
+
+  /// <summary>Base class avoiding Delphi explicit interface method mapping bug</summary>
+  TDictionaryBase<K, V> = class(TInterfacedObject, IEnumerable<TPair<K, V>>)
+  public
+    function GetInterfaceEnumerator: IEnumerator<TPair<K, V>>; virtual; abstract;
+    function GetEnumerator: IEnumerator<TPair<K, V>>;
+  end;
+
+
   /// <summary>Generic dictionary implementation backed by TRawDictionary</summary>
-  TDictionary<K, V> = class(TInterfacedObject, IDictionary<K, V>)
+  TDictionary<K, V> = class(TDictionaryBase<K, V>, IDictionary<K, V>)
   private
     FCore: TRawDictionary;
     FOwnsValues: Boolean;
@@ -77,12 +110,14 @@ type
     function GetItem(const Key: K): V;
     procedure SetItem(const Key: K; const Value: V);
   public
+    function GetInterfaceEnumerator: IEnumerator<TPair<K, V>>; override;
+
     constructor Create; overload;
     constructor Create(ACapacity: Integer); overload;
     constructor Create(AOwnsValues: Boolean; ACapacity: Integer = 0); overload;
     destructor Destroy; override;
 
-    function GetEnumerator: IEnumerator<TPair<K, V>>;
+    function GetEnumerator: TDictionaryEnumerator<K, V>; reintroduce; inline;
 
     procedure Add(const Key: K; const Value: V);
     procedure AddOrSetValue(const Key: K; const Value: V);
@@ -101,18 +136,6 @@ type
     property OwnsValues: Boolean read FOwnsValues write FOwnsValues;
   end;
 
-  /// <summary>Enumerator for TDictionary</summary>
-  TDictEnumerator<K, V> = class(TInterfacedObject, IEnumerator<TPair<K, V>>)
-  private
-    FCore: TRawDictionary;
-    FIndex: Integer;
-  public
-    constructor Create(ACore: TRawDictionary);
-    function GetCurrent: TPair<K, V>;
-    function MoveNext: Boolean;
-    property Current: TPair<K, V> read GetCurrent;
-  end;
-
 implementation
 
 { TPair<K, V> }
@@ -121,6 +144,13 @@ constructor TPair<K, V>.Create(const AKey: K; const AValue: V);
 begin
   Key := AKey;
   Value := AValue;
+end;
+
+{ TDictionaryBase<K, V> }
+
+function TDictionaryBase<K, V>.GetEnumerator: IEnumerator<TPair<K, V>>;
+begin
+  Result := GetInterfaceEnumerator;
 end;
 
 { TDictionary<K, V> }
@@ -166,7 +196,6 @@ destructor TDictionary<K, V>.Destroy;
 begin
   if FOwnsValues and (PTypeInfo(System.TypeInfo(V)).Kind = tkClass) then
   begin
-    // Free owned objects before clearing
     FCore.ForEachRaw(
       function(KeyPtr, ValuePtr: Pointer): Boolean
       begin
@@ -179,7 +208,12 @@ begin
   inherited;
 end;
 
-function TDictionary<K, V>.GetEnumerator: IEnumerator<TPair<K, V>>;
+function TDictionary<K, V>.GetEnumerator: TDictionaryEnumerator<K, V>;
+begin
+  Result := TDictionaryEnumerator<K, V>.Create(FCore);
+end;
+
+function TDictionary<K, V>.GetInterfaceEnumerator: IEnumerator<TPair<K, V>>;
 begin
   Result := TDictEnumerator<K, V>.Create(FCore);
 end;
@@ -195,7 +229,8 @@ var
 begin
   if not FCore.TryGetRaw(@Key, VP) then
     raise Exception.Create('Key not found in dictionary');
-  Result := V(VP^);
+  
+  RawCopyElement(@Result, VP, SizeOf(V), System.TypeInfo(V));
 end;
 
 procedure TDictionary<K, V>.SetItem(const Key: K; const Value: V);
@@ -212,7 +247,6 @@ procedure TDictionary<K, V>.AddOrSetValue(const Key: K; const Value: V);
 var
   VP: Pointer;
 begin
-  // If OwnsValues, free the old object before overwriting
   if FOwnsValues and (PTypeInfo(System.TypeInfo(V)).Kind = tkClass) then
   begin
     if FCore.TryGetRaw(@Key, VP) then
@@ -230,7 +264,7 @@ var
 begin
   Result := FCore.TryGetRaw(@Key, VP);
   if Result then
-    Value := V(VP^)
+    RawCopyElement(@Value, VP, SizeOf(V), System.TypeInfo(V))
   else
     Value := Default(V);
 end;
@@ -260,7 +294,7 @@ var
 begin
   if FCore.TryGetRaw(@Key, VP) then
   begin
-    Result := V(VP^);
+    RawCopyElement(@Result, VP, SizeOf(V), System.TypeInfo(V));
     FCore.RemoveRaw(@Key);
   end
   else
@@ -292,7 +326,7 @@ begin
   FCore.ForEachRaw(
     function(KeyPtr, ValuePtr: Pointer): Boolean
     begin
-      Arr[Idx] := K(KeyPtr^);
+      RawCopyElement(@Arr[Idx], KeyPtr, SizeOf(K), System.TypeInfo(K));
       Inc(Idx);
       Result := True;
     end);
@@ -309,7 +343,7 @@ begin
   FCore.ForEachRaw(
     function(KeyPtr, ValuePtr: Pointer): Boolean
     begin
-      Arr[Idx] := V(ValuePtr^);
+      RawCopyElement(@Arr[Idx], ValuePtr, SizeOf(V), System.TypeInfo(V));
       Inc(Idx);
       Result := True;
     end);
@@ -326,8 +360,8 @@ begin
   FCore.ForEachRaw(
     function(KeyPtr, ValuePtr: Pointer): Boolean
     begin
-      Arr[Idx].Key := K(KeyPtr^);
-      Arr[Idx].Value := V(ValuePtr^);
+      RawCopyElement(@Arr[Idx].Key, KeyPtr, SizeOf(K), System.TypeInfo(K));
+      RawCopyElement(@Arr[Idx].Value, ValuePtr, SizeOf(V), System.TypeInfo(V));
       Inc(Idx);
       Result := True;
     end);
@@ -345,20 +379,45 @@ end;
 
 function TDictEnumerator<K, V>.GetCurrent: TPair<K, V>;
 begin
-  Result.Key := K(FCore.GetKeyPtrAtIndex(FIndex)^);
-  Result.Value := V(FCore.GetValuePtrAtIndex(FIndex)^);
+  RawCopyElement(@Result.Key, FCore.GetKeyPtrAtIndex(FIndex), SizeOf(K), System.TypeInfo(K));
+  RawCopyElement(@Result.Value, FCore.GetValuePtrAtIndex(FIndex), SizeOf(V), System.TypeInfo(V));
 end;
 
 function TDictEnumerator<K, V>.MoveNext: Boolean;
 begin
-  Inc(FIndex);
-  while FIndex < FCore.Capacity do
+  Result := False;
+  while FIndex < FCore.Capacity - 1 do
   begin
+    Inc(FIndex);
     if FCore.IsSlotOccupied(FIndex) then
       Exit(True);
-    Inc(FIndex);
   end;
+end;
+
+{ TDictionaryEnumerator<K, V> }
+
+constructor TDictionaryEnumerator<K, V>.Create(ACore: TRawDictionary);
+begin
+  FCore := ACore;
+  FIndex := -1;
+  FCapacity := ACore.Capacity;
+end;
+
+function TDictionaryEnumerator<K, V>.GetCurrent: TPair<K, V>;
+begin
+  RawCopyElement(@Result.Key, FCore.GetKeyPtrAtIndex(FIndex), SizeOf(K), System.TypeInfo(K));
+  RawCopyElement(@Result.Value, FCore.GetValuePtrAtIndex(FIndex), SizeOf(V), System.TypeInfo(V));
+end;
+
+function TDictionaryEnumerator<K, V>.MoveNext: Boolean;
+begin
   Result := False;
+  while FIndex < FCapacity - 1 do
+  begin
+    Inc(FIndex);
+    if FCore.IsSlotOccupied(FIndex) then
+      Exit(True);
+  end;
 end;
 
 end.
