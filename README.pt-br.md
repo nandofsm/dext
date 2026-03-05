@@ -42,6 +42,7 @@ Um bom framework deve guiar o desenvolvedor para o "Caminho Feliz" (*Pit of Succ
 ### 🌐 Dext.Web (Web Framework)
 
 Um framework HTTP leve e poderoso para construir REST APIs e microserviços.
+
 * **Minimal APIs**: Sintaxe fluente e concisa para definição de rotas.
 * **Controllers**: Suporte tradicional baseado em classes para APIs complexas.
 * **Model Binding Avançado**: Binding automático de múltiplas fontes (Body, Query, Route, Header, Services) diretamente para Records/Classes.
@@ -55,11 +56,13 @@ Um framework HTTP leve e poderoso para construir REST APIs e microserviços.
 * **Database as API**: REST endpoints zero-code a partir de entities com `TDataApiHandler<T>.Map` ou via nova sintaxe fluente `App.Services.MapDataApi<T>`.
 * **Zero-Allocation JSON**: Geração de resposta extremamente rápida via `TUtf8JsonWriter` para streaming direto.
 * **Dynamic Specification Mapping**: Integração automática de filtros via QueryString (`_gt`, `_lt`, `_sort`, etc).
+* **WebBroker Server Adapter** ⭐ NOVO: Faça deploy via WebBroker (ISAPI/CGI) no IIS/Apache sem alterar o código da aplicação, operando lado a lado com o Indy.
 * **Comunicação em Tempo Real** ⭐ NOVO: Hubs compatíveis com SignalR para messaging em tempo real. Suporta grupos, targeting por usuário e broadcast com `Dext.Web.Hubs`. [Saiba mais](Docs/hubs.md)
 
 ### 🗄️ Dext.Entity (ORM)
 
 Um ORM moderno focado em produtividade e performance.
+
 * **Code-First**: Defina seu banco de dados usando classes Delphi.
 * **Scaffolding**: Suporte a Database-First para gerar entidades a partir de esquemas existentes.
 * **Migrations**: Controle de versão do esquema (`migrate:up`, `migrate:down`, `migrate:generate`).
@@ -94,6 +97,7 @@ Um ORM moderno focado em produtividade e performance.
 ### 🌐 Dext.Net (Networking) ⭐ NOVO
 
 Um cliente HTTP fluente de alto desempenho para conectividade moderna.
+
 * **API Fluente**: Padrão Builder para construção intuitiva de requisições (`Client.Get('/api').Header(...).Start`).
 * **Connection Pooling**: Pool nativo thread-safe reutiliza instâncias de `THttpClient` para throughput máximo.
 * **Resiliência**: Suporte integrado para Retries, Timeouts e Circuit Breaker patterns.
@@ -104,6 +108,7 @@ Um cliente HTTP fluente de alto desempenho para conectividade moderna.
 ### ⚙️ Dext.Core (Infraestrutura)
 
 A fundação do framework, utilizável em qualquer tipo de aplicação.
+
 * **Dependency Injection**: Container IOC completo e rápido.
 * **Configuration**: Sistema de configuração flexível (JSON, Variáveis de Ambiente).
 * **Logging**: Abstração de log estruturado.
@@ -120,6 +125,7 @@ A fundação do framework, utilizável em qualquer tipo de aplicação.
 ### 🧪 Dext.Testing
 
 O framework de testes definitivo e moderno para Delphi, inspirado em NUnit, FluentAssertions e Moq.
+
 * **Attribute-Based Runner** ⭐ NOVO: Escreva testes com `[TestFixture]`, `[Test]`, `[Setup]`, `[TearDown]` - sem herança de classe base.
 * **Asserções Fluentes Unificadas**: Uma sintaxe rica `Should(Value)` para tudo—de Primitivos (Int64, GUID, Variant) a Objetos, Listas e Actions. Inclui **Soft Asserts** (`Assert.Multiple`) para agregação de falhas, Encadeamento (`.AndAlso`), verificações localizadas (`.BeOneOf`, `.Satisfy`) e inspeção via RTTI (`.HaveProperty`).
 * **Mocking Poderoso**: Crie mocks strict ou loose para Interfaces e Classes com `Mock<T>`. Suporta Mocks Parciais (`CallsBase`), setup de Sequência e Argument Matchers (`Arg.Is<T>`).
@@ -133,6 +139,7 @@ O framework de testes definitivo e moderno para Delphi, inspirado em NUnit, Flue
 ### 🖥️ Dext.UI (Desktop Framework) ⭐ NOVO
 
 Um framework de UI moderno para construir aplicações desktop VCL profissionais.
+
 * **Navigator Framework**: Navegação inspirada no Flutter com suporte a middleware pipeline.
   * Padrões Push/Pop/Replace de navegação
   * Suporte a Middleware (Logging, Auth guards, Role checks)
@@ -152,13 +159,14 @@ Um framework de UI moderno para construir aplicações desktop VCL profissionais
 
 ### 🚀 Começando
 
-- **📖 [O Livro do Dext](Docs/Book.pt-br/README.md)** ⭐ NOVO - Guia completo da instalação aos tópicos avançados | [🇺🇸 English](Docs/Book/README.md)
+* **📖 [O Livro do Dext](Docs/Book.pt-br/README.md)** ⭐ NOVO - Guia completo da instalação aos tópicos avançados | [🇺🇸 English](Docs/Book/README.md)
 
 ### 🌐 Web API
 
-- **Roteamento & Endpoints**
+* **Roteamento & Endpoints**
   * [Minimal API](Docs/minimal-api.md)
   * [Validação](Docs/model-binding.md) # (Inclui validação)
+
 * **Segurança & Middleware**
   * [Autenticação JWT](Docs/jwt-authentication.md)
   * [Configuração HTTPS/SSL](Examples/Web.SslDemo/README.pt-br.md)
@@ -173,7 +181,8 @@ Um framework de UI moderno para construir aplicações desktop VCL profissionais
 
 ### 🗄️ Acesso a Dados (ORM)
 
-- [Configuração de Banco de Dados](Docs/database-config.md)
+* [Configuração de Banco de Dados](Docs/database-config.md)
+
 * [Fluent Query API](Docs/fluent-query-api.md)
 * [Migrations](Docs/migrations.md)
 * [Lazy Loading](Docs/lazy-loading-advanced.md)
@@ -182,7 +191,8 @@ Um framework de UI moderno para construir aplicações desktop VCL profissionais
 
 ### ⚙️ Core & Infraestrutura
 
-- [Dependency Injection & Scopes](Docs/scoped-services.md)
+* [Dependency Injection & Scopes](Docs/scoped-services.md)
+
 * [Configuration & Options Pattern](Docs/options-pattern.md)
 * [Ciclo de Vida & Integridade](Docs/application-lifecycle.md)
 * [Async Programming](Docs/async-api.md)
@@ -195,11 +205,12 @@ Um framework de UI moderno para construir aplicações desktop VCL profissionais
 
 ### 🧪 Testes
 
-- [Começando](Docs/testing.pt-br.md)
+* [Começando](Docs/testing.pt-br.md)
 
 ### 📰 Artigos e Tutoriais
 
-- [A História por trás do Dext Framework: Por que criamos?](https://www.cesarromero.com.br/blog/dext-story/)
+* [A História por trás do Dext Framework: Por que criamos?](https://www.cesarromero.com.br/blog/dext-story/)
+
 * [Domain Model e CQRS: Modernizando sua Arquitetura Delphi](https://www.cesarromero.com.br/blog/enterprise-patterns-delphi/)
 * [Como implementar CQRS e APIs de Alta Performance sem escrever Controllers](https://www.cesarromero.com.br/blog/database-as-api-cqrs/)
 
@@ -408,6 +419,7 @@ O repositório contém projetos de exemplo práticos:
 ## 🗺️ Roadmaps
 
 Acompanhe o desenvolvimento do projeto:
+
 * [Plano de Lançamento V1.0](Docs/Roadmap/v1-release-plan.md) 🚀
 * [ORM Roadmap](Docs/Roadmap/orm-roadmap.md)
 * [Web Framework Roadmap](Docs/Roadmap/web-roadmap.md)

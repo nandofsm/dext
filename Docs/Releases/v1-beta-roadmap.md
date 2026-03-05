@@ -5,7 +5,9 @@ This document consolidates the work plan for the **Beta V1.0** phase. The goal i
 > ⚠️ **Document Under Construction**: This roadmap is being actively updated. We are performing a complete audit of the source code and discovering already implemented functionalities that were not documented. New features may be added or moved between categories at any time.
 
 ### 🗺️ Detailed Roadmaps (Spec & Tracking)
+
 For technical details and granular status of each module, check:
+
 - [**Web Framework Roadmap**](../Roadmap/web-roadmap.md) (HTTP Abstractions, MVC, SignalR)
 - [**ORM Roadmap**](../Roadmap/orm-roadmap.md) (Dialects, Type System, Performance)
 - [**Infra & CLI Roadmap**](../Roadmap/infra-roadmap.md) (Hosting, DI, Logging)
@@ -15,6 +17,7 @@ For technical details and granular status of each module, check:
 ## 📋 1. Feature Inventory (Feature Set)
 
 ### 🌐 Dext.Web
+
 | Feature | Status | Notes |
 |---------|--------|-------|
 | **Minimal APIs** (`MapGet`, `MapPost`) | ✅ Ready | Tested in `Web.Dext.Starter.Admin` |
@@ -42,8 +45,10 @@ For technical details and granular status of each module, check:
 | **Database as API** | ✅ Ready | Zero-code REST endpoints from entities (`TDataApiHandler<T>.Map`) with filtering, pagination, security policies |
 | **RegisterForDisposal** | ✅ Ready | Host-lifetime object management via `IApplicationBuilder.RegisterForDisposal` |
 | **Real-Time Hubs** ⭐ NEW | ✅ Ready | SignalR-compatible real-time communication (`Dext.Web.Hubs`) - Groups, Clients, Broadcast |
+| **WebBroker Server Adapter** ⭐ NEW | ✅ Ready | Support deployment as ISAPI/CGI via WebBroker (IIS/Apache) |
 
 ### 🛠️ Dext.Web Middlewares (Built-in)
+
 | Middleware | Class | Function |
 |------------|-------|----------|
 | **Exception Handler** | `TExceptionHandlerMiddleware` | Captures global exceptions and returns JSON/ProblemDetails or error page. |
@@ -56,6 +61,7 @@ For technical details and granular status of each module, check:
 | **Compression** | `TCompressionMiddleware` | Compresses responses (GZip) if supported by the client. |
 
 ### 🗄️ Dext.Entity (ORM)
+
 | Feature | Status | Notes |
 |---------|--------|-------|
 | **CRUD Operations** (Add, Update, Remove, Find) | ✅ Ready | Basic functional |
@@ -77,8 +83,8 @@ For technical details and granular status of each module, check:
 | **Dialect Auto-Detection** | ✅ Ready | Enum-based deterministic dialect identification (`ddPostgreSQL`, etc) |
 | **Field Mapping** | ✅ Ready | Field-based mapping (in addition to properties) to avoid triggering setters when loading from database |
 
-
 ### ⚙️ Infrastructure & CLI
+
 | Feature | Status | Notes |
 |---------|--------|-------|
 | **CLI Tool** (`dext.exe`) | ✅ Ready | Migrations, Tests & Code Coverage |
@@ -92,6 +98,7 @@ For technical details and granular status of each module, check:
 | **TypeInfo Cache** | ✅ Ready | Cache RTTI metadata for performance optimization |
 
 ### 🧪 Dext.Testing
+
 |Feature | Status | Notes |
 |---------|--------|-------|
 | **Mocking Engine** (`Mock<T>`) | ✅ Ready | Dynamic proxies via `TVirtualInterface` |
@@ -117,6 +124,7 @@ For technical details and granular status of each module, check:
 | **Code Coverage** | ✅ Ready | Automatic generation via `dext test --coverage` |
 
 ### 🔄 Hosting & Lifecycle
+
 | Feature | Status | Notes |
 |---------|--------|-------|
 | **Application State** (`IAppStateObserver`) | ✅ Ready | States: Starting, Seeding, Running, Stopping |
@@ -131,15 +139,18 @@ For technical details and granular status of each module, check:
 The focus now is to create **one example for each feature** and unify the documentation.
 
 ### Documentation
+
 - [x] **Create "The Dext Book"**: A comprehensive multi-file documentation covering all framework aspects. [English](../../Docs/Book/README.md) | [Português](../../Docs/Book.pt-br/README.md)
 - [/] **API Reference**: Custom solution in progress using [DelphiAST](https://github.com/RomanYankovsky/DelphiAST). Tool: [`Tools/DextASTParser`](../../Tools/DextASTParser/README.md) - generates AST XML from Delphi sources.
 
 ### New Examples Needed
+
 - [x] **Dext.Examples.Streaming**: Demonstrate large file download and upload (Stream Writing + Multipart). ✅ Ready (Pending Tests)
 - [x] **Dext.Examples.MultiTenancy**: Demonstrate complete SaaS implementation (Schema per Tenant). ✅ Ready (Pending Tests)
 - [x] **Dext.Examples.ComplexQuerying**: Demonstrate advanced ORM queries with JSON, Arrays, and reports. ✅ Ready (Pending Tests)
 
 ### Updating Existing Examples
+
 - [x] Update `Web.TaskFlowAPI` to use new Cookie and Compression features. ✅ Ready (Pending Tests)
 - [x] Review `Web.Dext.Starter.Admin` to ensure use of current best practices. ✅ Ready (Pending Tests)
 
@@ -153,12 +164,14 @@ The focus now is to create **one example for each feature** and unify the docume
 - [ ] **General Code Review**: Focused review on consistency, memory leaks, and unhandled exceptions.
 - [ ] **Formatting & Style**: Standardize alignment and formatting (Object Pascal Style Guide).
 - [ ] **Agent Guidelines**: Create technical documentation (`.agent/rules.md` or `CONTRIBUTING_AI.md`) detailing design patterns, architecture rules, and instructions for configuring/guiding AI agents in Dext development.
+- [ ] **Setup SSL Conditionally**: In `TWebApplication.Setup`, only load the SSLHandler section if `FServerFactory` is not assigned, as WebBroker (IIS/Apache) handles SSL offloading natively.
 
 ---
 
 ## 🧪 4. Testing Strategy
 
 ### Database Support Matrix
+
 Implement integration tests running the ORM test suite against Docker containers for each database.
 
 | Database | Dialect Implemented? | Automated Tests? | Status |
@@ -174,11 +187,12 @@ Implement integration tests running the ORM test suite against Docker containers
 > **Immediate Action**: Create `Docker-Compose` environment to spin up all databases and unified test script.
 
 ### Web Test Plan
+
 - [ ] Create HTTP integration tests (run real server and make real requests) to validate:
-    - Cookie persistence/reading.
-    - Binary file uploads.
-    - Compression (verify Content-Encoding header).
-    - Concurrency (Apache Bench / k6).
+  - Cookie persistence/reading.
+  - Binary file uploads.
+  - Compression (verify Content-Encoding header).
+  - Concurrency (Apache Bench / k6).
 
 ---
 
@@ -186,23 +200,24 @@ Implement integration tests running the ORM test suite against Docker containers
 
 Establish a performance baseline for V1.
 
-1.  **Web Framework (Requests/sec)**:
-    -   Hello World (Plain Text).
-    -   JSON Serialization (Small and large objects).
-    -   DB Read (1 simple query).
-    -   *Tool*: `wrk` or `k6`.
-    -   *Comparison*: vs DataSnap, vs Horse (if applicable), vs ASP.NET Core (as a target reference).
+1. **Web Framework (Requests/sec)**:
+    - Hello World (Plain Text).
+    - JSON Serialization (Small and large objects).
+    - DB Read (1 simple query).
+    - *Tool*: `wrk` or `k6`.
+    - *Comparison*: vs DataSnap, vs Horse (if applicable), vs ASP.NET Core (as a target reference).
 
-2.  **ORM (Op/sec)**:
-    -   Bulk Insert (10k records).
-    -   Select with Hydration (10k records).
-    -   *Comparison*: vs Pure FireDAC.
+2. **ORM (Op/sec)**:
+    - Bulk Insert (10k records).
+    - Select with Hydration (10k records).
+    - *Comparison*: vs Pure FireDAC.
 
 ---
 
 ## 🔮 6. Future Roadmap (Post-V1)
 
 Features moved to v1.1 or v2.0:
+
 - **MediatR Pattern**: Implementation of the Mediator pattern for CQRS (Command/Query Responsibility Segregation), facilitating separation of business logic and handlers. Support for `IRequest<TResponse>`, `IRequestHandler<TRequest, TResponse>`, and pipeline behaviors for validation, logging, and transactions.
 - **WebSockets**: Native support for bidirectional real-time communication (needed for Dext Forum).
 - **Server-Sent Events (SSE)**: Lightweight alternative to WebSockets for unidirectional pushes.
@@ -221,7 +236,7 @@ Features moved to v1.1 or v2.0:
 - **Immutable Data Structures**: `ImmutableList<T>`, `ImmutableDictionary<K,V>`, and `Nullable<T>` (ReadOnly) for thread-safe concurrency (Scalability).
 - **Kestrel NativeAOT**: High-performance driver via bridge with .NET (Experimental).
 - **View Engine**: Integration with **WebStencils** (new Delphi engine) or creation of Razor-like syntax.
-- **Server Adapters**: Support deployment in **WebBroker** (ISAPI/Apache/IIS) in addition to Indy.
+- ~~**Server Adapters**~~: ✅ IMPLEMENTED - Support deployment in **WebBroker** (ISAPI/Apache/IIS) in addition to Indy.
 - **Native Integration**: Explore optional integration with **LiveBindings** for RAD scenarios and adapters for **DataSnap**.
 - **JSON Columns (JSONB Support)**: Real ORM support implementation for `[JsonColumn]` attribute.
 - **NoSQL Support** (MongoDB in ORM).
@@ -231,4 +246,5 @@ Features moved to v1.1 or v2.0:
 - [ ] **SNI / Virtual Hosts**: Support for multiple domains and certificates on the same IP (Taurus TLS).
 
 ## 🖥️ IDE Support
+
 - **Debug Visualizers**: Create custom visualizers for Dext types (Prop<T>, Smart Types) to show easy-to-read values (e.g., 'Text' instead of internal record structure) during debugging.

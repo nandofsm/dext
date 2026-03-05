@@ -29,6 +29,7 @@
 - [Model Binding](02-web-framework/model-binding.md) - JSON/Form to objects
 - [Routing](02-web-framework/routing.md) - URL patterns & parameters
 - [Middleware](02-web-framework/middleware.md) - Request pipeline
+- [WebBroker Adapter](02-web-framework/webbroker.md) ⭐ **NEW** - Deploy as ISAPI/CGI on IIS/Apache
 
 #### [3. Generic Collections](01-getting-started/collections.md) ⭐ **NEW**
 

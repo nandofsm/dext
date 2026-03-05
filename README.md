@@ -42,6 +42,7 @@ A good framework should guide the developer into the "Pit of Success". Dext was 
 ### 🌐 Dext.Web (Web Framework)
 
 A lightweight and powerful HTTP framework for building REST APIs and microservices.
+
 * **Minimal APIs**: Concise fluent syntax for route definition.
 * **Controllers**: Traditional class-based support for complex APIs.
 * **Advanced Model Binding**: Automatic binding from multiple sources (Body, Query, Route, Header, Services) directly to Records/Classes.
@@ -55,11 +56,13 @@ A lightweight and powerful HTTP framework for building REST APIs and microservic
 * **Database as API**: Zero-code REST endpoints from entities with `TDataApiHandler<T>.Map` or the new fluent `App.Services.MapDataApi<T>`.
 * **Zero-Allocation JSON**: Extremely fast response generation using `TUtf8JsonWriter` for direct streaming.
 * **Dynamic Specification Mapping**: Automatic QueryString filtering integration (`_gt`, `_lt`, `_sort`, etc).
+* **WebBroker Server Adapter** ⭐ NEW: Deploy as ISAPI/CGI via WebBroker in IIS/Apache with zero code changes, running alongside Indy.
 * **Real-Time Communication** ⭐ NEW: SignalR-compatible Hubs for real-time messaging. Supports groups, user targeting, and broadcast with `Dext.Web.Hubs`. [Learn more](Docs/hubs.md)
 
 ### 🗄️ Dext.Entity (ORM)
 
 A modern ORM focused on productivity and performance.
+
 * **Code-First**: Define your database using Delphi classes.
 * **Scaffolding**: Database-First support to generate entities from existing schemas.
 * **Migrations**: Database schema version control (`migrate:up`, `migrate:down`, `migrate:generate`).
@@ -94,6 +97,7 @@ A modern ORM focused on productivity and performance.
 ### 🌐 Dext.Net (Networking) ⭐ NEW
 
 A high-performance, fluent HTTP client for modern connectivity.
+
 * **Fluent API**: Builder pattern for intuitive request construction (`Client.Get('/api').Header(...).Start`).
 * **Connection Pooling**: Native thread-safe pool reuses `THttpClient` instances for maximum throughput.
 * **Resilience**: Built-in support for Retries, Timeouts, and Circuit Breaker patterns.
@@ -104,6 +108,7 @@ A high-performance, fluent HTTP client for modern connectivity.
 ### ⚙️ Dext.Core (Infrastructure)
 
 The foundation of the framework, usable in any type of application.
+
 * **Dependency Injection**: Full and fast IOC container.
 * **Configuration**: Flexible configuration system (JSON, Environment Variables).
 * **Logging**: Structured logging abstraction.
@@ -120,6 +125,7 @@ The foundation of the framework, usable in any type of application.
 ### 🧪 Dext.Testing
 
 The definitive, modern testing framework for Delphi, inspired by NUnit, FluentAssertions, and Moq.
+
 * **Attribute-Based Runner** ⭐ NEW: Write tests with `[TestFixture]`, `[Test]`, `[Setup]`, `[TearDown]` - no base class inheritance required.
 * **Unified Fluent Assertions**: A rich `Should(Value)` syntax for everything—from Primitives (Int64, GUID, Variant) to Objects, Lists, and Actions. Includes **Soft Asserts** (`Assert.Multiple`) for collecting multiple failures, Chaining (`.AndAlso`), localized checks (`.BeOneOf`, `.Satisfy`), and RTTI inspection (`.HaveProperty`).
 * **Powerful Mocking**: Create strict or loose mocks for Interfaces and Classes with `Mock<T>`. Supports Partial Mocks (`CallsBase`), Sequence setup, and Argument Matchers (`Arg.Is<T>`).
@@ -133,6 +139,7 @@ The definitive, modern testing framework for Delphi, inspired by NUnit, FluentAs
 ### 🖥️ Dext.UI (Desktop Framework) ⭐ NEW
 
 A modern UI framework for building professional VCL desktop applications.
+
 * **Navigator Framework**: Flutter-inspired navigation with middleware pipeline support.
   * Push/Pop/Replace navigation patterns
   * Middleware support (Logging, Auth guards, Role checks)
@@ -152,13 +159,14 @@ A modern UI framework for building professional VCL desktop applications.
 
 ### 🚀 Getting Started
 
-- **📖 [The Dext Book](Docs/Book/README.md)** ⭐ NEW - Complete guide from installation to advanced topics | [🇧🇷 Português](Docs/Book.pt-br/README.md)
+* **📖 [The Dext Book](Docs/Book/README.md)** ⭐ NEW - Complete guide from installation to advanced topics | [🇧🇷 Português](Docs/Book.pt-br/README.md)
 
 ### 🌐 Web API
 
-- **Routing & Endpoints**
+* **Routing & Endpoints**
   * [Minimal API](Docs/minimal-api.md)
   * [Validation](Docs/model-binding.md) # (Includes validation)
+
 * **Security & Middleware**
   * [JWT Authentication](Docs/jwt-authentication.md)
   * [HTTPS/SSL Configuration](Examples/Web.SslDemo/README.md)
@@ -173,7 +181,8 @@ A modern UI framework for building professional VCL desktop applications.
 
 ### 🗄️ Data Access (ORM)
 
-- [Database Configuration](Docs/database-config.md)
+* [Database Configuration](Docs/database-config.md)
+
 * [Fluent Query API](Docs/fluent-query-api.md)
 * [Smart Properties](Docs/smart-properties.md) ⭐ NEW
 * [Migrations](Docs/migrations.md)
@@ -183,7 +192,8 @@ A modern UI framework for building professional VCL desktop applications.
 
 ### ⚙️ Core & Infrastructure
 
-- [Dependency Injection & Scopes](Docs/scoped-services.md)
+* [Dependency Injection & Scopes](Docs/scoped-services.md)
+
 * [Application Configuration](Docs/app-configuration.md)
 * [Options Pattern](Docs/options-pattern.md)
 * [Application Lifecycle & Integrity](Docs/application-lifecycle.md)
@@ -193,11 +203,12 @@ A modern UI framework for building professional VCL desktop applications.
 
 ### 🧪 Testing
 
-- [Getting Started](Docs/testing.md)
+* [Getting Started](Docs/testing.md)
 
 ### 📰 Articles & Tutorials
 
-- [The Story behind Dext Framework: Why we built it](https://www.cesarromero.com.br/en/blog/dext-story/)
+* [The Story behind Dext Framework: Why we built it](https://www.cesarromero.com.br/en/blog/dext-story/)
+
 * [Domain Model & CQRS: Modernizing your Delphi Architecture](https://www.cesarromero.com.br/en/blog/enterprise-patterns-delphi/)
 * [Database as API: High Performance without Controllers](https://www.cesarromero.com.br/en/blog/database-as-api-cqrs/)
 
@@ -406,6 +417,7 @@ The repository contains practical example projects:
 ## 🗺️ Roadmaps
 
 Follow the project development:
+
 * [V1.0 Release Plan](Docs/Roadmap/v1-release-plan.md) 🚀
 * [ORM Roadmap](Docs/Roadmap/orm-roadmap.md)
 * [Web Framework Roadmap](Docs/Roadmap/web-roadmap.md)
