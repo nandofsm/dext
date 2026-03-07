@@ -222,7 +222,7 @@ Funcionalidades movidas para v1.1 ou v2.0:
 - **CancellationToken Timeout**: Suporte a timeout automático em `CancellationToken` para operações assíncronas (`CancellationToken.WithTimeout(Duration)`).
 - **Immutable Data Structures**: `ImmutableList<T>`, `ImmutableDictionary<K,V>` e `Nullable<T>` (ReadOnly) para concorrência segura (Scalability).
 - **Kestrel NativeAOT**: Driver de alta performance via ponte com .NET (Experimental).
-- **View Engine**: Integração com **WebStencils** (novo engine do Delphi) ou criação de sintaxe Razor-like.
+- **View Engine**: ✅ IMPLEMENTADO - Integração com **WebStencils** (Delphi 12.2+) e suporte SSR agnóstico com DSL fluente.
 - ~~**Server Adapters**~~: ✅ IMPLEMENTADO - Suportar deployment em **WebBroker** (ISAPI/Apache/IIS) além do Indy.
 - **Native Integration**: Explorar integração opcional com **LiveBindings** para cenários RAD e adapters para **DataSnap**.
 - **JSON Columns (JSONB Support)**: Implementação do suporte real no ORM para o atributo `[JsonColumn]`.

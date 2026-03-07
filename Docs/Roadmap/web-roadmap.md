@@ -129,13 +129,13 @@ TDataApiHandler<TCustomer>.Map(App, '/api/customers', DbContext,
 
 Expansão do suporte para aplicações Web completas (Server-Side Rendering).
 
-- [ ] **Views Engine**: Sistema de templates para renderização de HTML no servidor.
-  - Sintaxe inspirada em Razor (`@Model.Name`) ou Mustache.
-  - Suporte a Layouts e Partials.
+- [x] **Views Engine**: Sistema de templates para renderização de HTML no servidor.
+  - ✅ Sintaxe inspirada em Razor (`@Model.Name`) com **Web Stencils**.
+  - ✅ Suporte a Layouts e Partials.
 - [ ] **MVC Controllers**: Suporte completo ao padrão MVC.
-  - `ViewResult`: Retornar views de controllers.
-  - `ViewBag`/`ViewData`: Passagem de dados dinâmica.
-  - `TagHelpers`: Componentes reutilizáveis em views (ex: `<dext-form>`).
+  - ✅ `ViewResult`: Retornar views de Minimal APIs e controllers.
+  - ✅ `ViewBag`/`ViewData`: Passagem de dados dinâmica.
+  - [ ] `TagHelpers`: Componentes reutilizáveis em views (ex: `<dext-form>`).
 
 ### 3. Observability & Monitoring
 
@@ -167,7 +167,7 @@ Estratégia para construção de interfaces modernas, focando em produtividade e
 
 #### A. Modern Server-Side UI (HTMX)
 
-- [ ] **HTMX Integration**: Suporte nativo a respostas parciais (HTML Fragments) e headers do HTMX (`HX-Trigger`, `HX-Redirect`).
+- [x] **HTMX Integration**: Suporte nativo a respostas parciais (HTML Fragments) e auto-detecção de `HX-Request`.
   - Permite criar SPAs (Single Page Apps) sem escrever JavaScript complexo.
 - [ ] **UI Components Library**: Biblioteca de componentes web (Bootstrap/Tailwind) encapsulados em classes Delphi.
   - Licença amigável (MIT/Apache), sem dependências de terceiros duvidosas.

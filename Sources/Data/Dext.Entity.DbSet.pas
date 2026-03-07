@@ -85,6 +85,7 @@ type
 
     procedure MapEntity;
     function Hydrate(const Reader: IDbReader; const Tracking: Boolean = True): T;
+    procedure HydrateTarget(const Reader: IDbReader; Target: T);
     procedure ExtractForeignKeys(const AEntities: IList<T>; PropertyToCheck: string;
       out IDs: IList<TValue>; out FKMap: IDictionary<T, TValue>);
     procedure LoadAndAssign(const AEntities: IList<T>; const NavPropName: string);
@@ -215,6 +216,12 @@ type
     function FromSql(const ASql: string): TFluentQuery<T>; overload;
     function TryLock(const AEntity: T; const AToken: string; ADurationMinutes: Integer = 30): Boolean;
     function Unlock(const AEntity: T): Boolean;
+    
+    /// <summary>
+    ///   Returns a streaming iterator that reuses a single object instance (Flyweight pattern).
+    ///   Perfect for high-performance view rendering.
+    /// </summary>
+    function RequestStreamingIterator(const ASpec: ISpecification<T>): IEnumerator<T>;
   end;
 
 
@@ -232,6 +239,24 @@ type
     function MoveNextCore: Boolean; override;
   public
     constructor Create(ADbSet: TDbSet<T>; const ASql: string; const AParams: array of TValue);
+  end;
+
+  /// <summary>
+  ///   High-performance "Flyweight" iterator that reuses a single object instance
+  ///   during iteration. Optimized for SSR (Server-Side Rendering).
+  /// </summary>
+  TStreamingViewIterator<T: class> = class(TQueryIterator<T>)
+  private
+    FDbSet: TDbSet<T>;
+    FReader: IDbReader;
+    FIteratorObject: T;
+    FInitialized: Boolean;
+    FSpec: ISpecification<T>;
+  protected
+    function MoveNextCore: Boolean; override;
+  public
+    constructor Create(ADbSet: TDbSet<T>; const ASpec: ISpecification<T>);
+    destructor Destroy; override;
   end;
 
 
@@ -345,6 +370,65 @@ begin
   if FReader.Next then
   begin
     FCurrent := FDbSet.Hydrate(FReader, False); // Default to NoTracking for raw SQL for now
+    Result := True;
+  end
+  else
+    Result := False;
+end;
+
+{ TStreamingViewIterator<T> }
+
+constructor TStreamingViewIterator<T>.Create(ADbSet: TDbSet<T>; const ASpec: ISpecification<T>);
+begin
+  inherited Create;
+  FDbSet := ADbSet;
+  FSpec := ASpec;
+  // Create the single shared instance for this iterator
+  FIteratorObject := TEntityProxyFactory.CreateInstance<T>(FDbSet.FContext);
+  FCurrent := FIteratorObject;
+end;
+
+destructor TStreamingViewIterator<T>.Destroy;
+begin
+  FReader := nil;
+  // Shared object is managed by the iterator
+  FIteratorObject.Free;
+  inherited;
+end;
+
+function TStreamingViewIterator<T>.MoveNextCore: Boolean;
+var
+  Gen: TSqlGenerator<T>;
+  Cmd: IDbCommand;
+  SQL: string;
+  LParamPair: TPair<string, TValue>;
+begin
+  if not FInitialized then
+  begin
+    Gen := FDbSet.CreateGenerator;
+    try
+      SQL := Gen.GenerateSelect(FSpec);
+      Cmd := FDbSet.FContext.Connection.CreateCommand(SQL);
+      
+      for LParamPair in Gen.Params do
+      begin
+        var ParamType: TFieldType;
+        if Gen.ParamTypes.TryGetValue(LParamPair.Key, ParamType) then
+          Cmd.AddParam(LParamPair.Key, LParamPair.Value, ParamType)
+        else
+          Cmd.AddParam(LParamPair.Key, LParamPair.Value);
+      end;
+        
+      FReader := Cmd.ExecuteQuery;
+    finally
+      Gen.Free;
+    end;
+    FInitialized := True;
+  end;
+  
+  if FReader.Next then
+  begin
+    FDbSet.HydrateTarget(FReader, FIteratorObject);
     Result := True;
   end
   else
@@ -626,23 +710,17 @@ end;
 
 function TDbSet<T>.Hydrate(const Reader: IDbReader; const Tracking: Boolean): T;
 var
-  i: Integer;
-  ColName: string;
-  Val: TValue;
-  Prop: TRttiProperty;
-  Field: TRttiField; // Added for field mapping hydration
   PKVal: string;
-  PKValues: IDictionary<string, string>;
 begin
   PKVal := '';
   
   if FPKColumns.Count > 0 then
   begin
-    PKValues := TCollections.CreateDictionary<string, string>;
+    var PKValues := TCollections.CreateDictionary<string, string>;
     try
-      for i := 0 to Reader.GetColumnCount - 1 do
+      for var i := 0 to Reader.GetColumnCount - 1 do
       begin
-        ColName := Reader.GetColumnName(i);
+        var ColName := Reader.GetColumnName(i);
         for var PKCol in FPKColumns do
         begin
           if SameText(PKCol, ColName) then
@@ -661,7 +739,7 @@ begin
       begin
         var SB := TStringBuilder.Create;
         try
-          for i := 0 to FPKColumns.Count - 1 do
+          for var i := 0 to FPKColumns.Count - 1 do
           begin
             if i > 0 then SB.Append('|');
             if PKValues.ContainsKey(FPKColumns[i]) then
@@ -680,31 +758,20 @@ begin
   // Check IdentityMap
   if Tracking and (PKVal <> '') and FIdentityMap.TryGetValue(PKVal, Result) then
   begin
-    // IMPORTANT: Inject lazy proxies even for cached entities
-    // This ensures lazy loading works correctly after DetachAll/Clear
     TLazyInjector.Inject(FContext, Result);
     Exit;
   end;
   
-  // Create new instance
+  // Create new instance with Discriminator support
   if (FMap <> nil) and (FMap.InheritanceStrategy = TInheritanceStrategy.TablePerHierarchy) and 
      (FMap.DiscriminatorColumn <> '') then
   begin
      var DiscVal := Reader.GetValue(FMap.DiscriminatorColumn).AsVariant;
      var SubMap := FContext.ModelBuilder.FindMapByDiscriminator(TypeInfo(T), DiscVal);
      if (SubMap <> nil) and (SubMap.EntityType <> TypeInfo(T)) then
-     begin
-       var ObjInstance := TActivator.CreateInstance(GetTypeData(SubMap.EntityType)^.ClassType, []);
-       if not ObjInstance.InheritsFrom(TClass(T)) then
-       begin
-          ObjInstance.Free;
-          raise EInvalidCast.CreateFmt('Cannot cast %s to %s in discriminator hydration', 
-            [ObjInstance.ClassName, PTypeInfo(TypeInfo(T))^.Name]);
-       end;
-       Result := T(ObjInstance);
-     end
+        Result := T(TActivator.CreateInstance(GetTypeData(SubMap.EntityType)^.ClassType, []))
      else
-       Result := TEntityProxyFactory.CreateInstance<T>(FContext);
+        Result := TEntityProxyFactory.CreateInstance<T>(FContext);
   end
   else
     Result := TEntityProxyFactory.CreateInstance<T>(FContext);
@@ -713,96 +780,68 @@ begin
     if Tracking and (PKVal <> '') then
       FIdentityMap.Add(PKVal, Result);
     
-  // Inject lazy loading proxies
-  TLazyInjector.Inject(FContext, Result);
+    HydrateTarget(Reader, Result);
+  except
+    on E: Exception do
+    begin
+      if not Tracking or (PKVal = '') then
+        Result.Free;
+      raise;
+    end;
+  end;
+end;
+
+procedure TDbSet<T>.HydrateTarget(const Reader: IDbReader; Target: T);
+var
+  i: Integer;
+  ColName: string;
+  Val: TValue;
+  Prop: TRttiProperty;
+  Field: TRttiField;
+begin
+  TLazyInjector.Inject(FContext, Target);
   
-  // Hydrate properties from reader
   for i := 0 to Reader.GetColumnCount - 1 do
   begin
     ColName := Reader.GetColumnName(i);
-    try
-      Val := Reader.GetValue(i);
-    except
-      on E: Exception do
-      begin
-        raise;
-    end;
-    end;
+    Val := Reader.GetValue(i);
+    
     if FProps.TryGetValue(ColName.ToLower, Prop) then
     begin
       try
-        // Determine Converter: Check Property Map first (Attributes/Fluent), then Registry default
         var Converter: ITypeConverter := nil;
         var PropMap: TPropertyMap := nil;
         
-        if FMap <> nil then
-          FMap.Properties.TryGetValue(Prop.Name, PropMap);
-          
-        if PropMap <> nil then
-          Converter := PropMap.Converter;
-          
-        if Converter = nil then
-          Converter := TTypeConverterRegistry.Instance.GetConverter(Prop.PropertyType.Handle);
-          
+        if FMap <> nil then FMap.Properties.TryGetValue(Prop.Name, PropMap);
+        if PropMap <> nil then Converter := PropMap.Converter;
+        if Converter = nil then Converter := TTypeConverterRegistry.Instance.GetConverter(Prop.PropertyType.Handle);
         if (Converter = nil) and (PropMap <> nil) and PropMap.IsJsonColumn then
           Converter := TJsonConverter.Create(PropMap.UseJsonB);
           
         if Converter <> nil then
            Val := Converter.FromDatabase(Val, Prop.PropertyType.Handle);
         
-        // Use centralized reflection helper that handles Smart Types, Nullables and conversion
         if FFields.TryGetValue(ColName.ToLower, Field) then
-          TReflection.SetValue(Pointer(Result), Field, Val)
+          TReflection.SetValue(Pointer(Target), Field, Val)
         else
-          TReflection.SetValue(Pointer(Result), Prop, Val);
+          TReflection.SetValue(Pointer(Target), Prop, Val);
       except
         on E: Exception do
-        begin
-          var VTypeName := 'Unknown';
-          if Val.TypeInfo <> nil then VTypeName := string(Val.TypeInfo.Name);
-          raise Exception.CreateFmt('Error hydrating property %s.%s from column %s (Value Type: %s): %s', 
-            [string(PTypeInfo(TypeInfo(T))^.Name), Prop.Name, ColName, VTypeName, E.Message]);
-        end;
+          raise Exception.CreateFmt('Error hydrating %s.%s: %s', [Target.ClassName, Prop.Name, E.Message]);
       end;
     end
     else
     begin
-      // Multi-Mapping support: Handle "Property_SubProperty" or "Property.SubProperty"
-      var SeparatorIdx := -1;
-      if ColName.Contains('_') then SeparatorIdx := Pos('_', ColName)
-      else if ColName.Contains('.') then SeparatorIdx := Pos('.', ColName);
+      // Multi-Mapping
+      var SeparatorIdx := ColName.IndexOf('_');
+      if SeparatorIdx < 0 then SeparatorIdx := ColName.IndexOf('.');
       
       if SeparatorIdx > 0 then
       begin
-        var Prefix := Copy(ColName, 1, SeparatorIdx - 1);
+        var Prefix := ColName.Substring(0, SeparatorIdx);
         if FProps.TryGetValue(Prefix.ToLower, Prop) and (Prop.PropertyType.TypeKind = tkClass) then
-        begin
-          try
-             TReflection.SetValueByPath(TObject(Result), ColName, Val);
-          except
-             // Ignore mapping failures for non-existent nested paths
-          end;
-        end;
+           TReflection.SetValueByPath(TObject(Target), ColName, Val);
       end;
-    end;
-  end; // End Loop
-  
-  except
-    on E: Exception do
-    begin
-      // Cleanup logic to prevent leaks
-      if Tracking and (PKVal <> '') then
-      begin
-        // Remove from map (which owns objects) -> trigger destructor
-        if FIdentityMap.ContainsKey(PKVal) then
-           FIdentityMap.Remove(PKVal); 
-      end
-      else
-      begin
-        // Not in map, free manually
-        Result.Free;
-      end;
-      raise;
     end;
   end;
 end;
@@ -2472,7 +2511,11 @@ begin
       begin
         Result := LSelf.FirstOrDefault(S as ISpecification<T>);
       end),
-    FContext.Connection
+    FContext.Connection,
+    function: IEnumerator<T>
+    begin
+      Result := LSelf.RequestStreamingIterator(LSpec);
+    end
   );
 end;
 
@@ -2670,6 +2713,11 @@ begin
     Generator.Free;
   end;
   Result := Self;
+end;
+
+function TDbSet<T>.RequestStreamingIterator(const ASpec: ISpecification<T>): IEnumerator<T>;
+begin
+  Result := TStreamingViewIterator<T>.Create(Self, ASpec);
 end;
 
 function TDbSet<T>.Restore(const AEntity: T): IDbSet<T>;

@@ -147,6 +147,7 @@ type
 
     // Fluent conversion methods
     function AsString: string;
+    function ToString: string;
     function AsInteger: Integer;
     function AsInt64: Int64;
     function AsDouble: Double;
@@ -601,6 +602,11 @@ begin
 end;
 
 function Prop<T>.AsString: string;
+begin
+  Result := string(Self);
+end;
+
+function Prop<T>.ToString: string;
 begin
   Result := string(Self);
 end;

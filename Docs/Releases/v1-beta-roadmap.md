@@ -235,7 +235,7 @@ Features moved to v1.1 or v2.0:
 - **CancellationToken Timeout**: Automatic timeout support in `CancellationToken` for async operations (`CancellationToken.WithTimeout(Duration)`).
 - **Immutable Data Structures**: `ImmutableList<T>`, `ImmutableDictionary<K,V>`, and `Nullable<T>` (ReadOnly) for thread-safe concurrency (Scalability).
 - **Kestrel NativeAOT**: High-performance driver via bridge with .NET (Experimental).
-- **View Engine**: Integration with **WebStencils** (new Delphi engine) or creation of Razor-like syntax.
+- **View Engine**: ✅ IMPLEMENTED - Integration with **WebStencils** (Delphi 12.2+) and agnostic SSR support with fluent DSL.
 - ~~**Server Adapters**~~: ✅ IMPLEMENTED - Support deployment in **WebBroker** (ISAPI/Apache/IIS) in addition to Indy.
 - **Native Integration**: Explore optional integration with **LiveBindings** for RAD scenarios and adapters for **DataSnap**.
 - **JSON Columns (JSONB Support)**: Real ORM support implementation for `[JsonColumn]` attribute.

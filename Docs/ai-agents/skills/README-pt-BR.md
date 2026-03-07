@@ -162,3 +162,5 @@ As habilidades são carregadas dinamicamente quando o agente precisa delas. O RE
 10. **`Mock<T>` é um Record** — nunca chame `.Free` nele
 11. **`Dext.Entity.Core`** deve estar na seção `uses` para os genéricos de `IDbSet<T>` compilarem
 12. **`SetConsoleCharSet`** é OBRIGATÓRIO em todos os projetos console (test runners, ferramentas de linha de comando CLI)
+13. **Ordem das Uses (CRÍTICA)**: Devido à limitação de apenas um class helper por tipo no Delphi, a ordem nas cláusulas `uses` deve ser sempre: `Dext` → `Dext.Entity` → `Dext.Web`. O último sempre vence e garante visibilidade dos métodos Web.
+14. **Smart Properties**: Para entidades, use sempre os aliases **IntType**, **StringType**, **DoubleType** e **BoolType** (de `Dext.Core.SmartTypes`) em vez de `Prop<T>`.

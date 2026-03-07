@@ -31,6 +31,7 @@ interface
 
 uses
   System.SysUtils,
+  System.Classes,
   Dext,
   {$IFDEF DEXT_ENABLE_ENTITY}
   Dext.Entity,
@@ -77,6 +78,10 @@ uses
   Dext.Web.MultiTenancy,
   Dext.Web.Pipeline,
   Dext.Web.Results,
+  Dext.Web.View,
+  {$IFDEF DEXT_ENABLE_WEB_STENCILS}
+  Dext.Web.View.WebStencils,
+  {$ENDIF}
   Dext.Web.Routing,
   Dext.Web.RoutingMiddleware,
   Dext.Web.StaticFiles,
@@ -373,6 +378,13 @@ type
   IMiddleware = Dext.Web.Interfaces.IMiddleware;
   AppBuilder = Dext.Web.Interfaces.TAppBuilder;
   TDextAppBuilder = AppBuilder; // deprecated
+  // Dext.Web.View
+  IViewEngine = Dext.Web.View.IViewEngine;
+  IViewData = Dext.Web.View.IViewData;
+  IViewResult = Dext.Web.View.IViewResult;
+  TDextViewResult = Dext.Web.View.TDextViewResult;
+  TViewOptions = Dext.Web.View.TViewOptions;
+
   IWebApplication = Dext.Web.Interfaces.IWebApplication;
   IStartup = Dext.Web.Interfaces.IStartup;
   WebHost = Dext.Web.Interfaces.TWebHost;
@@ -608,6 +620,21 @@ type
     ///   Enables content negotiation and registers default formatters.
     /// </summary>
     function AddContentNegotiation: TDextServices;
+
+    /// <summary>
+    ///   Registers the Web Stencils view engine (requires Delphi 12.2+).
+    /// </summary>
+    function AddWebStencils(AConfig: TProc<TViewOptions> = nil): TDextServices; overload;
+
+    /// <summary>
+    ///   Registers the Web Stencils view engine using pre-configured options.
+    /// </summary>
+    function AddWebStencils(const AOptions: TViewOptions): TDextServices; overload;
+
+    /// <summary>
+    ///   Registers the Web Stencils view engine using a fluent builder configuration.
+    /// </summary>
+    function AddWebStencils(const ABuilder: TViewOptionsBuilder): TDextServices; overload;
   end;
 
   TDextWebServicesHelper = TWebServicesHelper;
@@ -723,10 +750,12 @@ type
     /// <summary>
     ///   Builds the request pipeline and returns the main RequestDelegate.
     /// </summary>
-    /// <summary>
-    ///   Builds the request pipeline and returns the main RequestDelegate.
-    /// </summary>
     function Build: TRequestDelegate;
+
+    /// <summary>
+    ///   Enables Server-Side Surface Rendering (SSR) view support.
+    /// </summary>
+    function UseViewEngine: AppBuilder;
 
     // -------------------------------------------------------------------------
     // ?? Middleware
@@ -862,7 +891,7 @@ type
   end;
 
 // ===========================================================================
-// ??? Global Response Helpers
+//  Global Response Helpers
 // ===========================================================================
 
 function WebApplication: IWebApplication;
@@ -870,6 +899,7 @@ function CorsOptions: TCorsBuilder;
 function JwtOptions(const ASecretKey: string): TJwtOptionsBuilder;
 function ResponseCacheOptions: TResponseCacheBuilder;
 function SwaggerOptions: TOpenAPIBuilder;
+function ViewOptions: TViewOptionsBuilder;
 
 {$IFDEF DEXT_ENABLE_ENTITY}
 function DataApiOptions: TDataApiOptions<TObject>;
@@ -911,6 +941,11 @@ end;
 function SwaggerOptions: TOpenAPIBuilder;
 begin
   Result := TOpenAPIBuilder.Create;
+end;
+
+function ViewOptions: TViewOptionsBuilder;
+begin
+  Result := TViewOptionsBuilder.Create;
 end;
 
 {$IFDEF DEXT_ENABLE_ENTITY}
@@ -1438,6 +1473,40 @@ begin
   Result := Self;
 end;
 {$ENDIF}
+
+function TWebServicesHelper.AddWebStencils(AConfig: TProc<TViewOptions>): TDextServices;
+begin
+  var LOptions: TViewOptions := TViewOptions.Create;
+  if Assigned(AConfig) then
+    AConfig(LOptions);
+    
+  Result := AddWebStencils(LOptions);
+end;
+
+function TWebServicesHelper.AddWebStencils(const AOptions: TViewOptions): TDextServices;
+begin
+  Result := Self;
+  {$IFDEF DEXT_ENABLE_WEB_STENCILS}
+  var LOptions := AOptions;
+  TWebStencilsViewEngine.RegisterWebStencilsFunctions;
+  var LFactory: TFunc<IServiceProvider, TObject> := function(Provider: IServiceProvider): TObject
+    begin
+      Result := TWebStencilsViewEngine.Create(LOptions);
+    end;
+
+  Self.AddSingleton<IViewEngine, TWebStencilsViewEngine>(LFactory);
+  {$ENDIF}
+end;
+
+function TWebServicesHelper.AddWebStencils(const ABuilder: TViewOptionsBuilder): TDextServices;
+begin
+  Result := AddWebStencils(TViewOptions(ABuilder));
+end;
+
+function THttpAppBuilderHelper.UseViewEngine: AppBuilder;
+begin
+  Result := Self;
+end;
 
 end.
 

@@ -9,6 +9,7 @@ O Dext oferece dois estilos para construir APIs web: **Minimal APIs** e **Contro
 3. [Model Binding](model-binding.md) - Mapeamento de requisição para objeto
 4. [Rotas](rotas.md) - Padrões de URL & parâmetros
 5. [Middleware](middleware.md) - Pipeline de requisições
+6. [View Engines & SSR](view-engines.md) - Renderização de HTML no Servidor
 
 ## Comparação Rápida
 

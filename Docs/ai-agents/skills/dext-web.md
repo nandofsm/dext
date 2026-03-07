@@ -5,11 +5,19 @@ description: Build HTTP endpoints with Dext Web Framework — Minimal APIs and C
 
 # Dext Web Framework
 
-## Core Import
+## Uses Clause Order (CRITICAL)
+
+Delphi only supports one class helper for a given type at a time. To ensure all framework features (Minimal APIs, Routing, Web Helpers) are available, the `uses` order **MUST** be:
+
+1. `Dext`
+2. `Dext.Entity` (if using ORM)
+3. `Dext.Web` (**LAST**)
 
 ```pascal
 uses
-  Dext.Web; // TAppBuilder, IResult, Results, WebApplication
+  Dext,
+  Dext.Entity, // Optional
+  Dext.Web;    // Always last
 ```
 
 ## Application Bootstrap

@@ -189,6 +189,12 @@ type
     procedure LinkManyToMany(const AEntity: T; const APropertyName: string; const ARelatedEntity: TObject);
     procedure UnlinkManyToMany(const AEntity: T; const APropertyName: string; const ARelatedEntity: TObject);
     procedure SyncManyToMany(const AEntity: T; const APropertyName: string; const ARelatedEntities: TArray<TObject>);
+
+    /// <summary>
+    ///   Returns a streaming iterator that reuses a single object instance (Flyweight pattern).
+    ///   Perfect for high-performance view rendering.
+    /// </summary>
+    function RequestStreamingIterator(const ASpec: ISpecification<T>): IEnumerator<T>;
   end;
 
   ICollectionEntry = interface

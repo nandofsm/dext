@@ -113,6 +113,7 @@ type
     FExecuteFirstOrDefault: TFunc<ISpecification, T>;
     FConnection: IDbConnection; // Track connection for async safety
     FNoTracking: Boolean;
+    FStreamingIteratorFactory: TFunc<IEnumerator<T>>;
     procedure AssignSpecTracking(const AEnable: Boolean);
     function GetSpec: ISpecification;
     function GetConnection: IDbConnection;
@@ -133,10 +134,12 @@ type
       const AExecCount: TFunc<ISpecification, Integer>;
       const AExecAny: TFunc<ISpecification, Boolean>;
       const AExecFirstOrDefault: TFunc<ISpecification, T>;
-      const AConnection: IDbConnection = nil
+      const AConnection: IDbConnection = nil;
+      const AStreamingFactory: TFunc<IEnumerator<T>> = nil
     ); overload;
     
     function GetEnumerator: IEnumerator<T>;
+    function GetStreamingEnumerator: IEnumerator<T>;
     
     /// <summary>
     ///   Projects each element of a sequence into a new form.
@@ -439,6 +442,7 @@ begin
   FSpecification := nil;
   FConnection := AConnection;
   FNoTracking := False;
+  FStreamingIteratorFactory := nil;
 end;
 
 constructor TFluentQuery<T>.Create(const AIteratorFactory: TFunc<TQueryIterator<T>>; const ASpec: ISpecification; const AConnection: IDbConnection);
@@ -451,6 +455,7 @@ begin
   FConnection := AConnection;
   FLastIncludePath := '';
   FNoTracking := False;
+  FStreamingIteratorFactory := nil;
 end;
 
 constructor TFluentQuery<T>.Create(
@@ -459,7 +464,8 @@ constructor TFluentQuery<T>.Create(
   const AExecCount: TFunc<ISpecification, Integer>;
   const AExecAny: TFunc<ISpecification, Boolean>;
   const AExecFirstOrDefault: TFunc<ISpecification, T>;
-  const AConnection: IDbConnection
+  const AConnection: IDbConnection;
+  const AStreamingFactory: TFunc<IEnumerator<T>>
 );
 begin
   FIteratorFactory := AIteratorFactory;
@@ -470,6 +476,7 @@ begin
   FConnection := AConnection;
   FLastIncludePath := '';
   FNoTracking := False;
+  FStreamingIteratorFactory := AStreamingFactory;
 end;
 
 procedure TFluentQuery<T>.AssignSpecTracking(const AEnable: Boolean);
@@ -497,6 +504,14 @@ begin
      Result := FIteratorFactory()
   else
      Result := TEmptyIterator<T>.Create;
+end;
+
+function TFluentQuery<T>.GetStreamingEnumerator: IEnumerator<T>;
+begin
+  if Assigned(FStreamingIteratorFactory) then
+     Result := FStreamingIteratorFactory()
+  else
+     Result := GetEnumerator;
 end;
 
 function TFluentQuery<T>.AsNoTracking: TFluentQuery<T>;

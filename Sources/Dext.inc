@@ -18,6 +18,11 @@
   {$DEFINE DEXT_HAS_SYSTEM_HASH}
 {$IFEND}
 
+// Web Stencils support (Introduced in Delphi 12.2 / CompilerVersion 36.0)
+{$IF CompilerVersion >= 36.0}
+  {$DEFINE DEXT_ENABLE_WEB_STENCILS}
+{$IFEND}
+
 //---------------------------------------------------------------------------
 // User Overrides
 //---------------------------------------------------------------------------

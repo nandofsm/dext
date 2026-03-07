@@ -110,9 +110,8 @@ begin
         ValueField := Field;
         InnerType := Field.FieldType.Handle;
         
-        // Safety fallback: if it has FValue and looks like Prop/Type but missed the attribute
-        if not IsSmartProp then
-           IsSmartProp := TypeName.Contains('Prop') or TypeName.EndsWith('Type');
+        // Se tem FValue/Value e é um record, tratamos como SmartProp no contexto do Dext
+        IsSmartProp := True;
       end
       else if LFieldName.ToLower.Contains('hasvalue') then
         HasValueField := Field;
@@ -157,14 +156,34 @@ end;
 
 class function TReflection.GetValue(AInstance: TObject; const APropertyName: string): TValue;
 var
+  RType: TRttiType;
   Prop: TRttiProperty;
+  Field: TRttiField;
   Raw, Unwrapped: TValue;
 begin
   Result := TValue.Empty;
   if AInstance = nil then Exit;
-  Prop := FContext.GetType(AInstance.ClassType).GetProperty(APropertyName);
-  if Prop = nil then Exit;
-  Raw := Prop.GetValue(Pointer(AInstance));
+  
+  RType := FContext.GetType(AInstance.ClassType);
+  if RType = nil then Exit;
+
+  // 1. Try Property
+  Prop := RType.GetProperty(APropertyName);
+  if Prop <> nil then
+    Raw := Prop.GetValue(Pointer(AInstance))
+  else
+  begin
+    // 2. Try Field (FPropName or PropName)
+    Field := RType.GetField(APropertyName);
+    if Field = nil then
+      Field := RType.GetField('F' + APropertyName);
+      
+    if Field <> nil then
+      Raw := Field.GetValue(Pointer(AInstance))
+    else
+      Exit;
+  end;
+
   if TryUnwrapProp(Raw, Unwrapped) then
     Result := Unwrapped
   else

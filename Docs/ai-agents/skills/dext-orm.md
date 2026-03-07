@@ -5,13 +5,30 @@ description: Use the Dext ORM — define entities, create DbContext, query data 
 
 # Dext ORM
 
+## Uses Clause Order (CRITICAL)
+
+Delphi only supports one class helper for a given type at a time. To ensure all framework features (Minimal APIs, Routing, Web Helpers) are available, the `uses` order **MUST** be:
+
+1. `Dext`
+2. `Dext.Entity` (if using ORM)
+3. `Dext.Web` (**LAST**)
+
+```pascal
+uses
+  System.SysUtils,
+  Dext,              // Base
+  Dext.Entity,       // ORM Attributes & Facade
+  Dext.Web;          // Web Helpers (Last)
+```
+
 ## Core Imports
 
 ```pascal
 uses
-  Dext.Entity,       // Facade: Table, Column, PK, AutoInc, Required, MaxLength, etc.
-  Dext.Entity.Core,  // REQUIRED for generics: IDbSet<T>, TDbContext
-  Dext.Collections;  // IList<T>, TCollections
+  Dext.Entity,          // Attributes Facade
+  Dext.Entity.Core,     // IDbSet<T>, TDbContext
+  Dext.Core.SmartTypes, // IntType, StringType (Mandatory)
+  Dext.Collections;     // IList<T>
 ```
 
 > [!IMPORTANT]
@@ -26,20 +43,23 @@ type
   [Table('users')]
   TUser = class
   private
-    FId: Integer;
-    FName: string;
-    FEmail: string;
+    FId: IntType;
+    FName: StringType;
+    FEmail: StringType;
   public
     [PK, AutoInc]
-    property Id: Integer read FId write FId;
+    property Id: IntType read FId write FId;
 
     [Required, MaxLength(100)]
-    property Name: string read FName write FName;
+    property Name: StringType read FName write FName;
 
     [Required, MaxLength(200)]
-    property Email: string read FEmail write FEmail;
+    property Email: StringType read FEmail write FEmail;
   end;
 ```
+
+> [!TIP]
+> Always use native Smart Property aliases (**IntType**, **StringType**, **DoubleType**, **BoolType**) for class properties to enable automatic model binding and type-safe filtering.
 
 ### Available Attributes
 

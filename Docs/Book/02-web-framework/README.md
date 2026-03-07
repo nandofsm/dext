@@ -9,6 +9,7 @@ Dext provides two styles for building web APIs: **Minimal APIs** and **Controlle
 3. [Model Binding](model-binding.md) - Request to object mapping
 4. [Routing](routing.md) - URL patterns & parameters
 5. [Middleware](middleware.md) - Request pipeline
+6. [View Engines & SSR](view-engines.md) - Server-Side HTML Rendering
 
 ## Quick Comparison
 

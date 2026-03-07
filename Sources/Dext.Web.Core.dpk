@@ -35,7 +35,10 @@ requires
   IndyProtocols,
   IndyCore,
   Dext.Core,
-  Dext.EF.Core;
+  Dext.EF.Core,
+  RESTComponents,
+  inet,
+  inetstn;
 
 contains
   Dext.Web in 'Web\Dext.Web.pas',
@@ -96,6 +99,8 @@ contains
   Dext.OpenAPI.Fluent in 'Web\Dext.OpenAPI.Fluent.pas',
   Dext.Auth.BasicAuth in 'Web\Dext.Auth.BasicAuth.pas',
   Dext.Web.ResponseHelper in 'Web\Dext.Web.ResponseHelper.pas',
-  Dext.Web.Middleware.Logging in 'Web\Dext.Web.Middleware.Logging.pas';
+  Dext.Web.Middleware.Logging in 'Web\Dext.Web.Middleware.Logging.pas',
+  Dext.Web.View in 'Web\Dext.Web.View.pas',
+  Dext.Web.View.WebStencils in 'Web\Dext.Web.View.WebStencils.pas';
 
 end.

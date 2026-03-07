@@ -31,14 +31,14 @@ interface
 
 type
   {$M+}
-  IEnumerator<T> = interface
+  IEnumerator<T> = interface(IInterface)
     function GetCurrent: T;
     function MoveNext: Boolean;
     property Current: T read GetCurrent;
   end;
 
   {$M+}
-  IEnumerable<T> = interface
+  IEnumerable<T> = interface(IInterface)
     function GetEnumerator: IEnumerator<T>;
   end;
 

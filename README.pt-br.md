@@ -59,6 +59,7 @@ Um framework HTTP leve e poderoso para construir REST APIs e microserviços.
 * **WebBroker Server Adapter** ⭐ NOVO: Faça deploy via WebBroker (ISAPI/CGI) no IIS/Apache sem alterar o código da aplicação, operando lado a lado com o Indy.
 * **DCS Server Adapter** ⭐ NOVO: Motor HTTP não bloqueante de altíssima performance (epoll/IOCP) usando Delphi-Cross-Socket.
 * **Comunicação em Tempo Real** ⭐ NOVO: Hubs compatíveis com SignalR para messaging em tempo real. Suporta grupos, targeting por usuário e broadcast com `Dext.Web.Hubs`. [Saiba mais](Docs/hubs.md)
+* **SSR & View Engines** ⭐ NOVO: Renderização Server-Side agnóstica com Flyweight Iterators para O(1) de memória em loops e integração nativa com **Web Stencils** (Delphi 12.2+) via DSL fluente otimizada.
 
 ### 🗄️ Dext.Entity (ORM)
 

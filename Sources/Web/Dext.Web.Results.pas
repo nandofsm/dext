@@ -36,6 +36,9 @@ uses
   Dext.Web.Interfaces,
   Dext.Web.Formatters.Interfaces,
   Dext.Web.Formatters.Json, // Default formatter
+  Dext.Web.View,
+  Dext.Entity.Core,
+  Dext.Entity.Query,
   Dext.Json;
 
 type
@@ -179,6 +182,14 @@ type
 
     class function StatusCode(ACode: Integer): IResult; overload;
     class function StatusCode(ACode: Integer; const AContent: string): IResult; overload;
+    
+    class function View(const AViewName: string): TDextViewResult; overload;
+    class function View<T: class>(const AViewName: string; const AQuery: TFluentQuery<T>): TDextViewResult; overload;
+    class function View(const AViewName: string; AData: TObject; AOwns: Boolean = False): TDextViewResult; overload;
+    
+    class function ViewPart(const AViewName: string): TDextViewResult; overload;
+    class function ViewPart<T: class>(const AViewName: string; const AQuery: TFluentQuery<T>): TDextViewResult; overload;
+    class function ViewPart(const AViewName: string; AData: TObject; AOwns: Boolean = False): TDextViewResult; overload;
   end;
 
 implementation
@@ -496,6 +507,36 @@ end;
 class function Results.StatusCode(ACode: Integer; const AContent: string): IResult;
 begin
   Result := TJsonResult.Create(AContent, ACode);
+end;
+
+class function Results.View(const AViewName: string): TDextViewResult;
+begin
+  Result := TViewResult.Create(AViewName);
+end;
+
+class function Results.View<T>(const AViewName: string; const AQuery: TFluentQuery<T>): TDextViewResult;
+begin
+  Result := View(AViewName).WithQuery<T>('Model', AQuery);
+end;
+
+class function Results.View(const AViewName: string; AData: TObject; AOwns: Boolean): TDextViewResult;
+begin
+  Result := View(AViewName).WithData('Model', AData, AOwns);
+end;
+
+class function Results.ViewPart(const AViewName: string): TDextViewResult;
+begin
+  Result := View(AViewName).WithLayout('');
+end;
+
+class function Results.ViewPart<T>(const AViewName: string; const AQuery: TFluentQuery<T>): TDextViewResult;
+begin
+  Result := ViewPart(AViewName).WithQuery<T>('Model', AQuery);
+end;
+
+class function Results.ViewPart(const AViewName: string; AData: TObject; AOwns: Boolean): TDextViewResult;
+begin
+  Result := ViewPart(AViewName).WithData('Model', AData, AOwns).WithLayout('');
 end;
 
 class procedure Results.SetViewsPath(const APath: string);
