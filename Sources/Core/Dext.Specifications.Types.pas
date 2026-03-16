@@ -1,4 +1,4 @@
-﻿{***************************************************************************}
+{***************************************************************************}
 {                                                                           }
 {           Dext Framework                                                  }
 {                                                                           }
@@ -37,7 +37,10 @@ uses
 type
   TAbstractExpression = class(TInterfacedObject, IExpression)
   public
+    destructor Destroy; override;
     function ToString: string; override;
+  protected
+    procedure BeforePool; virtual;
   end;
 
   /// <summary>
@@ -61,6 +64,10 @@ type
   public
     constructor Create(const ALeft, ARight: IExpression; AOperator: TBinaryOperator); overload;
     constructor Create(const APropertyName: string; AOperator: TBinaryOperator; const AValue: TValue); overload;
+    constructor Create(const APropertyName: string; AOperator: TBinaryOperator; const AValue: string); overload;
+    constructor Create(const APropertyName: string; AOperator: TBinaryOperator; const AValue: Integer); overload;
+    constructor Create(const APropertyName: string; AOperator: TBinaryOperator; const AValue: Boolean); overload;
+    destructor Destroy; override;
     property Left: IExpression read FLeft;
     property Right: IExpression read FRight;
     property BinaryOperator: TBinaryOperator read FOperator;
@@ -77,6 +84,7 @@ type
     FOperator: TArithmeticOperator;
   public
     constructor Create(const ALeft, ARight: IExpression; AOperator: TArithmeticOperator);
+    destructor Destroy; override;
     property Left: IExpression read FLeft;
     property Right: IExpression read FRight;
     property ArithmeticOperator: TArithmeticOperator read FOperator;
@@ -91,6 +99,7 @@ type
     FPropertyName: string;
   public
     constructor Create(const APropertyName: string);
+    destructor Destroy; override;
     property PropertyName: string read FPropertyName;
     function ToString: string; override;
   end;
@@ -104,6 +113,7 @@ type
     FJsonPath: string;
   public
     constructor Create(const APropertyName, AJsonPath: string);
+    destructor Destroy; override;
     property PropertyName: string read FPropertyName;
     property JsonPath: string read FJsonPath;
     function ToString: string; override;
@@ -117,8 +127,11 @@ type
     FValue: TValue;
   public
     constructor Create(const AValue: TValue);
+    destructor Destroy; override;
     property Value: TValue read FValue;
     function ToString: string; override;
+  protected
+    procedure BeforePool; override;
   end;
 
   /// <summary>
@@ -133,6 +146,7 @@ type
     FOperator: TLogicalOperator;
   public
     constructor Create(const ALeft, ARight: IExpression; AOperator: TLogicalOperator);
+    destructor Destroy; override;
     property Left: IExpression read FLeft;
     property Right: IExpression read FRight;
     property LogicalOperator: TLogicalOperator read FOperator;
@@ -258,6 +272,16 @@ implementation
 
 { TAbstractExpression }
 
+destructor TAbstractExpression.Destroy;
+begin
+  inherited;
+end;
+
+procedure TAbstractExpression.BeforePool;
+begin
+  // Default: nothing
+end;
+
 function TAbstractExpression.ToString: string;
 begin
   Result := ClassName;
@@ -280,6 +304,40 @@ begin
   FLeft := TPropertyExpression.Create(APropertyName);
   FRight := TLiteralExpression.Create(AValue);
   FOperator := AOperator;
+end;
+
+constructor TBinaryExpression.Create(const APropertyName: string;
+  AOperator: TBinaryOperator; const AValue: string);
+begin
+  inherited Create;
+  FLeft := TPropertyExpression.Create(APropertyName);
+  FRight := TLiteralExpression.Create(TValue.From<string>(AValue));
+  FOperator := AOperator;
+end;
+
+constructor TBinaryExpression.Create(const APropertyName: string;
+  AOperator: TBinaryOperator; const AValue: Integer);
+begin
+  inherited Create;
+  FLeft := TPropertyExpression.Create(APropertyName);
+  FRight := TLiteralExpression.Create(AValue); // Implicit conversion
+  FOperator := AOperator;
+end;
+
+constructor TBinaryExpression.Create(const APropertyName: string;
+  AOperator: TBinaryOperator; const AValue: Boolean);
+begin
+  inherited Create;
+  FLeft := TPropertyExpression.Create(APropertyName);
+  FRight := TLiteralExpression.Create(AValue); // Implicit conversion
+  FOperator := AOperator;
+end;
+
+destructor TBinaryExpression.Destroy;
+begin
+  FLeft := nil;
+  FRight := nil;
+  inherited;
 end;
 
 function TBinaryExpression.ToString: string;
@@ -317,14 +375,19 @@ begin
   Result := Format('(%s %d %s)', [FLeft.ToString, Ord(FOperator), FRight.ToString]);
 end;
 
-{ TArithmeticExpression }
-
 constructor TArithmeticExpression.Create(const ALeft, ARight: IExpression; AOperator: TArithmeticOperator);
 begin
   inherited Create;
   FLeft := ALeft;
   FRight := ARight;
   FOperator := AOperator;
+end;
+
+destructor TArithmeticExpression.Destroy;
+begin
+  FLeft := nil;
+  FRight := nil;
+  inherited;
 end;
 
 function TArithmeticExpression.ToString: string;
@@ -338,6 +401,12 @@ constructor TPropertyExpression.Create(const APropertyName: string);
 begin
   inherited Create;
   FPropertyName := APropertyName;
+end;
+
+destructor TPropertyExpression.Destroy;
+begin
+  FPropertyName := '';
+  inherited;
 end;
 
 function TPropertyExpression.ToString: string;
@@ -354,6 +423,13 @@ begin
   FJsonPath := AJsonPath;
 end;
 
+destructor TJsonPropertyExpression.Destroy;
+begin
+  FPropertyName := '';
+  FJsonPath := '';
+  inherited;
+end;
+
 function TJsonPropertyExpression.ToString: string;
 begin
   Result := FPropertyName + '->' + FJsonPath;
@@ -365,6 +441,17 @@ constructor TLiteralExpression.Create(const AValue: TValue);
 begin
   inherited Create;
   FValue := AValue;
+end;
+
+destructor TLiteralExpression.Destroy;
+begin
+  FValue := TValue.Empty;
+  inherited;
+end;
+
+procedure TLiteralExpression.BeforePool;
+begin
+  FValue := TValue.Empty;
 end;
 
 function TLiteralExpression.ToString: string;
@@ -401,6 +488,13 @@ begin
   FLeft := ALeft;
   FRight := ARight;
   FOperator := AOperator;
+end;
+
+destructor TLogicalExpression.Destroy;
+begin
+  FLeft := nil;
+  FRight := nil;
+  inherited;
 end;
 
 function TLogicalExpression.ToString: string;
