@@ -1,4 +1,4 @@
-﻿{***************************************************************************}
+{***************************************************************************}
 {                                                                           }
 {           Dext Framework                                                  }
 {                                                                           }
@@ -185,7 +185,7 @@ constructor THttpRequestCollection.Create;
 begin
   inherited;
   FVariables := TCollections.CreateList<THttpVariable>;
-  FRequests := TCollections.CreateList<THttpRequestInfo>;
+  FRequests := TCollections.CreateList<THttpRequestInfo>(True);
 end;
 
 destructor THttpRequestCollection.Destroy;
