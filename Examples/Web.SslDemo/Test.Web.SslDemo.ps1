@@ -10,6 +10,8 @@ Write-Host ""
 Write-Host "Testing HTTPS connection (SkipCertificateCheck = true)"
 Write-Host ""
 
+[System.Net.ServicePointManager]::ServerCertificateValidationCallback = { $true }
+
 function Invoke-DextRequest {
     param (
         [string]$Uri,
@@ -20,7 +22,6 @@ function Invoke-DextRequest {
             Uri                  = $Uri
             Method               = $Method
             UseBasicParsing      = $true
-            SkipCertificateCheck = $true  # Ignore self-signed errors
         }
         
         $resp = Invoke-WebRequest @params
