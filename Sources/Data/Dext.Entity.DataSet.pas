@@ -886,10 +886,16 @@ begin
               ValB := PByte(Pointer(PByte(B) + PropMap.FieldValueOffset))^;
               Matched := True;
             end;
-          ftFloat, ftCurrency:
+          ftFloat:
             begin
               ValA := PDouble(Pointer(PByte(A) + PropMap.FieldValueOffset))^;
               ValB := PDouble(Pointer(PByte(B) + PropMap.FieldValueOffset))^;
+              Matched := True;
+            end;
+          ftCurrency:
+            begin
+              ValA := PCurrency(Pointer(PByte(A) + PropMap.FieldValueOffset))^;
+              ValB := PCurrency(Pointer(PByte(B) + PropMap.FieldValueOffset))^;
               Matched := True;
             end;
         end;
@@ -949,9 +955,12 @@ begin
     PropMap := nil;
     if FEntityMap.Properties.TryGetValue('Id', PropMap) then
     begin
-      IdA := PInteger(Pointer(PByte(A) + PropMap.FieldValueOffset))^;
-      IdB := PInteger(Pointer(PByte(B) + PropMap.FieldValueOffset))^;
-      if IdA < IdB then Result := -1 else if IdA > IdB then Result := 1;
+      if PropMap.FieldValueOffset > 0 then
+      begin
+        IdA := PInteger(Pointer(PByte(A) + PropMap.FieldValueOffset))^;
+        IdB := PInteger(Pointer(PByte(B) + PropMap.FieldValueOffset))^;
+        if IdA < IdB then Result := -1 else if IdA > IdB then Result := 1;
+      end;
     end
     else if RttiType <> nil then
     begin
@@ -1435,8 +1444,17 @@ begin
           ftString: NewField := TStringField.Create(Self);
           ftInteger, ftSmallint: NewField := TIntegerField.Create(Self);
           ftLargeint: NewField := TLargeintField.Create(Self);
-          ftFloat: NewField := TFloatField.Create(Self);
-          ftCurrency: NewField := TCurrencyField.Create(Self);
+          ftFloat:
+          begin
+            NewField := TFloatField.Create(Self);
+            TFloatField(NewField).DisplayFormat := '#,##0.00';
+            TFloatField(NewField).Precision := 2;
+          end;
+          ftCurrency:
+          begin
+            NewField := TCurrencyField.Create(Self);
+            TCurrencyField(NewField).DisplayFormat := '#,##0.00';
+          end;
           ftBoolean: NewField := TBooleanField.Create(Self);
           ftDateTime: NewField := TDateTimeField.Create(Self);
           ftDate: NewField := TDateField.Create(Self);
@@ -1448,10 +1466,15 @@ begin
         if NewField <> nil then
         begin
           NewField.FieldName := PropMap.PropertyName;
-          if NewField is TFloatField then
+          NewField.DataSet := Self;  // Ensure dataset is linked before setting other props
+          
+          if (NewField is TFloatField) and (not (NewField is TCurrencyField)) then
             TFloatField(NewField).Precision := PropMap.Precision;
           if NewField is TCurrencyField then
-            TCurrencyField(NewField).Currency := True;
+          begin
+            TCurrencyField(NewField).Precision := 4;
+            TCurrencyField(NewField).currency := True; // Explicitly enable currency mode
+          end;
 
           if NewField is TStringField then
           begin
@@ -1696,6 +1719,7 @@ var
   PropMap: TPropertyMap;
   PValue: Pointer;
   LP: PByte;
+  LVal: TValue;
 begin
   Result := False;
   Value := Unassigned;
@@ -1818,18 +1842,21 @@ begin
   end;
 
   // Determinar o ponteiro para o valor real
+  // CRITICAL: Ensure we have a valid non-zero offset before direct memory access
   if PropMap.FieldValueOffset > 0 then
   begin
     LP := PByte(CurrentObj);
     Inc(LP, PropMap.FieldValueOffset);
     PValue := LP;
   end
-  else
+  else if PropMap.FieldOffset > 0 then
   begin
     LP := PByte(CurrentObj);
     Inc(LP, PropMap.FieldOffset);
     PValue := LP;
-  end;
+  end
+  else
+    Exit(False); // Cannot read without offset or RTTI (handled before)
 
   if PValue = nil then Exit;
 
@@ -1840,10 +1867,26 @@ begin
       Value := PInteger(PValue)^;
     ftLargeint:
       Value := PInt64(PValue)^;
-    ftFloat:
-      Value := PDouble(PValue)^;
-    ftCurrency:
-      Value := PCurrency(PValue)^;
+    ftFloat, ftCurrency:
+    begin
+      // CRITICAL: We must use TValue.Make with the original PropertyType (PTypeInfo)
+      // because types like 'Currency' have a unique 8-byte binary layout (scaled Int64)
+      // that differs from standard 'Double' (IEEE 754). Using TValue ensures safe 
+      // extraction from the object memory and correct conversion to a Variant type.
+      if PropMap.PropertyType <> nil then
+      begin
+        TValue.Make(PValue, PropMap.PropertyType, LVal);
+        Value := LVal.AsVariant;
+      end
+      else
+      begin
+        // Fallback to raw bit reading if TypeInfo is missing
+        if PropMap.DataType = ftCurrency then
+          Value := PCurrency(PValue)^
+        else
+          Value := PDouble(PValue)^;
+      end;
+    end;
     ftBoolean:
       Value := PBoolean(PValue)^;
     ftDateTime, ftDate, ftTime:
@@ -1943,11 +1986,33 @@ begin
       ftWord: PWord(Buffer)^ := V;
       ftInteger, ftAutoInc: PInteger(Buffer)^ := V;
       ftLongWord: PLongWord(Buffer)^ := V;
-      ftFloat: PDouble(Buffer)^ := V;
+      ftFloat:
+      begin
+        var LFloat: Double := V;
+        PDouble(Buffer)^ := LFloat;
+      end;
       ftBoolean: PWordBool(Buffer)^ := V;
-      ftDateTime, ftDate, ftTime: PDouble(Buffer)^ := V;
-      ftLargeint: PInt64(Buffer)^ := V;
-      ftCurrency: PCurrency(Buffer)^ := V;
+      ftDateTime, ftDate, ftTime:
+      begin
+        var LDT: TDateTime := V;
+        PDouble(Buffer)^ := LDT;
+      end;
+      ftLargeint:
+      begin
+        var LInt64: Int64 := V;
+        PInt64(Buffer)^ := LInt64;
+      end;
+      ftCurrency:
+      begin
+        // IMPORTANT: TCurrencyField and TFloatField in Delphi's TDataSet framework (Data.DB)
+        // internally store values as an 8-byte DOUBLE (IEEE 754) in their record buffers.
+        // Attempting to write a raw 8-byte binary 'Currency' (scaled Int64) pattern directly 
+        // to the buffer would result in corrupted values (e.g., 4.87E-317) when the 
+        // field's GetAsCurrency or GetValue methods are called. 
+        // Therefore, we MUST convert the value to a Double before writing to the buffer.
+        var LDoubleVal: Double := V;
+        PDouble(Buffer)^ := LDoubleVal;
+      end;
       ftVariant: PVariant(Buffer)^ := V;
     else
       Result := False;
@@ -2086,10 +2151,11 @@ begin
          ftString, ftWideString: V := string(PWideChar(Buffer));
          ftInteger, ftSmallint, ftAutoInc: V := PInteger(Buffer)^;
          ftLargeint: V := PInt64(Buffer)^;
-         ftFloat, ftCurrency: V := PDouble(Buffer)^;
-         ftBoolean: V := PBoolean(Buffer)^;
-         ftDateTime, ftDate, ftTime: V := TDateTime(PDouble(Buffer)^);
-       end;
+         ftFloat: V := PDouble(Buffer)^;
+        ftCurrency: V := PCurrency(Buffer)^;
+        ftBoolean: V := PBoolean(Buffer)^;
+        ftDateTime, ftDate, ftTime: V := TDateTime(PDouble(Buffer)^);
+      end;
     end;
 
     var RttiProp := GetProperty(Field.FieldName);

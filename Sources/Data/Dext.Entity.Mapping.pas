@@ -1,4 +1,4 @@
-﻿{***************************************************************************}
+{***************************************************************************}
 {                                                                           }
 {           Dext Framework                                                  }
 {                                                                           }
@@ -541,27 +541,10 @@ begin
     
     for var Fld in Typ.GetFields do
     begin
-      // 1. Smart Properties (detected by [SmartProp] attribute or Prop<T> naming)
-      var IsSmart := Fld.FieldType.Name.Contains('Prop<') or 
-                     Fld.FieldType.Name.Contains('Nullable<') or 
-                     Fld.FieldType.Name.Contains('Lazy<');
-      if not IsSmart then
-      begin
-        // Check for common aliases and look for SmartPropAttribute
-        if (Fld.FieldType.TypeKind = tkRecord) then
-        begin
-          for Attr in Fld.FieldType.GetAttributes do
-            if SameText(Attr.ClassName, 'SmartPropAttribute') or 
-               SameText(Attr.ClassName, 'SmartProp') then
-            begin
-              IsSmart := True;
-              Break;
-            end;
-        end;
-      end;
+      // 1. Smart Properties (detected by TReflection which handles attributes, naming and aliases)
+      var Metadata := TReflection.GetMetadata(Fld.FieldType.Handle);
+      var IsSmart := Metadata.IsSmartProp or Metadata.IsNullable or Metadata.IsLazy;
 
-      // PropMap := nil;
-      
       if IsSmart then
       begin
         var FldName := TReflection.NormalizeFieldName(Fld.Name);
@@ -569,23 +552,19 @@ begin
         PropMap := GetOrAddProperty(FldName);
         PropMap.FieldOffset := -1; // Reset to avoid incorrect null detection for records
         PropMap.FieldValueOffset := -1;
-
-        if Fld.FieldType.Name.Contains('Lazy<') then
-          PropMap.IsLazy := True;
+        PropMap.IsLazy := Metadata.IsLazy;
 
         // Skip fast path for Lazy to force RTTI (which triggers Load)
         if not PropMap.IsLazy then
         begin
-          for var InnerFld in Fld.FieldType.GetFields do
+          if Metadata.HasValueField <> nil then
+            PropMap.FieldOffset := Fld.Offset + Metadata.HasValueField.Offset;
+
+          if Metadata.ValueField <> nil then
           begin
-            if SameText(InnerFld.Name, 'FHasValue') or SameText(InnerFld.Name, 'FLoaded') then
-              PropMap.FieldOffset := Fld.Offset + InnerFld.Offset
-            else if SameText(InnerFld.Name, 'FValue') then
-            begin
-              PropMap.FieldValueOffset := Fld.Offset + InnerFld.Offset;
-              PropMap.PropertyType := InnerFld.FieldType.Handle;
-              PropMap.DataType := TypeInfoToFieldType(InnerFld.FieldType.Handle);
-            end;
+            PropMap.FieldValueOffset := Fld.Offset + Metadata.ValueField.Offset;
+            PropMap.PropertyType := Metadata.InnerType;
+            PropMap.DataType := TypeInfoToFieldType(Metadata.InnerType);
           end;
         end;
         
@@ -624,6 +603,36 @@ begin
         PropMap.DataType := TypeInfoToFieldType(Prop.PropertyType.Handle);
 
       PropMap.Prop := Prop; // Cache the RTTI property for fast access
+      
+      // If the property has a getter or setter method, we should not use direct field access (Fast Path)
+      // as it might bypass business logic or calculated values.
+      if Prop is TRttiInstanceProperty then
+      begin
+        var LPropInfo := TRttiInstanceProperty(Prop).PropInfo;
+        if Assigned(LPropInfo) then
+        begin
+          // If GetProc points to a field (high-byte $FF), it's a direct field access property (e.g., 'read FCurrencyVal').
+          // In this case, we extract the actual memory offset of the private field to enable the 'Fast Path' performance boost.
+          // Note: We MUST NOT overwrite offsets for SmartProps (Nullable/Lazy) already detected in the Fields loop.
+          if (not PropMap.IsLazy) and ((NativeInt(LPropInfo.GetProc) and $FF000000) = $FF000000) then
+          begin
+            if PropMap.FieldValueOffset = 0 then
+              PropMap.FieldValueOffset := NativeInt(LPropInfo.GetProc) and $00FFFFFF;
+          end
+          else
+          begin
+             // It's a method getter - we cannot use direct memory access (Fast Path).
+             PropMap.FieldValueOffset := 0;
+          end;
+
+          // Double check SetProc to ensure it's also a field mapping or a method
+          if (PropMap.FieldValueOffset <> 0) and (NativeInt(LPropInfo.SetProc) <> 0) and 
+             ((NativeInt(LPropInfo.SetProc) and $FF000000) <> $FF000000) then
+          begin
+             PropMap.FieldValueOffset := 0;
+          end;
+        end;
+      end;
 
       if Prop.PropertyType.TypeKind in [tkClass, tkInterface] then
       begin

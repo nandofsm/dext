@@ -344,7 +344,7 @@ end;
 class function BooleanExpression.FromRuntime(const AValue: Boolean): BooleanExpression;
 begin
   Result.FRuntimeValue := AValue;
-  Result.FExpression := nil;
+  Result.FExpression := TConstantExpression.Create(AValue);
 end;
 
 class operator BooleanExpression.Implicit(const Value: BooleanExpression): Boolean;

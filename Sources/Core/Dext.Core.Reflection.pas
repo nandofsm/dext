@@ -1,4 +1,4 @@
-﻿unit Dext.Core.Reflection;
+unit Dext.Core.Reflection;
 
 interface
 
@@ -121,7 +121,7 @@ begin
         InnerType := Field.FieldType.Handle;
         IsSmartProp := True;
       end
-      else if LFieldName.ToLower.Contains('hasvalue') then
+      else if LFieldName.ToLower.Contains('hasvalue') or SameText(LFieldName, 'FInfo') or SameText(LFieldName, 'Info') then
         HasValueField := Field
       else if SameText(LFieldName, 'FInstance') and (string(Field.FieldType.Handle.Name).Contains('ILazy')) then
       begin
@@ -485,18 +485,18 @@ class function TReflection.NormalizeFieldName(const AFieldName: string): string;
 begin
   Result := AFieldName;
   
-  // Remove 'F' prefix if it exists
-  if (Result.Length > 1) and (Result[1] = 'F') and (Char.IsUpper(Result, 2)) then
+  // Remove 'F' prefix if it exists (0-based Char.IsUpper check)
+  if (Result.Length > 1) and (Result[1] = 'F') and (Char.IsUpper(Result, 1)) then
     Result := Result.Substring(1);
 
   // Normalize Smart Property prefixes: Lazy, Prop, Proxy, Nullable
-  if Result.StartsWith('Lazy', True) and (Result.Length > 4) and (Char.IsUpper(Result, 5)) then
+  if Result.StartsWith('Lazy', True) and (Result.Length > 4) and (Char.IsUpper(Result, 4)) then
     Result := Result.Substring(4)
-  else if Result.StartsWith('Prop', True) and (Result.Length > 4) and (Char.IsUpper(Result, 5)) then
+  else if Result.StartsWith('Prop', True) and (Result.Length > 4) and (Char.IsUpper(Result, 4)) then
     Result := Result.Substring(4)
-  else if Result.StartsWith('Proxy', True) and (Result.Length > 5) and (Char.IsUpper(Result, 6)) then
+  else if Result.StartsWith('Proxy', True) and (Result.Length > 5) and (Char.IsUpper(Result, 5)) then
     Result := Result.Substring(5)
-  else if Result.StartsWith('Nullable', True) and (Result.Length > 8) and (Char.IsUpper(Result, 9)) then
+  else if Result.StartsWith('Nullable', True) and (Result.Length > 8) and (Char.IsUpper(Result, 8)) then
     Result := Result.Substring(8);
 end;
 

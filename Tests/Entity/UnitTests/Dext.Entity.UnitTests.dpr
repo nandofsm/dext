@@ -37,7 +37,14 @@ begin
         TShadowDataSetTests,
         TCalculatedFieldsTests,
         TSmartTypesTests,
-        TSmartTypesMatrixTests
+        TSmartTypesMatrixTests,
+        TEntityDataSetTests,
+        TProductDataSetTests,
+        TMasterDetailDataSetTests,
+        TEntityDataSetCRUDTests,
+        TEntityDataSetStressTests,
+        TSmartPropertyDataSetTests,
+        TFloatingPointDataSetTests
       ]).Run;
 
     TTest.SetExitCode(TestResult);

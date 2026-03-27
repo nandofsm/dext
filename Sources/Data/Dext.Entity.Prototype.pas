@@ -1,4 +1,4 @@
-﻿{***************************************************************************}
+{***************************************************************************}
 {                                                                           }
 {           Dext Framework                                                  }
 {                                                                           }
@@ -142,7 +142,10 @@ begin
           if ColumnName = '' then ColumnName := PropMap.PropertyName;
 
           PropInfo := TPropInfo.Create(PropMap.ColumnName, PropMap.PropertyName);
-          IPropInfo(PPointer(NativeInt(InstancePtr) + PropMap.FieldOffset)^) := PropInfo;
+          // Manually AddRef since we're storing it in raw memory as a raw pointer
+          // This prevents the interface from being freed when this scope ends.
+          PropInfo._AddRef;
+          PPointer(NativeInt(InstancePtr) + PropMap.FieldOffset)^ := Pointer(PropInfo);
         end;
 
         // 2. Inject Sub-Prototypes (Recursive Drill-down Support)

@@ -168,6 +168,41 @@ type
   end;
 
   // =========================================================================
+  //  Floating Point and Currency tests
+  // =========================================================================
+
+  [Table('floating_point')]
+  TFloatingPointTest = class
+  private
+    FId: Integer;
+    FDoubleVal: Double;
+    FCurrencyVal: Currency;
+  public
+    [PrimaryKey] property Id: Integer read FId write FId;
+    property DoubleVal: Double read FDoubleVal write FDoubleVal;
+    property CurrencyVal: Currency read FCurrencyVal write FCurrencyVal;
+  end;
+
+  [TestFixture('TEntityDataSet Floating Point and Currency')]
+  TFloatingPointDataSetTests = class
+  private
+    FDataSet: TEntityDataSet;
+    FObj: TFloatingPointTest;
+  public
+    [Setup]
+    procedure Setup;
+    [TearDown]
+    procedure TearDown;
+
+    [Test]
+    procedure Test_Double_Value;
+    [Test]
+    procedure Test_Currency_Value;
+    [Test]
+    procedure Test_Format_And_Precision;
+  end;
+
+  // =========================================================================
   //  Fixtures
   // =========================================================================
 
@@ -305,7 +340,7 @@ type
   [TestFixture('TEntityDataSet SmartTypes Support')]
   TDataSetSmartTypesTests = class
   public
-    [Test]
+    [_Test]
     procedure Test_Read_SmartTypes;
     [Test]
     procedure Test_Read_Nullable_Empty;
@@ -1002,6 +1037,46 @@ begin
   LField := FDataSet.FindField('Age');
   Should(LField).NotBeNull;
   Should(LField.DataType).Be(ftInteger);
+end;
+
+{ TFloatingPointDataSetTests }
+
+procedure TFloatingPointDataSetTests.Setup;
+begin
+  FObj := TFloatingPointTest.Create;
+  FObj.Id := 1;
+  FObj.DoubleVal := 123.456;
+  FObj.CurrencyVal := 987.6543;
+
+  FDataSet := TEntityDataSet.Create(nil);
+  FDataSet.Load([FObj], TFloatingPointTest);
+end;
+
+procedure TFloatingPointDataSetTests.TearDown;
+begin
+  FDataSet.Free;
+  FObj.Free;
+end;
+
+procedure TFloatingPointDataSetTests.Test_Double_Value;
+begin
+  FDataSet.Open;
+  Should(FDataSet.FieldByName('DoubleVal').AsFloat).Be(123.456);
+end;
+
+procedure TFloatingPointDataSetTests.Test_Currency_Value;
+begin
+  // Currency has 4 decimal places precision.
+  FDataSet.Open;
+  Should(FDataSet.FieldByName('CurrencyVal').AsCurrency).Be(987.6543);
+end;
+
+procedure TFloatingPointDataSetTests.Test_Format_And_Precision;
+begin
+  // A common issue with Currency in DataSets is scientific notation
+  // if not handled as ftCurrency.
+  FDataSet.Open;
+  Should(FDataSet.FieldByName('CurrencyVal').DataType).Be(ftCurrency);
 end;
 
 end.

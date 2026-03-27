@@ -74,7 +74,7 @@ type
     procedure ProcessLogical(const C: TLogicalExpression);
     procedure ProcessUnary(const C: TUnaryExpression);
     procedure ProcessConstant(const C: TConstantExpression);
-     procedure ProcessProperty(const C: TPropertyExpression);
+    procedure ProcessProperty(const C: TPropertyExpression);
     procedure ProcessJsonProperty(const C: TJsonPropertyExpression);
     procedure ProcessLiteral(const C: TLiteralExpression);
 
@@ -1856,7 +1856,9 @@ begin
     
     // Copy params
     for Pair in WhereGen.Params do
+    begin
       FParams.AddOrSetValue(Pair.Key, Pair.Value);
+    end;
   finally
     WhereGen.Free;
   end;
@@ -2052,6 +2054,8 @@ begin
     begin
       Result := SB.ToString;
     end;
+    
+    WriteLn('[DEBUG_SQL] GenerateSelect: Final SQL: ', Result);
     
     // Add to cache
     if (ASpec <> nil) and (Result <> '') then

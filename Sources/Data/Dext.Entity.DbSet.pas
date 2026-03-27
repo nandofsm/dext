@@ -2477,31 +2477,6 @@ begin
         end);
     end;
 
-//  var Spec := LSpec as ISpecification;
-//  var Count := TFunc<ISpecification, Integer>(
-//      function(S: ISpecification): Integer
-//      begin
-//        Result := LSelf.Count(S as ISpecification<T>);
-//      end);
-//  var Any := TFunc<ISpecification, Boolean>(
-//      function(S: ISpecification): Boolean
-//      begin
-//        Result := LSelf.Any(S as ISpecification<T>);
-//      end);
-//  var FirstOrDefault := TFunc<ISpecification, T>(
-//      function(S: ISpecification): T
-//      begin
-//        Result := LSelf.FirstOrDefault(S as ISpecification<T>);
-//      end);
-//
-//  Result := TFluentQuery<T>.Create(
-//    LFactory,
-//    Spec,
-//    Count,
-//    Any,
-//    FirstOrDefault,
-//    FContext.Connection
-//  );
   Result := TFluentQuery<T>.Create(
     LFactory,
     LSpec as ISpecification,

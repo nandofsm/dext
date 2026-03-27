@@ -9,19 +9,22 @@ uses
   Dext.Collections;
 
 type
+//  Money = Currency;
+  Money = Double;
   [Table('products')]
   TProduct = class
   private
     FId: Integer;
     FDescription: string;
-    FPrice: Currency;
+    FPrice: Money;
   public
-    constructor Create(Id: Integer; const Description: string; Price: Currency);
+    constructor Create(Id: Integer; const Description: string; Price: Money);
 
     [PK]
     property Id: Integer read FId write FId;
+    [MaxLength(100)]
     property Description: string read FDescription write FDescription;
-    property Price: Currency read FPrice write FPrice;
+    property Price: Money read FPrice write FPrice;
   end;
 
   TFormMain = class(TForm)
@@ -68,7 +71,7 @@ end;
 { TProduct }
 
 constructor TProduct.Create(Id: Integer; const Description: string; Price:
-  Currency);
+  Money);
 begin
   inherited Create;
   FId := Id;
