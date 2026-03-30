@@ -163,8 +163,8 @@ try {
     # TEST 12: POST new log (TUUID PK)
     # ═══════════════════════════════════════════════════════════════════════════
     Write-Host "12. POST /api/logs" -ForegroundColor Yellow
-    Write-Host "    Creating new log with explicit UUID..."
     $logId = [guid]::NewGuid().ToString()
+    Write-Host "    Creating new log with explicit UUID: $($logId)..."
     $newLog = @{
         id      = $logId
         message = "Manual log entry"
