@@ -657,12 +657,10 @@ begin
         SourceProvider.Free;
       end;
 
-      // Buscar valor do header (case-insensitive)
-      var HeaderKey := FieldName.ToLower; // Headers são case-insensitive
-      if Headers.ContainsKey(HeaderKey) then
+      // Buscar valor do header (case-insensitive via GetHeader)
+      FieldValue := Context.Request.GetHeader(FieldName);
+      if FieldValue <> '' then
       begin
-        FieldValue := Headers[HeaderKey];
-
         // ✅ USAR CONVERSÃO ROBUSTA
         try
           var Val := ConvertStringToType(FieldValue, Field.FieldType.Handle);
@@ -752,9 +750,9 @@ begin
       ParamName := FromHeaderAttribute(Attr).Name;
       if ParamName = '' then ParamName := AParam.Name;
 
-      var Headers := AContext.Request.Headers;
-      if Headers.ContainsKey(LowerCase(ParamName)) then
-        Result := ConvertStringToType(Headers[LowerCase(ParamName)], AParam.ParamType.Handle)
+      var HeaderValue := AContext.Request.GetHeader(ParamName);
+      if HeaderValue <> '' then
+        Result := ConvertStringToType(HeaderValue, AParam.ParamType.Handle)
       else
         Result := ConvertStringToType('', AParam.ParamType.Handle); // Default
       Exit;
@@ -1013,8 +1011,9 @@ begin
           case BindingSource of
             bsHeader:
               begin
-                // Headers are case-insensitive
-                if TryGetCaseInsensitive(Headers, FieldName, HeaderVal) then
+                // Headers are case-insensitive (GetHeader already handles this)
+                HeaderVal := Context.Request.GetHeader(FieldName);
+                if HeaderVal <> '' then
                   FieldValue := ConvertStringToType(HeaderVal, Field.FieldType.Handle)
                 else
                   FieldValue := ConvertStringToType('', Field.FieldType.Handle);
