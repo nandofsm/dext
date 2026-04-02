@@ -89,6 +89,8 @@ type
     FInternalCalcStorage: TArray<TBytes>;
     FPropertyCache: TDictionary<string, TRttiProperty>;
     FDataProvider: TEntityDataProvider;
+    FPreviewData: TArray<TDictionary<string, Variant>>;
+    FIsDesignTimePreview: Boolean;
     FTableName: string;
     FEntityClassName: string;
     FOnPrepareField: TPrepareFieldEvent;
@@ -275,6 +277,7 @@ implementation
 uses
   System.StrUtils,
   System.AnsiStrings,
+  FireDAC.Comp.Client,
   Dext.Specifications.Evaluator,
   Dext.Specifications.Interfaces,
   Dext.Specifications.Parser,
@@ -508,6 +511,10 @@ begin
   FreeAndNil(FCalcOffsets);
   FreeAndNil(FDetailDataSets);
   FreeAndNil(FInsertObj);
+
+  for var Dict in FPreviewData do
+    Dict.Free;
+  SetLength(FPreviewData, 0);
     
   FItems := nil;
   
@@ -1438,10 +1445,12 @@ procedure TEntityDataSet.InternalOpen;
 var
   CalcSize: Integer;
   i: Integer;
+  ItemCount: Integer;
   Offset: Integer;
   LDef: TFieldDef;
 begin
   FIsCursorOpen := True;
+  FIsDesignTimePreview := False;
 
   if (FEntityClass = nil) or (csDesigning in ComponentState) then
     ResolveEntityClassFromProvider;
@@ -1449,6 +1458,7 @@ begin
   if (FEntityClassName <> '') and (csDesigning in ComponentState) then
     EnsureEntityMapResolved;
 
+  // Design-time preview: load data for grid display
   if (csDesigning in ComponentState) and
      ((FItems = nil) or (FItems.Count = 0)) and
      Assigned(FDataProvider) then
@@ -1456,54 +1466,88 @@ begin
     var DP: IEntityDataProvider;
     if FDataProvider.GetInterface(IEntityDataProvider, DP) then
     begin
-       // Limpar se for ownership
-       if FOwnsItems and (FItems <> nil) then
-         FItems := nil;
-         
-       FItems := DP.CreatePreviewItems(FEntityClassName, 50);
-       FOwnsItems := True;
+      // Limpar se for ownership
+      if FOwnsItems and (FItems <> nil) then
+        FItems := nil;
+
+      // Try RTTI path first (works when entity class is compiled in the IDE)
+      FItems := DP.CreatePreviewItems(FEntityClassName, 50);
+      FOwnsItems := True;
+
+      // If RTTI path failed, fall back to direct SQL dictionary approach
+      // This enables preview even without the entity class compiled
+      if (FItems = nil) or (FItems.Count = 0) then
+      begin
+        var Sql := DP.BuildPreviewSql(FEntityClassName, 50);
+        if (Sql <> '') and (FDataProvider.DatabaseConnection <> nil) then
+        begin
+          for var Dict in FPreviewData do
+            Dict.Free;
+          SetLength(FPreviewData, 0);
+          var Query := TFDQuery.Create(nil);
+          try
+            Query.Connection := FDataProvider.DatabaseConnection;
+            Query.SQL.Text := Sql;
+            try
+              Query.Open;
+              while not Query.Eof do
+              begin
+                var Row := TDictionary<string, Variant>.Create;
+                for var J := 0 to Query.Fields.Count - 1 do
+                begin
+                  if Query.Fields[J].IsNull then
+                    Row.AddOrSetValue(Query.Fields[J].FieldName, Null)
+                  else
+                    Row.AddOrSetValue(Query.Fields[J].FieldName, Query.Fields[J].Value);
+                end;
+                FPreviewData := FPreviewData + [Row];
+                Query.Next;
+              end;
+              FIsDesignTimePreview := Length(FPreviewData) > 0;
+            except
+              // Silently ignore SQL errors in design-time preview
+              FIsDesignTimePreview := False;
+            end;
+          finally
+            Query.Free;
+          end;
+        end;
+      end;
     end;
   end;
 
   if (FEntityClass = nil) and (not (csDesigning in ComponentState)) then
     raise Exception.Create('EntityClass must be defined before opening TEntityDataSet.');
 
-  if Active or (State = dsInactive) then
+  // Build FieldDefs and create Fields
+  if FieldDefs.Count = 0 then
+    BuildFieldDefs;
+
+  // Synchronize FieldDefs with existing persistent Fields
+  for i := 0 to Fields.Count - 1 do
   begin
-    // SEMPRE reconstruímos FieldDefs para garantir que o MetaData interno case com a Entidade atual
-    if FieldDefs.Count = 0 then
-      BuildFieldDefs;
-
-    // Mas só CRIAMOS campos automáticos se o usuário não tiver campos persistentes configurados
-    if FieldCount = 0 then
-      CreateFields;
-  end;
-
-  if Active or (State = dsInactive) then
-  begin
-    // Recriamos o resto do bloco original aqui
-    if FieldDefs.Count = 0 then
-      BuildFieldDefs;
-
-    // CRITICAL: Synchronize FieldDefs with existing persistent Fields
-    // (e.g. manual InternalCalc added while closed)
-    for i := 0 to Fields.Count - 1 do
+    if FieldDefs.IndexOf(Fields[i].FieldName) < 0 then
     begin
-      if FieldDefs.IndexOf(Fields[i].FieldName) < 0 then
-      begin
-        LDef := FieldDefs.AddFieldDef;
-        LDef.Name := Fields[i].FieldName;
-        LDef.DataType := Fields[i].DataType;
-        LDef.Size := Fields[i].Size;
-      end;
+      LDef := FieldDefs.AddFieldDef;
+      LDef.Name := Fields[i].FieldName;
+      LDef.DataType := Fields[i].DataType;
+      LDef.Size := Fields[i].Size;
     end;
-
-    if FieldCount = 0 then
-      CreateFields;
   end;
+
+  if FieldCount = 0 then
+    CreateFields;
 
   SyncMasterDetail;
   ApplyFilterAndSort;
+
+  // Design-time preview: populate virtual index from preview data
+  if FIsDesignTimePreview and (FVirtualIndex.Count = 0) then
+  begin
+    for i := 0 to Length(FPreviewData) - 1 do
+      FVirtualIndex.Add(i);
+  end;
+
   BookmarkSize := SizeOf(Integer);
 
   // Calcular tamanho necessário para campos calculados
@@ -1513,28 +1557,29 @@ begin
   begin
     if Fields[i].FieldKind in [fkCalculated, fkLookup, fkInternalCalc] then
     begin
-       // Spacing for Null Flag (1 byte) + Data
        Offset := SizeOf(TEntityRecordHeader) + CalcSize + 1;
        FCalcOffsets.Add(Fields[i].FieldName, Offset);
        Inc(CalcSize, Fields[i].DataSize + 1);
     end;
   end;
 
-  // Importante para o VCL alocar buffers com espaço para o Header + campos calculados
   FCalcAreaSize := CalcSize;
   FRecordSize := SizeOf(TEntityRecordHeader) + FCalcAreaSize;
   
-  var LItemCount: Integer := 0;
-  if Assigned(FItems) then
-    LItemCount := FItems.Count;
+  ItemCount := 0;
+  if FIsDesignTimePreview then
+    ItemCount := Length(FPreviewData)
+  else if Assigned(FItems) then
+    ItemCount := FItems.Count;
 
-  SetLength(FInternalCalcStorage, Max(0, LItemCount));
+  SetLength(FInternalCalcStorage, Max(0, ItemCount));
   for i := 0 to High(FInternalCalcStorage) do FInternalCalcStorage[i] := nil;
   
   // Native cursor reset
   FCurrentRec := -1;
   BindFields(True);
 end;
+
 
 procedure TEntityDataSet.InternalClose;
 begin
@@ -1545,6 +1590,12 @@ begin
   end;
   FIsCursorOpen := False;
   FVirtualIndex.Clear;
+
+  // Clear design-time preview data
+  FIsDesignTimePreview := False;
+  for var Dict in FPreviewData do
+    Dict.Free;
+  SetLength(FPreviewData, 0);
   
   if (FDetailDataSets <> nil) then
   begin
@@ -2538,6 +2589,27 @@ begin
   if not Active then Exit;
   Header := PEntityRecordHeader(Pointer(ABuffer));
 
+  // DESIGN-TIME PREVIEW: Read from dictionary instead of object memory
+  if FIsDesignTimePreview and (csDesigning in ComponentState) then
+  begin
+    var RowIdx := -1;
+    if (Header <> nil) and (Header.BookmarkIndex >= 0) and
+       (Header.BookmarkIndex < Length(FPreviewData)) then
+      RowIdx := Header.BookmarkIndex
+    else if (FCurrentRec >= 0) and (FCurrentRec < Length(FPreviewData)) then
+      RowIdx := FCurrentRec;
+
+    if RowIdx >= 0 then
+    begin
+      var Row := FPreviewData[RowIdx];
+      if Row.TryGetValue(Field.FieldName, Value) then
+        Result := not VarIsNull(Value)
+      else
+        Result := False;
+    end;
+    Exit;
+  end;
+
   // 1. Identify target object
   CurrentObj := nil;
   
@@ -2705,10 +2777,7 @@ begin
     ftBoolean:
       Value := PBoolean(PValue)^;
     ftDateTime, ftDate, ftTime:
-    begin
-      if (VarType(PDateTime(PValue)^) = varString) or (VarType(PDateTime(PValue)^) = varUString) then
       Value := VarAsType(PDateTime(PValue)^, varDate);
-    end;
     ftBlob:
     begin
       try
@@ -2814,7 +2883,11 @@ begin
       ftBoolean: PWordBool(Buffer)^ := V;
       ftDateTime, ftDate, ftTime:
       begin
-        var LDT: TDateTime := V;
+        var LDT: TDateTime;
+        if VarIsStr(V) then
+          LDT := VarToDateTime(V)
+        else
+          LDT := V;
         // Delphi's Data.DB expects ftDateTime/ftDate/ftTime fields to be stored as 
         // a 8-byte COMP (Int64 with floating point behavior) representing MILLISECONDS since year 0001.
         // We MUST convert our TDateTime (days) using the RTL's expected conversion.

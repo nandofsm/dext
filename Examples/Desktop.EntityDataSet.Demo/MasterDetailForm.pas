@@ -16,7 +16,7 @@ type
     FDate: TDateTime;
     FCustomer: string;
   public
-    [PK]
+    [PK, DisplayName('Código')]
     property Id: Integer read FId write FId;
     property Date: TDateTime read FDate write FDate;
     property Customer: string read FCustomer write FCustomer;

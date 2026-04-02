@@ -3,7 +3,7 @@ object FormMain: TFormMain
   Top = 0
   Caption = 'Dext Framework - Entity DataSet Demo'
   ClientHeight = 442
-  ClientWidth = 1129
+  ClientWidth = 610
   Color = clBtnFace
   Font.Charset = DEFAULT_CHARSET
   Font.Color = clWindowText
@@ -16,7 +16,7 @@ object FormMain: TFormMain
     AlignWithMargins = True
     Left = 3
     Top = 244
-    Width = 1123
+    Width = 604
     Height = 3
     Cursor = crVSplit
     Align = alTop
@@ -27,7 +27,7 @@ object FormMain: TFormMain
   object DBGridProducts: TDBGrid
     Left = 0
     Top = 41
-    Width = 1129
+    Width = 610
     Height = 200
     Align = alTop
     DataSource = DataSource
@@ -41,7 +41,7 @@ object FormMain: TFormMain
   object DBGridDetail: TDBGrid
     Left = 0
     Top = 250
-    Width = 1129
+    Width = 610
     Height = 192
     Align = alClient
     DataSource = DataSourceDetail
@@ -55,7 +55,7 @@ object FormMain: TFormMain
   object PanelTop: TPanel
     Left = 0
     Top = 0
-    Width = 1129
+    Width = 610
     Height = 41
     Align = alTop
     BevelOuter = bvNone
@@ -79,19 +79,19 @@ object FormMain: TFormMain
   end
   object DataSource: TDataSource
     DataSet = EntityDataSet
-    Left = 320
-    Top = 184
+    Left = 48
+    Top = 56
   end
   object DataSourceDetail: TDataSource
-    Left = 400
-    Top = 300
+    Left = 48
+    Top = 284
   end
   object EntityDataSet: TEntityDataSet
     TableName = 'order'
     DataProvider = EntityDataProvider
     EntityClassName = 'TOrder'
     Active = True
-    Left = 1040
+    Left = 464
     Top = 88
     object EntityDataSetId: TIntegerField
       Alignment = taLeftJustify
@@ -1085,8 +1085,8 @@ object FormMain: TFormMain
             Visible = True
           end>
       end>
-    Left = 1040
-    Top = 160
+    Left = 464
+    Top = 152
   end
   object FDConnection: TFDConnection
     Params.Strings = (
@@ -1096,7 +1096,7 @@ object FormMain: TFormMain
         'est.db')
     Connected = True
     LoginPrompt = False
-    Left = 888
-    Top = 160
+    Left = 352
+    Top = 88
   end
 end
