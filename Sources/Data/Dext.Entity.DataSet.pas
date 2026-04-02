@@ -1,4 +1,4 @@
-﻿
+
 unit Dext.Entity.DataSet;
 
 interface
@@ -449,10 +449,12 @@ begin
       begin
         FEntityMap := TEntityMap.Create(nil);
         FEntityMap.TableName := MD.TableName;
-        FOwnsEntityMap := True;
+        if MD <> nil then
+          FTableName := MD.TableName;
 
-        for var Member in MD.Members do
+        for var i := 0 to MD.Members.Count - 1 do
         begin
+          var Member := MD.Members[i];
           PropMap := TPropertyMap.Create(Member.Name);
           PropMap.ColumnName := Member.Name;
           PropMap.DataType := StringToFieldType(Member.MemberType);
@@ -1294,6 +1296,19 @@ begin
       ClearResolvedEntityMetadata;
       FTableName := ''; // Força o preenchimento do TableName da nova classe
       FItems := nil;    // Explode o cache de preview antigo
+      
+      // Clear persistent fields that were auto-generated
+      var LCanClear: Boolean;
+      LCanClear := True;
+      if (Owner <> nil) and (csLoading in Owner.ComponentState) then
+        LCanClear := False;
+
+      if LCanClear then
+      begin
+        for var i := FieldCount - 1 downto 0 do
+          Fields[i].Free;
+      end;
+
       Active := False;  // Fecha o dataset para resetar buffers
       FieldDefs.Clear;  
       FEntityClass := nil;
@@ -1304,6 +1319,8 @@ begin
     if csDesigning in ComponentState then
     begin
       EnsureEntityMapResolved;
+      if (FEntityMap <> nil) and (FTableName = '') then
+        FTableName := FEntityMap.TableName;
       GenerateFields;
     end;
   end;
@@ -1866,8 +1883,9 @@ begin
     // Clear existing fields if any (optional, usually users manage this)
     // FieldDefs.Clear; 
     
-    for Member in ClassMD.Members do
+    for var i := 0 to ClassMD.Members.Count - 1 do
     begin
+      Member := ClassMD.Members[i];
       LSize := Member.MaxLength;
       if LSize = 0 then LSize := 255;
 
@@ -1999,7 +2017,9 @@ begin
 
   Context := TRttiContext.Create;
   try
-    RttiType := Context.GetType(FEntityClass);
+    RttiType := nil;
+    if FEntityClass <> nil then
+      RttiType := Context.GetType(FEntityClass);
 
     for PropMap in FEntityMap.Properties.Values do
     begin

@@ -64,9 +64,6 @@ type
     EntityDataSetId: TIntegerField;
     EntityDataSetDate: TDateTimeField;
     EntityDataSetCustomer: TWideStringField;
-    EntityDataSetDescription: TWideStringField;
-    EntityDataSetPrice: TFloatField;
-    EntityDataSetStock: TStringField;
     procedure FormCreate(Sender: TObject);
     procedure RealMasterDetailButtonClick(Sender: TObject);
   private
@@ -80,6 +77,7 @@ var
 implementation
 
 uses
+  Dext.Entity.Core,
   MasterDetailForm;
 
 {$R *.dfm}

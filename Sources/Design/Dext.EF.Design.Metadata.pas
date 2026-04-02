@@ -173,7 +173,6 @@ procedure TEntityMetadataParser.ExtractMembers(AMetadata: TEntityClassMetadata; 
     LenAttr: string;
     WidthAttr: string;
     PrecisionAttr: string;
-    DefAttr: string;
     AlignAttr: string;
     LastMemberAttributes: TSyntaxNode;
     ActualNode: TSyntaxNode;
@@ -211,7 +210,7 @@ procedure TEntityMetadataParser.ExtractMembers(AMetadata: TEntityClassMetadata; 
         else
           MType := CChild.GetAttribute(anType);
 
-        Member := TEntityMemberMetadata.Create;
+        Member := AMetadata.Members.Add;
         Member.Name := MName;
         Member.MemberType := MType;
         Member.Visible := True;
@@ -243,10 +242,6 @@ procedure TEntityMetadataParser.ExtractMembers(AMetadata: TEntityClassMetadata; 
         if PrecisionAttr <> '' then
           Member.Precision := StrToIntDef(PrecisionAttr, 0);
 
-        DefAttr := MemberGetAttr('DefaultValue');
-        if DefAttr <> '' then
-          Member.DefaultValue := DefAttr;
-
         AlignAttr := MemberGetAttr('Alignment');
         if AlignAttr <> '' then
         begin
@@ -257,8 +252,6 @@ procedure TEntityMetadataParser.ExtractMembers(AMetadata: TEntityClassMetadata; 
           else if SameText(AlignAttr, 'taCenter') then
             Member.Alignment := taCenter;
         end;
-
-        AMetadata.Members.Add(Member);
         LastMemberAttributes := nil;
       end
       else if CChild.Typ in [ntPublic, ntPublished, ntProtected] then
@@ -332,19 +325,16 @@ begin
                      HasAttribute(TypeNode, 'Table') or HasAttribute(TypeNode, 'Entity') then
                   begin
                     TableName := GetAttributeValue(LastTypeAttributes, 'Table');
-                    if TableName = '' then
-                      TableName := GetAttributeValue(TypeNode, 'Table');
-                    if TableName = '' then
-                      TableName := GetAttributeValue(LastTypeAttributes, 'Entity');
-                    if TableName = '' then
-                      TableName := GetAttributeValue(TypeNode, 'Entity');
+                    if TableName = '' then TableName := GetAttributeValue(TypeNode, 'Table');
+                    if TableName = '' then TableName := GetAttributeValue(LastTypeAttributes, 'Entity');
+                    if TableName = '' then TableName := GetAttributeValue(TypeNode, 'Entity');
                     if TableName = '' then
                       TableName := ClassName;
 
                     Metadata := TEntityClassMetadata.Create;
-                    Metadata.ClassName := ClassName;
+                    Metadata.EntityClassName := ClassName;
+                    Metadata.EntityUnitName := ChangeFileExt(ExtractFileName(AFileName), '');
                     Metadata.TableName := TableName;
-                    Metadata.UnitName := ChangeFileExt(ExtractFileName(AFileName), '');
                     ExtractMembers(Metadata, ClassNode);
                     Result.Add(Metadata);
                   end;
@@ -359,7 +349,11 @@ begin
           SyntaxTree.Free;
         end;
       except
-        // Ignore parse errors in design-time metadata extraction
+        on E: Exception do
+        begin
+          Writeln('Parser Error: ' + E.Message);
+          raise;
+        end;
       end;
     finally
       Stream.Free;
@@ -394,10 +388,13 @@ begin
         begin
           AProvider.AddOrSetMetadata(MD);
           AProvider.LogDebug(Format('Entity cached: %s (%s) Table=%s Members=%d',
-            [MD.ClassName, MD.UnitName, MD.TableName, MD.Members.Count]));
-          for var Member in MD.Members do
+            [MD.EntityClassName, MD.EntityUnitName, MD.TableName, MD.Members.Count]));
+          for var i := 0 to MD.Members.Count - 1 do
+          begin
+            var LMember := MD.Members[i];
             AProvider.LogDebug(Format('  Member: %s Type=%s PK=%s Visible=%s',
-              [Member.Name, Member.MemberType, BoolToStr(Member.IsPrimaryKey, True), BoolToStr(Member.Visible, True)]));
+              [LMember.Name, LMember.MemberType, BoolToStr(LMember.IsPrimaryKey, True), BoolToStr(LMember.Visible, True)]));
+          end;
         end;
         if Supports(ParsedList, ICollection, ParsedCollection) then
           ParsedCollection.OwnsObjects := False;

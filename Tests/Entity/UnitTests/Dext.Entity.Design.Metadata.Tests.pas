@@ -3,6 +3,7 @@ unit Dext.Entity.Design.Metadata.Tests;
 interface
 
 uses
+  System.Classes,
   System.SysUtils,
   Dext.Assertions,
   Dext.Testing.Attributes,
@@ -63,9 +64,9 @@ function TEntityDesignMetadataTests.FindEntity(const AEntities: IList<TEntityCla
   const AClassName: string): TEntityClassMetadata;
 begin
   Result := nil;
-  for var Entity in AEntities do
-    if SameText(Entity.ClassName, AClassName) then
-      Exit(Entity);
+  for var i := 0 to AEntities.Count - 1 do
+    if SameText(AEntities[i].EntityClassName, AClassName) then
+      Exit(AEntities[i]);
 end;
 
 function TEntityDesignMetadataTests.FindMember(AEntity: TEntityClassMetadata;
@@ -75,9 +76,11 @@ begin
   if AEntity = nil then
     Exit;
 
-  for var Member in AEntity.Members do
-    if SameText(Member.Name, AMemberName) then
-      Exit(Member);
+  for var i := 0 to AEntity.Members.Count - 1 do
+  begin
+    if SameText(AEntity.Members[i].Name, AMemberName) then
+      Exit(AEntity.Members[i]);
+  end;
 end;
 
 procedure TEntityDesignMetadataTests.Test_Parse_Demo_MainForm_Finds_TProduct;
@@ -93,7 +96,7 @@ begin
 
     Product := FindEntity(Entities, 'TProduct');
     Should(Product).NotBeNull;
-    Should(Product.UnitName).Be('MainForm');
+    Should(Product.EntityUnitName).Be('MainForm');
     Should(Product.Members.Count).Be(4);
     Should(Product.TableName).Be('products');
   finally

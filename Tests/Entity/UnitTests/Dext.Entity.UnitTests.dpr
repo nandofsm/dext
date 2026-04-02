@@ -1,4 +1,4 @@
-﻿program Dext.Entity.UnitTests;
+program Dext.Entity.UnitTests;
 
 {$APPTYPE CONSOLE}
 
@@ -21,7 +21,8 @@ uses
   Dext.Entity.NullableHydration.Tests in 'Dext.Entity.NullableHydration.Tests.pas',
   Dext.Entity.DataSet.Export.Tests in 'Dext.Entity.DataSet.Export.Tests.pas',
   Dext.Entity.DefaultValue.Tests in 'Dext.Entity.DefaultValue.Tests.pas',
-  Dext.Entity.Design.Metadata.Tests in 'Dext.Entity.Design.Metadata.Tests.pas';
+  Dext.Entity.Design.Metadata.Tests in 'Dext.Entity.Design.Metadata.Tests.pas',
+  Dext.Entity.ReportedIssues.Tests in 'Dext.Entity.ReportedIssues.Tests.pas';
 
 begin
   SetConsoleCharSet();
@@ -54,7 +55,8 @@ begin
         TShadowDataSetTests,
         TSmartPropertyDataSetTests,
         TSmartTypesMatrixTests,
-        TSmartTypesTests
+        TSmartTypesTests,
+        TEntityReportedIssuesTests
       ]).Run;
 
     TTest.SetExitCode(TestResult);

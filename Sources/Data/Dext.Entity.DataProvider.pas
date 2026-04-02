@@ -27,6 +27,8 @@ type
     FDialect: TDatabaseDialect;
     FDebugMode: Boolean;
     FLastRefreshSummary: string;
+    FEntitiesMetadata: TEntityClassCollection;
+    procedure SetEntitiesMetadata(const Value: TEntityClassCollection);
     function BuildEntityMap(AClass: TClass): TEntityMap;
     function BuildColumnList(AClass: TClass; const AClassName: string): string;
     function GetEntityCount: Integer;
@@ -38,6 +40,7 @@ type
     procedure SetDatabaseConnection(const Value: TFDCustomConnection);
   protected
     procedure Notification(AComponent: TComponent; Operation: TOperation); override;
+    procedure Loaded; override;
   public
     constructor Create(AOwner: TComponent); override;
     destructor Destroy; override;
@@ -62,6 +65,7 @@ type
     property DebugMode: Boolean read FDebugMode write FDebugMode default False;
     property EntityCount: Integer read GetEntityCount stored False;
     property LastRefreshSummary: string read FLastRefreshSummary stored False;
+    property EntitiesMetadata: TEntityClassCollection read FEntitiesMetadata write SetEntitiesMetadata;
   end;
 
 implementation
@@ -71,7 +75,8 @@ begin
   inherited;
   FModelUnits := TStringList.Create;
   TStringList(FModelUnits).OnChange := OnModelUnitsChange;
-  FMetadataCache := TCollections.CreateDictionary<string, TEntityClassMetadata>(True);
+  FEntitiesMetadata := TEntityClassCollection.Create(Self);
+  FMetadataCache := TCollections.CreateDictionary<string, TEntityClassMetadata>(False);
   FPreviewMaxRows := 50;
   FDialect := ddUnknown;
 end;
@@ -79,6 +84,7 @@ end;
 destructor TEntityDataProvider.Destroy;
 begin
   FMetadataCache := nil;
+  FEntitiesMetadata.Free;
   FModelUnits.Free;
   inherited;
 end;
@@ -119,8 +125,8 @@ begin
   begin
     Metadata := GetEntityMetadata(AClassName);
     if Metadata <> nil then
-      for var Member in Metadata.Members do
-        Columns.Add(Member.Name);
+      for var i := 0 to Metadata.Members.Count - 1 do
+        Columns.Add(Metadata.Members[i].Name);
   end;
 
   if Columns.Count = 0 then
@@ -166,11 +172,10 @@ end;
 function TEntityDataProvider.GetEntities: TArray<string>;
 var
   List: IList<string>;
-  MD: TEntityClassMetadata;
 begin
   List := TCollections.CreateList<string>;
-  for MD in FMetadataCache.Values do
-    List.Add(MD.ClassName);
+  for var i := 0 to FEntitiesMetadata.Count - 1 do
+    List.Add(FEntitiesMetadata[i].EntityClassName);
   Result := List.ToArray;
 end;
 
@@ -203,9 +208,9 @@ begin
   Metadata := GetEntityMetadata(AClassName);
   if Metadata <> nil then
   begin
-    if Metadata.UnitName <> '' then
+    if Metadata.EntityUnitName <> '' then
     begin
-      RttiType := TReflection.Context.FindType(Metadata.UnitName + '.' + Metadata.ClassName);
+      RttiType := TReflection.Context.FindType(Metadata.EntityUnitName + '.' + Metadata.EntityClassName);
       if RttiType is TRttiInstanceType then
         Exit(TRttiInstanceType(RttiType).MetaclassType);
     end;
@@ -348,6 +353,14 @@ begin
     FDatabaseConnection := nil;
 end;
 
+procedure TEntityDataProvider.Loaded;
+begin
+  inherited;
+  FMetadataCache.Clear;
+  for var i := 0 to FEntitiesMetadata.Count - 1 do
+    FMetadataCache.AddOrSetValue(FEntitiesMetadata[i].EntityClassName, FEntitiesMetadata[i]);
+end;
+
 procedure TEntityDataProvider.OnModelUnitsChange(Sender: TObject);
 begin
 end;
@@ -355,14 +368,31 @@ end;
 procedure TEntityDataProvider.ClearMetadata;
 begin
   FMetadataCache.Clear;
+  FEntitiesMetadata.Clear;
 end;
 
 procedure TEntityDataProvider.AddOrSetMetadata(const AMetadata: TEntityClassMetadata);
+var
+  NewMD: TEntityClassMetadata;
 begin
   if AMetadata = nil then
     Exit;
 
-  FMetadataCache.AddOrSetValue(AMetadata.ClassName, AMetadata);
+  NewMD := FEntitiesMetadata.FindByName(AMetadata.EntityClassName);
+  if NewMD = nil then
+    NewMD := FEntitiesMetadata.Add;
+
+  NewMD.EntityClassName := AMetadata.EntityClassName;
+  NewMD.TableName := AMetadata.TableName;
+  NewMD.EntityUnitName := AMetadata.EntityUnitName;
+  NewMD.Members.Assign(AMetadata.Members);
+
+  FMetadataCache.AddOrSetValue(NewMD.EntityClassName, NewMD);
+end;
+
+procedure TEntityDataProvider.SetEntitiesMetadata(const Value: TEntityClassCollection);
+begin
+  FEntitiesMetadata.Assign(Value);
 end;
 
 procedure TEntityDataProvider.UpdateRefreshSummary;

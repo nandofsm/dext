@@ -90,31 +90,22 @@ object FormMain: TFormMain
     TableName = 'order'
     DataProvider = EntityDataProvider
     EntityClassName = 'TOrder'
+    Active = True
     Left = 1040
     Top = 88
     object EntityDataSetId: TIntegerField
       Alignment = taLeftJustify
+      DisplayLabel = 'C'#243'digo'
       FieldName = 'Id'
     end
     object EntityDataSetDate: TDateTimeField
+      DisplayLabel = 'Data de Cadastro'
       FieldName = 'Date'
     end
     object EntityDataSetCustomer: TWideStringField
+      DisplayLabel = 'Cliente'
+      DisplayWidth = 100
       FieldName = 'Customer'
-      Size = 255
-    end
-    object EntityDataSetDescription: TWideStringField
-      DisplayWidth = 75
-      FieldName = 'Description'
-      Size = 200
-    end
-    object EntityDataSetPrice: TFloatField
-      Alignment = taLeftJustify
-      FieldName = 'Price'
-    end
-    object EntityDataSetStock: TStringField
-      FieldName = 'Stock'
-      Visible = False
       Size = 255
     end
   end
@@ -145,9 +136,955 @@ object FormMain: TFormMain
       'C:\dev\Dext\DextRepository\Sources\Data\Dext.Entity.DataSet.pas'
       
         'C:\dev\Dext\DextRepository\Sources\Data\Dext.Entity.DataProvider' +
-        '.pas')
+        '.pas'
+      
+        'C:\dev\Dext\DextRepository\Tests\Entity\UnitTests\Dext.Entity.Sm' +
+        'artTypes.Tests.pas'
+      
+        'C:\dev\Dext\DextRepository\Tests\Entity\UnitTests\Dext.Entity.Fl' +
+        'uentQuery.Tests.pas'
+      
+        'C:\dev\Dext\DextRepository\Tests\Entity\UnitTests\Dext.Entity.Da' +
+        'taSet.Tests.pas'
+      
+        'C:\dev\Dext\DextRepository\Tests\Entity\UnitTests\Dext.Entity.As' +
+        'ync.Tests.pas'
+      
+        'C:\dev\Dext\DextRepository\Tests\Entity\UnitTests\Dext.Entity.Sq' +
+        'lGenerator.Tests.pas'
+      
+        'C:\dev\Dext\DextRepository\Tests\Entity\UnitTests\Dext.Entity.Fl' +
+        'uentMapping.Tests.pas'
+      
+        'C:\dev\Dext\DextRepository\Tests\Entity\UnitTests\Dext.Entity.Da' +
+        'taSet.NewFeatures.Tests.pas'
+      
+        'C:\dev\Dext\DextRepository\Tests\Entity\UnitTests\Dext.Entity.Id' +
+        'Return.Tests.pas'
+      
+        'C:\dev\Dext\DextRepository\Tests\Entity\UnitTests\Dext.Entity.Nu' +
+        'llableHydration.Tests.pas'
+      
+        'C:\dev\Dext\DextRepository\Tests\Entity\UnitTests\Dext.Entity.Da' +
+        'taSet.Export.Tests.pas'
+      
+        'C:\dev\Dext\DextRepository\Tests\Entity\UnitTests\Dext.Entity.De' +
+        'faultValue.Tests.pas'
+      
+        'C:\dev\Dext\DextRepository\Tests\Entity\UnitTests\Dext.Entity.De' +
+        'sign.Metadata.Tests.pas'
+      
+        'C:\dev\Dext\DextRepository\Tests\Entity\UnitTests\Dext.Entity.Re' +
+        'portedIssues.Tests.pas')
     Dialect = ddSQLite
     DebugMode = True
+    EntitiesMetadata = <
+      item
+        EntityClassName = 'TOrder'
+        TableName = 'order'
+        EntityUnitName = 'MasterDetailForm'
+        Members = <
+          item
+            Name = 'Id'
+            MemberType = 'Integer'
+            IsPrimaryKey = True
+            IsRequired = False
+            IsAutoInc = False
+            IsReadOnly = False
+            MaxLength = 0
+            Precision = 0
+            Scale = 0
+            Alignment = taLeftJustify
+            DisplayWidth = 0
+            Visible = True
+          end
+          item
+            Name = 'Date'
+            MemberType = 'TDateTime'
+            IsPrimaryKey = False
+            IsRequired = False
+            IsAutoInc = False
+            IsReadOnly = False
+            MaxLength = 0
+            Precision = 0
+            Scale = 0
+            Alignment = taLeftJustify
+            DisplayWidth = 0
+            Visible = True
+          end
+          item
+            Name = 'Customer'
+            MemberType = 'string'
+            IsPrimaryKey = False
+            IsRequired = False
+            IsAutoInc = False
+            IsReadOnly = False
+            MaxLength = 0
+            Precision = 0
+            Scale = 0
+            Alignment = taLeftJustify
+            DisplayWidth = 0
+            Visible = True
+          end>
+      end
+      item
+        EntityClassName = 'TOrderItem'
+        TableName = 'order_item'
+        EntityUnitName = 'MasterDetailForm'
+        Members = <
+          item
+            Name = 'Id'
+            MemberType = 'Integer'
+            IsPrimaryKey = True
+            IsRequired = False
+            IsAutoInc = False
+            IsReadOnly = False
+            MaxLength = 0
+            Precision = 0
+            Scale = 0
+            Alignment = taLeftJustify
+            DisplayWidth = 0
+            Visible = True
+          end
+          item
+            Name = 'OrderId'
+            MemberType = 'Integer'
+            IsPrimaryKey = False
+            IsRequired = False
+            IsAutoInc = False
+            IsReadOnly = False
+            MaxLength = 0
+            Precision = 0
+            Scale = 0
+            Alignment = taLeftJustify
+            DisplayWidth = 0
+            Visible = True
+          end
+          item
+            Name = 'Product'
+            MemberType = 'string'
+            IsPrimaryKey = False
+            IsRequired = False
+            IsAutoInc = False
+            IsReadOnly = False
+            MaxLength = 0
+            Precision = 0
+            Scale = 0
+            Alignment = taLeftJustify
+            DisplayWidth = 0
+            Visible = True
+          end
+          item
+            Name = 'Qty'
+            MemberType = 'Integer'
+            IsPrimaryKey = False
+            IsRequired = False
+            IsAutoInc = False
+            IsReadOnly = False
+            MaxLength = 0
+            Precision = 0
+            Scale = 0
+            Alignment = taLeftJustify
+            DisplayWidth = 0
+            Visible = True
+          end>
+      end
+      item
+        EntityClassName = 'TUserTest'
+        TableName = 'users'
+        EntityUnitName = 'Dext.Entity.DataSet.Tests'
+        Members = <
+          item
+            Name = 'Id'
+            MemberType = 'Integer'
+            IsPrimaryKey = True
+            IsRequired = False
+            IsAutoInc = False
+            IsReadOnly = False
+            MaxLength = 0
+            Precision = 0
+            Scale = 0
+            Alignment = taLeftJustify
+            DisplayWidth = 0
+            Visible = True
+          end
+          item
+            Name = 'Name'
+            MemberType = 'string'
+            IsPrimaryKey = False
+            IsRequired = False
+            IsAutoInc = False
+            IsReadOnly = False
+            MaxLength = 0
+            Precision = 0
+            Scale = 0
+            Alignment = taLeftJustify
+            DisplayWidth = 0
+            Visible = True
+          end
+          item
+            Name = 'Score'
+            MemberType = 'Double'
+            IsPrimaryKey = False
+            IsRequired = False
+            IsAutoInc = False
+            IsReadOnly = False
+            MaxLength = 0
+            Precision = 0
+            Scale = 0
+            Alignment = taLeftJustify
+            DisplayWidth = 0
+            Visible = True
+          end
+          item
+            Name = 'Active'
+            MemberType = 'Boolean'
+            IsPrimaryKey = False
+            IsRequired = False
+            IsAutoInc = False
+            IsReadOnly = False
+            MaxLength = 0
+            Precision = 0
+            Scale = 0
+            Alignment = taLeftJustify
+            DisplayWidth = 0
+            Visible = True
+          end>
+      end
+      item
+        EntityClassName = 'TProductTest'
+        TableName = 'products'
+        EntityUnitName = 'Dext.Entity.DataSet.Tests'
+        Members = <
+          item
+            Name = 'Id'
+            MemberType = 'Integer'
+            IsPrimaryKey = True
+            IsRequired = False
+            IsAutoInc = True
+            IsReadOnly = False
+            MaxLength = 0
+            Precision = 0
+            Scale = 0
+            Alignment = taLeftJustify
+            DisplayWidth = 0
+            Visible = True
+          end
+          item
+            Name = 'Name'
+            MemberType = 'string'
+            IsPrimaryKey = False
+            IsRequired = True
+            IsAutoInc = False
+            IsReadOnly = False
+            MaxLength = 100
+            Precision = 0
+            Scale = 0
+            Alignment = taLeftJustify
+            DisplayWidth = 0
+            Visible = True
+          end
+          item
+            Name = 'Description'
+            MemberType = 'string'
+            IsPrimaryKey = False
+            IsRequired = False
+            IsAutoInc = False
+            IsReadOnly = False
+            MaxLength = 500
+            Precision = 0
+            Scale = 0
+            Alignment = taLeftJustify
+            DisplayWidth = 0
+            Visible = True
+          end
+          item
+            Name = 'Price'
+            MemberType = 'Currency'
+            IsPrimaryKey = False
+            IsRequired = True
+            IsAutoInc = False
+            IsReadOnly = False
+            MaxLength = 0
+            Precision = 0
+            Scale = 0
+            Alignment = taLeftJustify
+            DisplayWidth = 0
+            Visible = True
+          end
+          item
+            Name = 'Weight'
+            MemberType = 'Double'
+            IsPrimaryKey = False
+            IsRequired = False
+            IsAutoInc = False
+            IsReadOnly = False
+            MaxLength = 0
+            Precision = 0
+            Scale = 0
+            Alignment = taLeftJustify
+            DisplayWidth = 0
+            Visible = True
+          end
+          item
+            Name = 'StockQty'
+            MemberType = 'Int64'
+            IsPrimaryKey = False
+            IsRequired = False
+            IsAutoInc = False
+            IsReadOnly = False
+            MaxLength = 0
+            Precision = 0
+            Scale = 0
+            Alignment = taLeftJustify
+            DisplayWidth = 0
+            Visible = True
+          end
+          item
+            Name = 'Active'
+            MemberType = 'Boolean'
+            IsPrimaryKey = False
+            IsRequired = False
+            IsAutoInc = False
+            IsReadOnly = False
+            MaxLength = 0
+            Precision = 0
+            Scale = 0
+            Alignment = taLeftJustify
+            DisplayWidth = 0
+            Visible = True
+          end
+          item
+            Name = 'CreatedAt'
+            MemberType = 'TDateTime'
+            IsPrimaryKey = False
+            IsRequired = False
+            IsAutoInc = False
+            IsReadOnly = False
+            MaxLength = 0
+            Precision = 0
+            Scale = 0
+            Alignment = taLeftJustify
+            DisplayWidth = 0
+            Visible = True
+          end
+          item
+            Name = 'Photo'
+            MemberType = 'TBytes'
+            IsPrimaryKey = False
+            IsRequired = False
+            IsAutoInc = False
+            IsReadOnly = False
+            MaxLength = 0
+            Precision = 0
+            Scale = 0
+            Alignment = taLeftJustify
+            DisplayWidth = 0
+            Visible = True
+          end>
+      end
+      item
+        EntityClassName = 'TOrderItemTest'
+        TableName = 'order_items'
+        EntityUnitName = 'Dext.Entity.DataSet.Tests'
+        Members = <
+          item
+            Name = 'Id'
+            MemberType = 'Integer'
+            IsPrimaryKey = True
+            IsRequired = False
+            IsAutoInc = True
+            IsReadOnly = False
+            MaxLength = 0
+            Precision = 0
+            Scale = 0
+            Alignment = taLeftJustify
+            DisplayWidth = 0
+            Visible = True
+          end
+          item
+            Name = 'OrderId'
+            MemberType = 'Integer'
+            IsPrimaryKey = False
+            IsRequired = True
+            IsAutoInc = False
+            IsReadOnly = False
+            MaxLength = 0
+            Precision = 0
+            Scale = 0
+            Alignment = taLeftJustify
+            DisplayWidth = 0
+            Visible = True
+          end
+          item
+            Name = 'ProductName'
+            MemberType = 'string'
+            IsPrimaryKey = False
+            IsRequired = True
+            IsAutoInc = False
+            IsReadOnly = False
+            MaxLength = 100
+            Precision = 0
+            Scale = 0
+            Alignment = taLeftJustify
+            DisplayWidth = 0
+            Visible = True
+          end
+          item
+            Name = 'Quantity'
+            MemberType = 'Integer'
+            IsPrimaryKey = False
+            IsRequired = True
+            IsAutoInc = False
+            IsReadOnly = False
+            MaxLength = 0
+            Precision = 0
+            Scale = 0
+            Alignment = taLeftJustify
+            DisplayWidth = 0
+            Visible = True
+          end
+          item
+            Name = 'UnitPrice'
+            MemberType = 'Currency'
+            IsPrimaryKey = False
+            IsRequired = True
+            IsAutoInc = False
+            IsReadOnly = False
+            MaxLength = 0
+            Precision = 0
+            Scale = 0
+            Alignment = taLeftJustify
+            DisplayWidth = 0
+            Visible = True
+          end>
+      end
+      item
+        EntityClassName = 'TOrderTest'
+        TableName = 'orders_native'
+        EntityUnitName = 'Dext.Entity.DataSet.Tests'
+        Members = <
+          item
+            Name = 'Id'
+            MemberType = 'Integer'
+            IsPrimaryKey = True
+            IsRequired = False
+            IsAutoInc = False
+            IsReadOnly = False
+            MaxLength = 0
+            Precision = 0
+            Scale = 0
+            Alignment = taLeftJustify
+            DisplayWidth = 0
+            Visible = True
+          end
+          item
+            Name = 'Items'
+            MemberType = 'IList'
+            IsPrimaryKey = False
+            IsRequired = False
+            IsAutoInc = False
+            IsReadOnly = False
+            MaxLength = 0
+            Precision = 0
+            Scale = 0
+            Alignment = taLeftJustify
+            DisplayWidth = 0
+            Visible = True
+          end>
+      end
+      item
+        EntityClassName = 'TFloatingPointTest'
+        TableName = 'floating_point'
+        EntityUnitName = 'Dext.Entity.DataSet.Tests'
+        Members = <
+          item
+            Name = 'Id'
+            MemberType = 'Integer'
+            IsPrimaryKey = True
+            IsRequired = False
+            IsAutoInc = False
+            IsReadOnly = False
+            MaxLength = 0
+            Precision = 0
+            Scale = 0
+            Alignment = taLeftJustify
+            DisplayWidth = 0
+            Visible = True
+          end
+          item
+            Name = 'DoubleVal'
+            MemberType = 'Double'
+            IsPrimaryKey = False
+            IsRequired = False
+            IsAutoInc = False
+            IsReadOnly = False
+            MaxLength = 0
+            Precision = 0
+            Scale = 0
+            Alignment = taLeftJustify
+            DisplayWidth = 0
+            Visible = True
+          end
+          item
+            Name = 'CurrencyVal'
+            MemberType = 'Currency'
+            IsPrimaryKey = False
+            IsRequired = False
+            IsAutoInc = False
+            IsReadOnly = False
+            MaxLength = 0
+            Precision = 0
+            Scale = 0
+            Alignment = taLeftJustify
+            DisplayWidth = 0
+            Visible = True
+          end>
+      end
+      item
+        EntityClassName = 'TTestUser'
+        TableName = 'Users'
+        EntityUnitName = 'Dext.Entity.SqlGenerator.Tests'
+        Members = <
+          item
+            Name = 'Id'
+            MemberType = 'Integer'
+            IsPrimaryKey = True
+            IsRequired = False
+            IsAutoInc = False
+            IsReadOnly = False
+            MaxLength = 0
+            Precision = 0
+            Scale = 0
+            Alignment = taLeftJustify
+            DisplayWidth = 0
+            Visible = True
+          end
+          item
+            Name = 'Name'
+            MemberType = 'string'
+            IsPrimaryKey = False
+            IsRequired = False
+            IsAutoInc = False
+            IsReadOnly = False
+            MaxLength = 0
+            Precision = 0
+            Scale = 0
+            Alignment = taLeftJustify
+            DisplayWidth = 0
+            Visible = True
+          end
+          item
+            Name = 'IsDeleted'
+            MemberType = 'Boolean'
+            IsPrimaryKey = False
+            IsRequired = False
+            IsAutoInc = False
+            IsReadOnly = False
+            MaxLength = 0
+            Precision = 0
+            Scale = 0
+            Alignment = taLeftJustify
+            DisplayWidth = 0
+            Visible = True
+          end>
+      end
+      item
+        EntityClassName = 'TProductFeaturesTest'
+        TableName = 'products_feat'
+        EntityUnitName = 'Dext.Entity.DataSet.NewFeatures.Tests'
+        Members = <
+          item
+            Name = 'Id'
+            MemberType = 'Integer'
+            IsPrimaryKey = True
+            IsRequired = False
+            IsAutoInc = True
+            IsReadOnly = False
+            MaxLength = 0
+            Precision = 0
+            Scale = 0
+            Alignment = taLeftJustify
+            DisplayWidth = 0
+            Visible = True
+          end
+          item
+            Name = 'Name'
+            MemberType = 'string'
+            IsPrimaryKey = False
+            IsRequired = True
+            IsAutoInc = False
+            IsReadOnly = False
+            MaxLength = 100
+            Precision = 0
+            Scale = 0
+            DisplayLabel = 'Product Name'
+            Alignment = taLeftJustify
+            DisplayWidth = 50
+            Visible = True
+          end
+          item
+            Name = 'Price'
+            MemberType = 'Double'
+            IsPrimaryKey = False
+            IsRequired = False
+            IsAutoInc = False
+            IsReadOnly = False
+            MaxLength = 0
+            Precision = 0
+            Scale = 0
+            DisplayLabel = 'Unit Price'
+            Alignment = taLeftJustify
+            DisplayWidth = 15
+            Visible = True
+          end>
+      end
+      item
+        EntityClassName = 'TIntEntity'
+        TableName = 'int_table'
+        EntityUnitName = 'Dext.Entity.IdReturn.Tests'
+        Members = <
+          item
+            Name = 'Id'
+            MemberType = 'Integer'
+            IsPrimaryKey = True
+            IsRequired = False
+            IsAutoInc = True
+            IsReadOnly = False
+            MaxLength = 0
+            Precision = 0
+            Scale = 0
+            Alignment = taLeftJustify
+            DisplayWidth = 0
+            Visible = True
+          end>
+      end
+      item
+        EntityClassName = 'TInt64Entity'
+        TableName = 'int64_table'
+        EntityUnitName = 'Dext.Entity.IdReturn.Tests'
+        Members = <
+          item
+            Name = 'Id'
+            MemberType = 'Int64'
+            IsPrimaryKey = True
+            IsRequired = False
+            IsAutoInc = True
+            IsReadOnly = False
+            MaxLength = 0
+            Precision = 0
+            Scale = 0
+            Alignment = taLeftJustify
+            DisplayWidth = 0
+            Visible = True
+          end>
+      end
+      item
+        EntityClassName = 'TIntTypeEntity'
+        TableName = 'inttype_table'
+        EntityUnitName = 'Dext.Entity.IdReturn.Tests'
+        Members = <
+          item
+            Name = 'Id'
+            MemberType = 'IntType'
+            IsPrimaryKey = True
+            IsRequired = False
+            IsAutoInc = True
+            IsReadOnly = False
+            MaxLength = 0
+            Precision = 0
+            Scale = 0
+            Alignment = taLeftJustify
+            DisplayWidth = 0
+            Visible = True
+          end>
+      end
+      item
+        EntityClassName = 'TGuidEntity'
+        TableName = 'guid_table'
+        EntityUnitName = 'Dext.Entity.IdReturn.Tests'
+        Members = <
+          item
+            Name = 'Id'
+            MemberType = 'TGUID'
+            IsPrimaryKey = True
+            IsRequired = False
+            IsAutoInc = True
+            IsReadOnly = False
+            MaxLength = 0
+            Precision = 0
+            Scale = 0
+            Alignment = taLeftJustify
+            DisplayWidth = 0
+            Visible = True
+          end>
+      end
+      item
+        EntityClassName = 'TPropGuidEntity'
+        TableName = 'propguid_table'
+        EntityUnitName = 'Dext.Entity.IdReturn.Tests'
+        Members = <
+          item
+            Name = 'Id'
+            MemberType = 'Prop'
+            IsPrimaryKey = True
+            IsRequired = False
+            IsAutoInc = True
+            IsReadOnly = False
+            MaxLength = 0
+            Precision = 0
+            Scale = 0
+            Alignment = taLeftJustify
+            DisplayWidth = 0
+            Visible = True
+          end>
+      end
+      item
+        EntityClassName = 'TUUIDEntity'
+        TableName = 'uuid_table'
+        EntityUnitName = 'Dext.Entity.IdReturn.Tests'
+        Members = <
+          item
+            Name = 'Id'
+            MemberType = 'TUUID'
+            IsPrimaryKey = True
+            IsRequired = False
+            IsAutoInc = True
+            IsReadOnly = False
+            MaxLength = 0
+            Precision = 0
+            Scale = 0
+            Alignment = taLeftJustify
+            DisplayWidth = 0
+            Visible = True
+          end>
+      end
+      item
+        EntityClassName = 'TPropUUIDEntity'
+        TableName = 'propuuid_table'
+        EntityUnitName = 'Dext.Entity.IdReturn.Tests'
+        Members = <
+          item
+            Name = 'Id'
+            MemberType = 'Prop'
+            IsPrimaryKey = True
+            IsRequired = False
+            IsAutoInc = True
+            IsReadOnly = False
+            MaxLength = 0
+            Precision = 0
+            Scale = 0
+            Alignment = taLeftJustify
+            DisplayWidth = 0
+            Visible = True
+          end>
+      end
+      item
+        EntityClassName = 'TStringEntity'
+        TableName = 'string_table'
+        EntityUnitName = 'Dext.Entity.IdReturn.Tests'
+        Members = <
+          item
+            Name = 'Id'
+            MemberType = 'string'
+            IsPrimaryKey = True
+            IsRequired = False
+            IsAutoInc = True
+            IsReadOnly = False
+            MaxLength = 0
+            Precision = 0
+            Scale = 0
+            Alignment = taLeftJustify
+            DisplayWidth = 0
+            Visible = True
+          end>
+      end
+      item
+        EntityClassName = 'TNullableHydrationEntity'
+        TableName = 'nullable_entities'
+        EntityUnitName = 'Dext.Entity.NullableHydration.Tests'
+        Members = <
+          item
+            Name = 'Id'
+            MemberType = 'Integer'
+            IsPrimaryKey = True
+            IsRequired = False
+            IsAutoInc = False
+            IsReadOnly = False
+            MaxLength = 0
+            Precision = 0
+            Scale = 0
+            Alignment = taLeftJustify
+            DisplayWidth = 0
+            Visible = True
+          end
+          item
+            Name = 'Name'
+            MemberType = 'string'
+            IsPrimaryKey = False
+            IsRequired = False
+            IsAutoInc = False
+            IsReadOnly = False
+            MaxLength = 0
+            Precision = 0
+            Scale = 0
+            Alignment = taLeftJustify
+            DisplayWidth = 0
+            Visible = True
+          end
+          item
+            Name = 'Age'
+            MemberType = 'Nullable'
+            IsPrimaryKey = False
+            IsRequired = False
+            IsAutoInc = False
+            IsReadOnly = False
+            MaxLength = 0
+            Precision = 0
+            Scale = 0
+            Alignment = taLeftJustify
+            DisplayWidth = 0
+            Visible = True
+          end
+          item
+            Name = 'UpdatedAt'
+            MemberType = 'Nullable'
+            IsPrimaryKey = False
+            IsRequired = False
+            IsAutoInc = False
+            IsReadOnly = False
+            MaxLength = 0
+            Precision = 0
+            Scale = 0
+            Alignment = taLeftJustify
+            DisplayWidth = 0
+            Visible = True
+          end>
+      end
+      item
+        EntityClassName = 'TExportProduct'
+        TableName = 'export_products'
+        EntityUnitName = 'Dext.Entity.DataSet.Export.Tests'
+        Members = <
+          item
+            Name = 'Id'
+            MemberType = 'Integer'
+            IsPrimaryKey = True
+            IsRequired = False
+            IsAutoInc = False
+            IsReadOnly = False
+            MaxLength = 0
+            Precision = 0
+            Scale = 0
+            Alignment = taLeftJustify
+            DisplayWidth = 0
+            Visible = True
+          end
+          item
+            Name = 'Name'
+            MemberType = 'string'
+            IsPrimaryKey = False
+            IsRequired = False
+            IsAutoInc = False
+            IsReadOnly = False
+            MaxLength = 0
+            Precision = 0
+            Scale = 0
+            Alignment = taLeftJustify
+            DisplayWidth = 0
+            Visible = True
+          end
+          item
+            Name = 'Category'
+            MemberType = 'string'
+            IsPrimaryKey = False
+            IsRequired = False
+            IsAutoInc = False
+            IsReadOnly = False
+            MaxLength = 0
+            Precision = 0
+            Scale = 0
+            Alignment = taLeftJustify
+            DisplayWidth = 0
+            Visible = True
+          end
+          item
+            Name = 'Price'
+            MemberType = 'Double'
+            IsPrimaryKey = False
+            IsRequired = False
+            IsAutoInc = False
+            IsReadOnly = False
+            MaxLength = 0
+            Precision = 0
+            Scale = 0
+            Alignment = taLeftJustify
+            DisplayWidth = 0
+            Visible = True
+          end>
+      end
+      item
+        EntityClassName = 'TDefaultValueEntity'
+        TableName = 'default_value_entities'
+        EntityUnitName = 'Dext.Entity.DefaultValue.Tests'
+        Members = <
+          item
+            Name = 'Id'
+            MemberType = 'Integer'
+            IsPrimaryKey = True
+            IsRequired = False
+            IsAutoInc = False
+            IsReadOnly = False
+            MaxLength = 0
+            Precision = 0
+            Scale = 0
+            Alignment = taLeftJustify
+            DisplayWidth = 0
+            Visible = True
+          end
+          item
+            Name = 'Status'
+            MemberType = 'string'
+            IsPrimaryKey = False
+            IsRequired = False
+            IsAutoInc = False
+            IsReadOnly = False
+            MaxLength = 0
+            Precision = 0
+            Scale = 0
+            Alignment = taLeftJustify
+            DisplayWidth = 0
+            Visible = True
+          end
+          item
+            Name = 'Age'
+            MemberType = 'Integer'
+            IsPrimaryKey = False
+            IsRequired = False
+            IsAutoInc = False
+            IsReadOnly = False
+            MaxLength = 0
+            Precision = 0
+            Scale = 0
+            Alignment = taLeftJustify
+            DisplayWidth = 0
+            Visible = True
+          end
+          item
+            Name = 'Score'
+            MemberType = 'Nullable'
+            IsPrimaryKey = False
+            IsRequired = False
+            IsAutoInc = False
+            IsReadOnly = False
+            MaxLength = 0
+            Precision = 0
+            Scale = 0
+            Alignment = taLeftJustify
+            DisplayWidth = 0
+            Visible = True
+          end>
+      end>
     Left = 1040
     Top = 160
   end
