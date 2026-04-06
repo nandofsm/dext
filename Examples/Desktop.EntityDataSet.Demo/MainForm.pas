@@ -6,7 +6,7 @@ uses
   Winapi.Windows, Winapi.Messages, System.SysUtils, System.Variants, System.Classes, Vcl.Graphics,
   Vcl.Controls, Vcl.Forms, Vcl.Dialogs, Vcl.ExtCtrls, Vcl.DBCtrls, Vcl.Grids,
   Vcl.DBGrids, Data.DB,Dext.Entity.Attributes, Vcl.Buttons,
-  Dext.Collections, Dext.Core.Activator,  Dext.Entity.DataSet,  Dext.Entity.DataProvider,
+  Dext.Collections, Dext.Core.Activator,  Dext.Entity.DataSet,
   FireDAC.Stan.Intf, FireDAC.Stan.Option, FireDAC.Stan.Error, FireDAC.UI.Intf, FireDAC.Phys.Intf,
   FireDAC.Stan.Def, FireDAC.Stan.Pool, FireDAC.Stan.Async, FireDAC.Phys, FireDAC.VCLUI.Wait,
   FireDAC.Comp.Client, FireDAC.Phys.SQLite, FireDAC.Phys.SQLiteDef,
@@ -23,11 +23,11 @@ type
     FQuantity: Double;
   public
     constructor Create(Id: Integer; const Warehouse: string; Qty: Double);
-    [PK, DisplayLabel('Código #')]
+    [PK, DisplayLabel('Código')]
     property Id: Integer read FId write FId;
     [DisplayLabel('Depósito'), DisplayWidth(100)]
     property Warehouse: string read FWarehouse write FWarehouse;
-    [DisplayLabel('Quantidade #')]
+    [DisplayLabel('Quantidade')]
     property Quantity: Double read FQuantity write FQuantity;
   end;
 
@@ -57,15 +57,9 @@ type
     DBGridDetail: TDBGrid;
     DBGridProducts: TDBGrid;
     DBNavigator: TDBNavigator;
-    EntityDataProvider: TEntityDataProvider;
-    EntityDataSet: TEntityDataSet;
-    FDConnection: TFDConnection;
     PanelTop: TPanel;
     RealMasterDetailButton: TSpeedButton;
     Splitter: TSplitter;
-    EntityDataSetId: TIntegerField;
-    EntityDataSetWarehouse: TWideStringField;
-    EntityDataSetQuantity: TFloatField;
     procedure FormCreate(Sender: TObject);
     procedure RealMasterDetailButtonClick(Sender: TObject);
   private
