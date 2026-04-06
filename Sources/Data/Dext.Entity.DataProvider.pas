@@ -465,7 +465,7 @@ end;
 
 procedure TEntityDataProvider.UpdateRefreshSummary;
 begin
-  FLastRefreshSummary := Format('%d entidade(s) encontradas em %d unit(s).',
+  FLastRefreshSummary := Format('%d entity(ies) found in %d unit(s).',
     [FMetadataCache.Count, FModelUnits.Count]);
 end;
 

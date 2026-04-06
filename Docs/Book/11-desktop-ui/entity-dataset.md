@@ -61,6 +61,31 @@ if DataSet.Locate('Name', 'Cesar', []) then
 
 ---
 
+## 🎨 Design-Time Experience
+
+The **`TEntityDataSet`** is tightly integrated with the Delphi IDE. By using the **`TEntityDataProvider`**, it can scan your source code and synchronize metadata without requiring full project compilation.
+
+### Component Verbs
+
+Right-click the component in the Form Designer to access these productivity tools:
+
+1.  **Sync Fields (Scan + Update)**: 
+    *   Adds new fields found in your entity class.
+    *   Updates metadata (DisplayLabel, DisplayFormat, Visibility) from code attributes.
+    *   **Preserves** your manual IDE customizations (Alignment, Font, etc.) for existing fields.
+2.  **Refresh Entity (Re-Scan + Rebuild)**: 
+    *   Performs a clean sweep.
+    *   Deletes all current fields and rebuilds them strictly based on the current Entity metadata.
+    *   Use this when you want a "Hard Reset" or when switching between unrelated entities.
+
+### Automatic Stabilization
+
+Dext ensures that the design-time state doesn't pollute your source files:
+- **Persistence Safety:** The `Active` property is automatically handled so that it's never saved as `True` in the DFM, preventing "Connection Error" popups when opening forms.
+- **Smart Cleanup:** Changing the `EntityClassName` property automatically triggers a full field rebuild to prevent metadata contamination.
+
+---
+
 ## 🏆 Key Features
 
 - **Zero Allocation on Value Loading:** Value reading maps to memory offsets accurately.

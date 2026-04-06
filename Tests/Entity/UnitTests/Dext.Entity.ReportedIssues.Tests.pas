@@ -86,10 +86,14 @@ procedure TEntityReportedIssuesTests.Issue_3_TableName_Should_Be_Serialized_And_
 begin
   // 1. Setup metadata manually
   var MD := TEntityClassMetadata.Create;
-  MD.EntityClassName := 'TOrder';
-  MD.TableName := 'orders_table_name';
-  MD.EntityUnitName := 'MasterDetailForm';
-  FDataProvider.AddOrSetMetadata(MD);
+  try
+    MD.EntityClassName := 'TOrder';
+    MD.TableName := 'orders_table_name';
+    MD.EntityUnitName := 'MasterDetailForm';
+    FDataProvider.AddOrSetMetadata(MD);
+  finally
+    MD.Free;
+  end;
 
   // 2. Select entity (Simulating IDE action)
   SetComponentDesigning(FDataSet, True);
@@ -113,34 +117,42 @@ var
 begin
   // 1. Setup 2 entities in metadata
   var MD1 := TEntityClassMetadata.Create;
-  MD1.EntityClassName := 'TOrder';
-  MD1.TableName := 'orders';
-  
-  Member := MD1.Members.Add;
-  Member.Name := 'OrderId';
-  Member.MemberType := 'Integer';
-  Member.IsPrimaryKey := True;
-  
-  Member := MD1.Members.Add;
-  Member.Name := 'Customer';
-  Member.MemberType := 'string';
-  
-  FDataProvider.AddOrSetMetadata(MD1);
+  try
+    MD1.EntityClassName := 'TOrder';
+    MD1.TableName := 'orders';
+    
+    Member := MD1.Members.Add;
+    Member.Name := 'OrderId';
+    Member.MemberType := 'Integer';
+    Member.IsPrimaryKey := True;
+    
+    Member := MD1.Members.Add;
+    Member.Name := 'Customer';
+    Member.MemberType := 'string';
+    
+    FDataProvider.AddOrSetMetadata(MD1);
+  finally
+    MD1.Free;
+  end;
 
   var MD2 := TEntityClassMetadata.Create;
-  MD2.EntityClassName := 'TProduct';
-  MD2.TableName := 'products';
-  
-  Member := MD2.Members.Add;
-  Member.Name := 'ProductId';
-  Member.MemberType := 'Integer';
-  Member.IsPrimaryKey := True;
-  
-  Member := MD2.Members.Add;
-  Member.Name := 'Description';
-  Member.MemberType := 'string';
-  
-  FDataProvider.AddOrSetMetadata(MD2);
+  try
+    MD2.EntityClassName := 'TProduct';
+    MD2.TableName := 'products';
+    
+    Member := MD2.Members.Add;
+    Member.Name := 'ProductId';
+    Member.MemberType := 'Integer';
+    Member.IsPrimaryKey := True;
+    
+    Member := MD2.Members.Add;
+    Member.Name := 'Description';
+    Member.MemberType := 'string';
+    
+    FDataProvider.AddOrSetMetadata(MD2);
+  finally
+    MD2.Free;
+  end;
 
   // 2. Select TOrder (Design mode)
   SetComponentDesigning(FDataSet, True);
@@ -174,15 +186,19 @@ var
 begin
   // 1. Setup metadata WITHOUT a compiled class
   var MD := TEntityClassMetadata.Create;
-  MD.EntityClassName := 'UnknownEntity';
-  MD.TableName := 'unknown';
-  
-  Member := MD.Members.Add;
-  Member.Name := 'Id';
-  Member.MemberType := 'Integer';
-  Member.IsPrimaryKey := True;
-  
-  FDataProvider.AddOrSetMetadata(MD);
+  try
+    MD.EntityClassName := 'UnknownEntity';
+    MD.TableName := 'unknown';
+    
+    Member := MD.Members.Add;
+    Member.Name := 'Id';
+    Member.MemberType := 'Integer';
+    Member.IsPrimaryKey := True;
+    
+    FDataProvider.AddOrSetMetadata(MD);
+  finally
+    MD.Free;
+  end;
 
   FDataSet.EntityClassName := 'UnknownEntity';
   
@@ -209,9 +225,13 @@ begin
   try
     // 1. Setup P1 with metadata
     MD1 := TEntityClassMetadata.Create;
-    MD1.EntityClassName := 'TOrder';
-    MD1.TableName := 'orders';
-    FDataProvider.AddOrSetMetadata(MD1);
+    try
+      MD1.EntityClassName := 'TOrder';
+      MD1.TableName := 'orders';
+      FDataProvider.AddOrSetMetadata(MD1);
+    finally
+      MD1.Free;
+    end;
     
     // 2. Save P1 (Mock form saving)
     Stream.WriteComponent(FDataProvider);
@@ -255,13 +275,17 @@ var
 begin
   // 1. Setup metadata
   MD := TEntityClassMetadata.Create;
-  MD.EntityClassName := 'TOrder';
-  
-  Member := MD.Members.Add;
-  Member.Name := 'OrderId';
-  Member.MemberType := 'Integer';
-  
-  FDataProvider.AddOrSetMetadata(MD);
+  try
+    MD.EntityClassName := 'TOrder';
+    
+    Member := MD.Members.Add;
+    Member.Name := 'OrderId';
+    Member.MemberType := 'Integer';
+    
+    FDataProvider.AddOrSetMetadata(MD);
+  finally
+    MD.Free;
+  end;
   
   // 2. Setup Dataset with one EXISTING manual field
   FDataSet.EntityClassName := 'TOrder';

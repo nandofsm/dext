@@ -1,4 +1,4 @@
-
+﻿
 unit Dext.Entity.DataSet;
 
 interface
@@ -115,6 +115,7 @@ type
     procedure ApplyAttributesToField(AField: TField; AContainer: TRttiObject);
     procedure ApplyMapMetadataToFields;
     procedure SetMasterInheritance(AEntity: TObject);
+    function IsActiveStored: Boolean;
     
     function ReadFieldValue(Field: TField; out Value: Variant): Boolean; overload;
     function ReadFieldValue(Field: TField; ABuffer: TRecBuf; out Value: Variant): Boolean; overload;
@@ -130,6 +131,7 @@ type
     procedure InternalOpen; override;
     procedure InternalClose; override;
     procedure InternalInitFieldDefs; override;
+    procedure Loaded; override;
     procedure SetActive(Value: Boolean); override;
     procedure SyncDetailData(const AFieldName: string; ADetailDataSet: TDataSet);
     function CreateNestedDataSet(DataSetField: TDataSetField): TDataSet; override;
@@ -214,7 +216,7 @@ type
     procedure LoadFromUtf8Json<T: class>(const ASpan: TByteSpan); overload;
     procedure Refresh;
     procedure BuildFieldDefs;
-    procedure GenerateFields(ARemoveOrphans: Boolean = False; AUpdateExisting: Boolean = True);
+    procedure GenerateFields(AWipeAll: Boolean = False; ARemoveOrphans: Boolean = True; AUpdateExisting: Boolean = True); virtual;
     function CreateBlobStream(Field: TField; Mode: TBlobStreamMode): TStream; override;
     function GetCurrentObject: TObject;
     property Items: IObjectList read FItems write SetItems;
@@ -224,7 +226,7 @@ type
     property OnPrepareField: TPrepareFieldEvent read FOnPrepareField write FOnPrepareField;
     property DataProvider: TEntityDataProvider read FDataProvider write SetDataProvider;
     property EntityClassName: string read FEntityClassName write SetEntityClassName;
-    property Active;
+    property Active stored IsActiveStored;
     property Filter;
     property Filtered;
     property FilterOptions;
@@ -410,6 +412,18 @@ begin
   end;
 end;
 
+function TEntityDataSet.IsActiveStored: Boolean;
+begin
+  Result := not (csDesigning in ComponentState);
+end;
+
+procedure TEntityDataSet.Loaded;
+begin
+  inherited Loaded;
+  if (csDesigning in ComponentState) and Active then
+    Active := False;
+end;
+
 function TEntityDataSet.StringToFieldType(const ATypeName: string): TFieldType;
 begin
   if SameText(ATypeName, 'string') then Result := ftWideString
@@ -456,6 +470,7 @@ begin
       if MD <> nil then
       begin
         FEntityMap := TEntityMap.Create(nil);
+        FOwnsEntityMap := True;
         FEntityMap.TableName := MD.TableName;
         if MD <> nil then
           FTableName := MD.TableName;
@@ -1330,19 +1345,10 @@ begin
       EnsureEntityMapResolved;
       if (FEntityMap <> nil) and (FTableName = '') then
         FTableName := FEntityMap.TableName;
-      GenerateFields(True, True); // Enforce orphan removal and full generation when entity class completely changes
+      GenerateFields(True, True, True); // AWipeAll=True, ARemoveOrphans=True, AUpdateExisting=True
 
-      // Auto-activate preview if connection is available
-      if (FDataProvider <> nil) and
-         (FDataProvider.DatabaseConnection <> nil) and
-         (not Active) then
-      begin
-        try
-          Active := True;
-        except
-          // Silently ignore - preview activation is optional
-        end;
-      end;
+      // Note: Auto-activation removed to satisfy design-time stability and prevent DFM pollution.
+      // Users should manually activate to see design-time data.
     end;
   end;
 end;
@@ -1459,7 +1465,7 @@ end;
 procedure TEntityDataSet.SetActive(Value: Boolean);
 begin
   // Prevent grid flicker during design-time preview activation
-  if Value and (csDesigning in ComponentState) then
+  if (Value <> Active) and (csDesigning in ComponentState) then
   begin
     DisableControls;
     try
@@ -1941,28 +1947,22 @@ begin
   FCurrentRec := FVirtualIndex.Count;
 end;
 
-procedure TEntityDataSet.GenerateFields(ARemoveOrphans: Boolean = False; AUpdateExisting: Boolean = True);
+procedure TEntityDataSet.GenerateFields(AWipeAll: Boolean = False; ARemoveOrphans: Boolean = True; AUpdateExisting: Boolean = True);
 var
   DP: IEntityDataProvider;
   MD: TObject;
   ClassMD: TEntityClassMetadata;
   Member: TEntityMemberMetadata;
-  Field: TField;
+  LField: TField;
   LType: TFieldType;
-  LSize: Integer;
   LT: string;
   ProcessedFields: TStringList;
+  LIsNewField: Boolean;
+  LIdx: Integer;
 begin
   if not Assigned(FDataProvider) then Exit;
   if not FDataProvider.GetInterface(IEntityDataProvider, DP) then Exit;
   if FEntityClassName = '' then Exit;
-
-  try
-    TFile.AppendAllText('C:\dev\Dext\dext_metadata_debug.log', 
-      Format('--- DataSet GenerateFields: Entity=%s Designing=%s ---' + sLineBreak, 
-        [FEntityClassName, BoolToStr(csDesigning in ComponentState, True)]), TEncoding.UTF8);
-  except
-  end;
 
   // DESIGN-TIME: Force the provider to scan the source code and refresh its cache
   if (csDesigning in ComponentState) then
@@ -1972,154 +1972,132 @@ begin
 
   MD := DP.GetEntityMetadata(FEntityClassName);
   if MD = nil then Exit;
-
-  try
-    TFile.AppendAllText('C:\dev\Dext\dext_metadata_debug.log', 
-      Format('--- DataSet Refresh Entry: %s (DisplayName=%s, Members=%d) ---' + sLineBreak, 
-        [FEntityClassName, TEntityClassMetadata(MD).DisplayName, TEntityClassMetadata(MD).Members.Count]), TEncoding.UTF8);
-  except
-  end;
-
-  try
-    TFile.AppendAllText('C:\dev\Dext\dext_metadata_debug.log', Format('--- DataSet GenerateFields for %s ---' + sLineBreak, [FEntityClassName]));
-  except
-  end;
-
   ClassMD := TEntityClassMetadata(MD);
   
-  ProcessedFields := TStringList.Create;
-  ProcessedFields.CaseSensitive := False;
+    ProcessedFields := TStringList.Create;
+    try
+      ProcessedFields.CaseSensitive := False;
+      ProcessedFields.Sorted := True;
+      ProcessedFields.Duplicates := dupIgnore;
 
-  DisableControls;
-  try
-    if Active then Close;
+      DisableControls;
+      try
+        if Active then Close;
 
-    while FieldCount > 0 do
-    begin
-      Field := Fields[0];
-      Field.DataSet := nil;
-      Field.Free;
-    end;
-    
-    for var i := 0 to ClassMD.Members.Count - 1 do
-    begin
-      Member := ClassMD.Members[i];
-      LSize := Member.MaxLength;
-      if LSize = 0 then LSize := 255;
-
-      LT := Member.MemberType;
-      LType := StringToFieldType(LT);
-      if Member.IsCurrency then
-        LType := ftCurrency;
-
-      if LType = ftUnknown then
-        Continue;
-
-      ProcessedFields.Add(Member.Name);
-
-      Field := FindField(Member.Name);
-      
-      // If a field exists but has the wrong type class, it cannot be reused!
-      if (Field <> nil) and (Field.ClassType <> DefaultFieldClasses[LType]) then
-      begin
-        Field.Name := '';
-        Field.Free;
-        Field := nil;
-      end;
-
-      if Field = nil then
-      begin
-        Field := DefaultFieldClasses[LType].Create(Owner);
-        Field.FieldName := Member.Name;
-        Field.DataSet := Self;
-
-        if Self.Name <> '' then
+        if AWipeAll then
         begin
-          var LTargetName := Self.Name + Member.Name;
-          if Owner <> nil then
+          while FieldCount > 0 do
           begin
-            var LExisting := Owner.FindComponent(LTargetName);
-            if LExisting <> nil then
-              LExisting.Name := ''; // Prevent component name collision 
-          end;
-          try
-            Field.Name := LTargetName;
-          except
-            // Delphi IDE often ghosts components in the .pas file's published section
-            // even after they are removed. If ValidateRename throws "already exists",
-            // we safely catch it and leave the field persistent but dynamically named (blank).
-            on E: Exception do 
-              Field.Name := '';
+            LField := Fields[0];
+            LField.DataSet := nil;
+            LField.Free;
           end;
         end;
-      end
-      else if not AUpdateExisting then
-        Continue;
-      
-      // SYNC ALL PROPERTIES (New or Existing)
-        
-      Field.Index := i;
-      Field.Visible := Member.Visible;
-      Field.ReadOnly := Member.IsReadOnly;
-      Field.Required := Member.IsRequired;
-      
-      if (Field is TStringField) or (Field is TWideStringField) then
-        Field.Size := LSize;
-      
-      // Metadata takes precedence, otherwise reset to default (Member Name)
-      if Member.DisplayLabel <> '' then
-        Field.DisplayLabel := Member.DisplayLabel
-      else
-        Field.DisplayLabel := Member.Name;
-      
-      if Member.DisplayWidth > 0 then
-        Field.DisplayWidth := Member.DisplayWidth;
-      
-      if Field is TNumericField then
-      begin
-        // Metadata takes precedence if provided, otherwise fallback to default formatting
-        if Member.DisplayFormat <> '' then
-          TNumericField(Field).DisplayFormat := Member.DisplayFormat
-        else if LType <> ftCurrency then
-          TNumericField(Field).DisplayFormat := '#,##0.00'; 
+
+        for var i := 0 to ClassMD.Members.Count - 1 do
+        begin
+          Member := ClassMD.Members[i];
+          LT := Member.MemberType;
+          LType := StringToFieldType(LT);
+          if Member.IsCurrency then LType := ftCurrency;
+
+          if LType = ftUnknown then Continue;
+
+          ProcessedFields.Add(Member.Name);
+          LField := FindField(Member.Name);
           
-        if Member.Alignment = taLeftJustify then
-          Field.Alignment := taRightJustify // Numbers are usually right-aligned
-        else
-          Field.Alignment := Member.Alignment;
-      end
-      else
-        Field.Alignment := Member.Alignment;
+          // If a field exists but has the wrong type class, it cannot be reused!
+          if (LField <> nil) and (LField.ClassType <> DefaultFieldClasses[LType]) then
+          begin
+            LField.Free;
+            LField := nil;
+          end;
 
-      if Field is TDateTimeField then
-      begin
-        if Member.DisplayFormat <> '' then
-          TDateTimeField(Field).DisplayFormat := Member.DisplayFormat;
+          LIsNewField := False;
+          if LField = nil then
+          begin
+            LIsNewField := True;
+            LField := DefaultFieldClasses[LType].Create(Owner);
+            LField.FieldName := Member.Name;
+            LField.DataSet := Self;
+
+            if Self.Name <> '' then
+            begin
+              var LTargetName := Self.Name + Member.Name;
+              if Owner <> nil then
+              begin
+                var LExisting := Owner.FindComponent(LTargetName);
+                if (LExisting <> nil) and (LExisting <> LField) then
+                  LExisting.Name := ''; // Prevent component name collision 
+              end;
+              try
+                LField.Name := LTargetName;
+              except
+                on E: Exception do LField.Name := '';
+              end;
+            end;
+          end;
+
+          // Apply metadata updates
+          if LIsNewField or AUpdateExisting then
+          begin
+            LField.Index := i;
+            
+            if Member.DisplayLabel <> '' then
+               LField.DisplayLabel := Member.DisplayLabel
+            else if LIsNewField then
+               LField.DisplayLabel := Member.Name;
+            
+            if Member.DisplayWidth > 0 then
+               LField.DisplayWidth := Member.DisplayWidth;
+
+            LField.Visible := Member.Visible;
+            LField.ReadOnly := Member.IsReadOnly;
+            LField.Required := Member.IsRequired and (not Member.IsAutoInc);
+            
+            if (LField is TNumericField) then
+            begin
+              if (Member.DisplayFormat <> '') then
+                TNumericField(LField).DisplayFormat := Member.DisplayFormat;
+                
+              if Member.Alignment = taLeftJustify then
+                LField.Alignment := taRightJustify
+              else
+                LField.Alignment := Member.Alignment;
+            end
+            else if (LField is TDateTimeField) and (Member.DisplayFormat <> '') then
+              TDateTimeField(LField).DisplayFormat := Member.DisplayFormat
+            else
+              LField.Alignment := Member.Alignment;
+
+            if Member.EditMask <> '' then
+               LField.EditMask := Member.EditMask;
+          end;
+        end;
+
+        // ORPHAN REMOVAL: Remove fields that are no longer in the entity
+        if ARemoveOrphans then
+        begin
+          var k := 0;
+          LIdx := 0;
+          while k < FieldCount do
+          begin
+             var LCurrentField := Fields[k];
+             if (LCurrentField.Owner = Owner) and (not ProcessedFields.Find(LCurrentField.FieldName, LIdx)) then
+             begin
+               LCurrentField.DataSet := nil;
+               LCurrentField.Free;
+             end
+             else
+               Inc(k);
+          end;
+        end;
+      finally
+        EnableControls;
       end;
-
-      if Member.EditMask <> '' then
-         Field.EditMask := Member.EditMask;
-        
-      if Field is TFloatField then
-        TFloatField(Field).currency := Member.IsCurrency;
-        
-      // Force IDE and Grids to see the change for persistent fields
-      if (csDesigning in ComponentState) then
-        DataEvent(deLayoutChange, 0);
+    finally
+      ProcessedFields.Free;
     end;
-
-    if ARemoveOrphans then
-    begin
-      for var i := Fields.Count - 1 downto 0 do
-      begin
-        if ProcessedFields.IndexOf(Fields[i].FieldName) = -1 then
-          Fields[i].Free;
-      end;
-    end;
-  finally
-    EnableControls;
-    ProcessedFields.Free;
-  end;
 end;
 
 procedure TEntityDataSet.InternalInitFieldDefs;

@@ -11,6 +11,7 @@ uses
   DesignEditors,
   ToolsAPI,
   VCLEditors,
+  Vcl.Dialogs,
   Data.DB,
   Dext.Collections,
   Dext.Collections.Base,
@@ -55,74 +56,40 @@ procedure RegisterEditors;
 
 implementation
 
-function TryGetActiveProject(out AProject: IOTAProject): Boolean;
-var
-  ModuleServices: IOTAModuleServices;
-  Module: IOTAModule;
-  ProjectGroup: IOTAProjectGroup;
-  I: Integer;
-begin
-  AProject := nil;
-  ModuleServices := BorlandIDEServices as IOTAModuleServices;
-  if ModuleServices = nil then
-    Exit(False);
-
-  Module := ModuleServices.CurrentModule;
-  if (Module <> nil) and Supports(Module, IOTAProject, AProject) then
-    Exit(True);
-
-  for I := 0 to ModuleServices.ModuleCount - 1 do
-  begin
-    Module := ModuleServices.Modules[I];
-    if (Module <> nil) and Supports(Module, IOTAProjectGroup, ProjectGroup) then
-    begin
-      AProject := ProjectGroup.ActiveProject;
-      Exit(AProject <> nil);
-    end;
-  end;
-
-  Result := False;
-end;
-
 function FindOwnerProject(ADesigner: IDesigner): IOTAProject;
 var
   ModuleServices: IOTAModuleServices;
   Module: IOTAModule;
   ProjectGroup: IOTAProjectGroup;
   Project: IOTAProject;
-  CurrentFile: string;
   I, J, K: Integer;
 begin
   Result := nil;
-  if ADesigner = nil then
-    Exit;
-
   ModuleServices := BorlandIDEServices as IOTAModuleServices;
   if ModuleServices = nil then
     Exit;
 
+  // Use the current module (the one being designed)
   Module := ModuleServices.CurrentModule;
   if Module = nil then
     Exit;
 
-  CurrentFile := Module.FileName;
-
-  // Find which project contains this file
+  // Search all project groups and projects for the one containing this module
   for I := 0 to ModuleServices.ModuleCount - 1 do
   begin
-    Module := ModuleServices.Modules[I];
-    if (Module <> nil) and Supports(Module, IOTAProjectGroup, ProjectGroup) then
+    if Supports(ModuleServices.Modules[I], IOTAProjectGroup, ProjectGroup) then
     begin
       for J := 0 to ProjectGroup.ProjectCount - 1 do
       begin
         Project := ProjectGroup.Projects[J];
-        if Project = nil then
-          Continue;
-
+        if Project = nil then Continue;
+        
         for K := 0 to Project.GetModuleCount - 1 do
         begin
-          if SameText(ChangeFileExt(Project.GetModule(K).FileName, ''), 
-                      ChangeFileExt(CurrentFile, '')) then
+          var CurFile := Project.GetModule(K).FileName;
+          if (CurFile = '') or (Module.FileName = '') then Continue;
+
+          if SameText(TPath.GetFullPath(CurFile), TPath.GetFullPath(Module.FileName)) then
           begin
             Result := Project;
             Exit;
@@ -131,6 +98,61 @@ begin
       end;
     end;
   end;
+end;
+
+function TryGetActiveProject(out AProject: IOTAProject): Boolean;
+var
+  ModuleServices: IOTAModuleServices;
+  ProjectGroup: IOTAProjectGroup;
+  I: Integer;
+begin
+  AProject := nil;
+  ModuleServices := BorlandIDEServices as IOTAModuleServices;
+  for I := 0 to ModuleServices.ModuleCount - 1 do
+  begin
+    if Supports(ModuleServices.Modules[I], IOTAProjectGroup, ProjectGroup) then
+    begin
+      AProject := ProjectGroup.ActiveProject;
+      Exit(AProject <> nil);
+    end;
+  end;
+  Result := False;
+end;
+
+function ValidateProjectContext(ADesigner: IDesigner; out AProject: IOTAProject): Boolean;
+var
+  ActiveProject: IOTAProject;
+begin
+  Result := False;
+  AProject := FindOwnerProject(ADesigner);
+  
+  if AProject = nil then
+  begin
+    MessageDlg('Dext: Could not identify the project this form belongs to.' + sLineBreak +
+               'Ensure the form is saved and part of a project in the Project Manager.', 
+               mtError, [mbOK], 0);
+    Exit;
+  end;
+
+  if not TryGetActiveProject(ActiveProject) then
+  begin
+    MessageDlg('Dext: Could not identify the "Active Project" in the IDE.', mtError, [mbOK], 0);
+    Exit;
+  end;
+
+  // Force Active Project match to ensure metadata stability
+  if not SameText(AProject.FileName, ActiveProject.FileName) then
+  begin
+    MessageDlg(Format('Dext: Project Conflict Detected!' + sLineBreak + sLineBreak +
+               'This form belongs to project: "%s"' + sLineBreak +
+               'But the active project in the IDE is: "%s"' + sLineBreak + sLineBreak +
+               'For safety, the refresh has been cancelled. Please activate the correct project in the Project Manager before trying again.',
+               [ExtractFileName(AProject.FileName), ExtractFileName(ActiveProject.FileName)]),
+               mtWarning, [mbOK], 0);
+    Exit;
+  end;
+
+  Result := True;
 end;
 
 function PopulateProviderModelUnitsFromProject(AProvider: TEntityDataProvider; AProject: IOTAProject): Integer;
@@ -148,11 +170,16 @@ begin
     for I := 0 to AProject.GetModuleCount - 1 do
     begin
       ModuleInfo := AProject.GetModule(I);
-      if ModuleInfo = nil then
+      if (ModuleInfo = nil) or (ModuleInfo.FileName = '') then
         Continue;
 
-      FileName := ModuleInfo.FileName;
+      FileName := TPath.GetFullPath(ModuleInfo.FileName);
       if not SameText(ExtractFileExt(FileName), '.pas') then
+        Continue;
+
+      // Skip common Delphi units or the project file itself
+      if SameText(ExtractFileExt(FileName), '.dpr') or 
+         SameText(ExtractFileExt(FileName), '.dpk') then
         Continue;
 
       if not FileExists(FileName) then
@@ -169,26 +196,32 @@ begin
   end;
 end;
 
-function PopulateProviderModelUnitsFromActiveProject(AProvider: TEntityDataProvider; ADesigner: IDesigner = nil): Integer;
+function PopulateProviderModelUnitsFromActiveProject(AProvider: TEntityDataProvider; ADesigner: IDesigner): Boolean;
 var
   Project: IOTAProject;
+  I: Integer;
+  UnitsLog: string;
 begin
-  Result := 0;
-  if AProvider = nil then
+  Result := False;
+  if not ValidateProjectContext(ADesigner, Project) then
     Exit;
 
-  // Try to find the project that owns the current form first
-  if ADesigner <> nil then
-    Project := FindOwnerProject(ADesigner);
+  // Clear units to ensure a fresh sync with the current project file
+  AProvider.ModelUnits.Clear;
+  PopulateProviderModelUnitsFromProject(AProvider, Project);
+  AProvider.UpdateRefreshSummary;
+  
+  UnitsLog := '';
+  for I := 0 to AProvider.ModelUnits.Count - 1 do
+  begin
+    if UnitsLog <> '' then UnitsLog := UnitsLog + ', ';
+    UnitsLog := UnitsLog + ExtractFileName(AProvider.ModelUnits[I]);
+  end;
 
-  // Fallback to active project
-  if Project = nil then
-    TryGetActiveProject(Project);
-
-  if Project = nil then
-    Exit;
-
-  Result := PopulateProviderModelUnitsFromProject(AProvider, Project);
+  AProvider.LastRefreshSummary := AProvider.LastRefreshSummary + sLineBreak +
+                                  'Units: ' + UnitsLog + sLineBreak +
+                                  'Project: ' + ExtractFileName(Project.FileName);
+  Result := True;
 end;
 
 procedure RefreshBoundDataSets(AProvider: TEntityDataProvider; ADesigner: IDesigner);
@@ -280,8 +313,6 @@ begin
       for MD in ParsedList do
       begin
         AProvider.AddOrSetMetadata(MD);
-        AProvider.LogDebug(Format('RefreshUnitFromIDE: %s (%s) Table=%s Members=%d',
-          [MD.EntityClassName, MD.EntityUnitName, MD.TableName, MD.Members.Count]));
       end;
 
       if Supports(ParsedList, ICollection, ParsedCollection) then
@@ -458,17 +489,20 @@ end;
 procedure TEntityDataProviderEditor.ExecuteVerb(Index: Integer);
 var
   Provider: TEntityDataProvider;
+  ProviderProject: IOTAProject;
 begin
   Provider := TEntityDataProvider(Component);
 
   case Index of
     0: // Scan Active Project + Refresh Metadata
       begin
-        PopulateProviderModelUnitsFromActiveProject(Provider, Designer);
-        RefreshProviderMetadata(Provider);
-        RefreshBoundDataSets(Provider, Designer);
-        if Designer <> nil then
-          Designer.Modified;
+        if PopulateProviderModelUnitsFromActiveProject(Provider, Designer) then
+        begin
+          RefreshProviderMetadata(Provider);
+          RefreshBoundDataSets(Provider, Designer);
+          if Designer <> nil then
+            Designer.Modified;
+        end;
       end;
     1: // Refresh Entity Metadata
       begin
@@ -480,19 +514,23 @@ begin
     2: // Clear All Cached Metadata
       begin
         Provider.ClearMetadata;
-        Provider.LastRefreshSummary := 'Cache cleared. Use "Scan Project" to reload.';
+        Provider.ModelUnits.Clear;
+        Provider.LastRefreshSummary := 'Metadata cache and units list cleared.';
         if Designer <> nil then
           Designer.Modified;
       end;
     3: // Clear + Rescan Active Project
       begin
-        Provider.ClearMetadata;
-        Provider.ModelUnits.Clear;
-        PopulateProviderModelUnitsFromActiveProject(Provider, Designer);
-        RefreshProviderMetadata(Provider);
-        RefreshBoundDataSets(Provider, Designer);
-        if Designer <> nil then
-          Designer.Modified;
+        if ValidateProjectContext(Designer, ProviderProject) then
+        begin
+          Provider.ClearMetadata;
+          Provider.ModelUnits.Clear;
+          PopulateProviderModelUnitsFromProject(Provider, ProviderProject);
+          RefreshProviderMetadata(Provider);
+          RefreshBoundDataSets(Provider, Designer);
+          if Designer <> nil then
+            Designer.Modified;
+        end;
       end;
   end;
 end;
@@ -554,8 +592,10 @@ begin
         else
         begin
           // Full refresh as fallback
-          PopulateProviderModelUnitsFromActiveProject(Provider, Designer);
-          RefreshProviderMetadata(Provider);
+          if PopulateProviderModelUnitsFromActiveProject(Provider, Designer) then
+            RefreshProviderMetadata(Provider)
+          else
+            Exit;
         end;
 
         // Rebuild fields on this dataset
@@ -564,7 +604,7 @@ begin
           if DataSet.Active then
             DataSet.Close;
 
-          DataSet.GenerateFields(True, True); // RemoveOrphans=True, UpdateExisting=True
+          DataSet.GenerateFields(True, True, True); // AWipeAll=True, RemoveOrphans=True, UpdateExisting=True
         finally
           DataSet.EnableControls;
         end;
@@ -592,8 +632,10 @@ begin
         end
         else
         begin
-          PopulateProviderModelUnitsFromActiveProject(Provider, Designer);
-          RefreshProviderMetadata(Provider);
+          if PopulateProviderModelUnitsFromActiveProject(Provider, Designer) then
+            RefreshProviderMetadata(Provider)
+          else
+            Exit;
         end;
 
         DataSet.DisableControls;
@@ -602,7 +644,7 @@ begin
             DataSet.Close;
 
           // Merge fields safely without overwriting user customizations
-          DataSet.GenerateFields(True, False); // RemoveOrphans=True, UpdateExisting=False
+          DataSet.GenerateFields(False, True, False); // AWipeAll=False, RemoveOrphans=True, UpdateExisting=False
         finally
           DataSet.EnableControls;
         end;

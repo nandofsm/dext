@@ -25,9 +25,9 @@ type
     constructor Create(Id: Integer; const Warehouse: string; Qty: Double);
     [PK, DisplayLabel('Código #')]
     property Id: Integer read FId write FId;
-    [DisplayLabel('Armazem'), DisplayWidth(100)]
+    [DisplayLabel('Depósito'), DisplayWidth(100)]
     property Warehouse: string read FWarehouse write FWarehouse;
-    [DisplayLabel('Quantidade')]
+    [DisplayLabel('Quantidade #')]
     property Quantity: Double read FQuantity write FQuantity;
   end;
 
@@ -64,8 +64,8 @@ type
     RealMasterDetailButton: TSpeedButton;
     Splitter: TSplitter;
     EntityDataSetId: TIntegerField;
-    EntityDataSetDescription: TWideStringField;
-    EntityDataSetPrice: TCurrencyField;
+    EntityDataSetWarehouse: TWideStringField;
+    EntityDataSetQuantity: TFloatField;
     procedure FormCreate(Sender: TObject);
     procedure RealMasterDetailButtonClick(Sender: TObject);
   private

@@ -87,26 +87,24 @@ object FormMain: TFormMain
     Top = 284
   end
   object EntityDataSet: TEntityDataSet
-    TableName = 'products'
+    TableName = 'stock'
     DataProvider = EntityDataProvider
-    EntityClassName = 'TProduct'
-    Active = True
+    EntityClassName = 'TStockItem'
     Left = 464
     Top = 88
     object EntityDataSetId: TIntegerField
       DisplayLabel = 'C'#243'digo'
       FieldName = 'Id'
-      DisplayFormat = '#,##0.00'
     end
-    object EntityDataSetDescription: TWideStringField
-      DisplayLabel = 'Descri'#231#227'o'
-      DisplayWidth = 75
-      FieldName = 'Description'
-      Size = 200
+    object EntityDataSetWarehouse: TWideStringField
+      DisplayLabel = 'Dep'#243'sito'
+      DisplayWidth = 100
+      FieldName = 'Warehouse'
+      Size = 255
     end
-    object EntityDataSetPrice: TCurrencyField
-      DisplayLabel = 'Valor'
-      FieldName = 'Price'
+    object EntityDataSetQuantity: TFloatField
+      DisplayLabel = 'Quantidade'
+      FieldName = 'Quantity'
     end
   end
   object EntityDataProvider: TEntityDataProvider
@@ -137,7 +135,7 @@ object FormMain: TFormMain
             MaxLength = 0
             Precision = 0
             Scale = 0
-            DisplayLabel = 'C'#243'digo #'
+            DisplayLabel = 'C'#243'digo'
             Alignment = taLeftJustify
             DisplayWidth = 0
             Visible = True
@@ -153,7 +151,7 @@ object FormMain: TFormMain
             MaxLength = 0
             Precision = 0
             Scale = 0
-            DisplayLabel = 'Armazem'
+            DisplayLabel = 'Dep'#243'sito'
             Alignment = taLeftJustify
             DisplayWidth = 100
             Visible = True

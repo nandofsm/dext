@@ -315,7 +315,6 @@ var
   ClassName, TableName, DisplayName, LContent, LUnitName: string;
   Stream: TStringStream;
   Metadata: TEntityClassMetadata;
-  Bytes: TBytes;
 begin
   Result := TCollections.CreateObjectList<TEntityClassMetadata>(True);
   LContent := AContent;
@@ -328,12 +327,14 @@ begin
        Log('  ERROR: File ' + AFileName + ' not found');
        Exit;
     end;
-
-    Bytes := TFile.ReadAllBytes(AFileName);
     try
-      LContent := TEncoding.UTF8.GetString(Bytes);
+      LContent := TFile.ReadAllText(AFileName);
     except
-      LContent := TEncoding.Default.GetString(Bytes);
+      on E: Exception do 
+      begin
+        Log('  ERROR reading file: ' + E.Message);
+        Exit;
+      end;
     end;
   end;
 
@@ -347,7 +348,7 @@ begin
     Builder.AddDefine('MSWINDOWS');
     Builder.UseDefines := True;
 
-    Stream := TStringStream.Create(LContent, TEncoding.Unicode);
+    Stream := TStringStream.Create(LContent);
     try
       try
         SyntaxTree := Builder.Run(Stream);
@@ -377,7 +378,7 @@ begin
                 begin
                    if HasAttribute(FTypeAttributes, 'Table', TypeNode) or HasAttribute(FTypeAttributes, 'Entity', TypeNode) then
                    begin
-                    Log('    MATCH: Entity ' + ClassName);
+                    Log('    Found Entity Class: ' + ClassName);
                     
                     TableName := GetAttributeValue(FTypeAttributes, 'Table', TypeNode);
                     if TableName = '' then TableName := GetAttributeValue(FTypeAttributes, 'Entity', TypeNode);
@@ -387,9 +388,6 @@ begin
                     if DisplayName = '' then DisplayName := GetAttributeValue(FTypeAttributes, 'DisplayName', TypeNode);
                     if DisplayName = '' then DisplayName := GetAttributeValue(FTypeAttributes, 'Caption', TypeNode);
 
-                    Log('    TABLE: ' + TableName);
-                    if DisplayName <> '' then Log('    DISPLAY: ' + DisplayName);
-
                     Metadata := TEntityClassMetadata.Create;
                     Metadata.EntityClassName := ClassName;
                     Metadata.DisplayName := DisplayName;
@@ -397,13 +395,13 @@ begin
                     Metadata.TableName := TableName;
                     ExtractMembers(Metadata, ClassNode);
                     Result.Add(Metadata);
-                    FTypeAttributes.Clear;
-                  end;
-                  FTypeAttributes.Clear;
+                  end
+                  else
+                    Log('    Skipping Class (no Entity/Table attribute): ' + ClassName);
                 end;
-              end
-              else if not (TypeNode.Typ in [ntAnsiComment, ntBorComment, ntSlashesComment]) then
+                // ALWAYS clear after any type declaration node to prepare for the next potential class
                 FTypeAttributes.Clear;
+              end;
             end;
           end;
         finally
