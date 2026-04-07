@@ -57,31 +57,24 @@ type
     FEntityMap: TEntityMap;
     FEntityClass: TClass;
     FDbContext: TDbContext;
-    
-    // Virtual Buffers (Offsets Index)
-    // Physical Objects Reference
-    FItems: IObjectList;            // Real reference to the object list
-    FOwnsItems: Boolean;               // Whether the dataset owns the list and should clear it
-    FOwnsEntityMap: Boolean;           // Whether the dataset owns the map
-    FVirtualIndex: TVector<Integer>;   // Ordered/filtered view over FItems (contains indices to FItems)
-    
+    FItems: IObjectList;
+    FOwnsItems: Boolean;
+    FOwnsEntityMap: Boolean;
+    FVirtualIndex: TVector<Integer>;
     FRecordSize: Integer;
     FHeaderSize: Integer;
-    
-    // Master-Detail Link
     FMasterLink: TEntityMasterDataLink;
     FMasterFields: string;
     FMasterDataSet: TDataSet;
-    
-    // Internal Settings
     FReadOnly: Boolean;
     FIncludeShadowProperties: Boolean;
     FIndexFieldNames: string;
-    FCurrentRec: Integer; // Dataset native cursor control
+    FCurrentRec: Integer;
     FIsCursorOpen: Boolean;
-    FInsertObj: TObject; // Temporary object for uncommitted dsInsert
-    FInsertObjRef: TObject; // Reference to track after post
+    FInsertObj: TObject;
+    FInsertObjRef: TObject;
     FIsAppending: Boolean;
+    FIsApplyingFilter: Boolean;
     FPositionBeforeAction: Integer;
     FCalcOffsets: TDictionary<string, Integer>;
     FDetailDataSets: TDictionary<string, TDataSet>;
@@ -116,16 +109,18 @@ type
     procedure ApplyMapMetadataToFields;
     procedure SetMasterInheritance(AEntity: TObject);
     function IsActiveStored: Boolean;
-    
     function ReadFieldValue(Field: TField; out Value: Variant): Boolean; overload;
     function ReadFieldValue(Field: TField; ABuffer: TRecBuf; out Value: Variant): Boolean; overload;
+    function CreateNewEntity: TObject;
   protected
     procedure Notification(AComponent: TComponent; Operation: TOperation); override;
-    // TDataSet overrides for filtering and sorting
     procedure InternalHandleException; override;
     function IsCursorOpen: Boolean; override;
+    
+    // Filtering Overrides
     procedure SetFiltered(Value: Boolean); override;
     procedure SetFilterText(const Value: string); override;
+    procedure SetFilterOptions(Value: TFilterOptions); override;
 
     // Mandatory TDataSet overrides
     procedure InternalOpen; override;
@@ -168,10 +163,6 @@ type
     procedure DoAfterScroll; override;
     procedure DoBeforeInsert; override;
     procedure DoBeforeDelete; override;
-
-  private
-    function CreateNewEntity: TObject;
-
   public
     constructor Create(AOwner: TComponent); override;
     destructor Destroy; override;
@@ -184,34 +175,17 @@ type
     function Locate(const KeyFields: string; const KeyValues: Variant; Options: TLocateOptions = []): Boolean; override;
     function BookmarkValid(Bookmark: TBookmark): Boolean; override;
     
-    /// <summary>
-    ///  Object data loading (Non-generic legacy)
-    /// </summary>
     procedure Load(const AItems: IObjectList; AClass: TClass; AOwns: Boolean = False); overload;
     procedure Load(const AItems: TArray<TObject>; AClass: TClass); overload;
-    
-    /// <summary>
-    ///  Generic Object data loading
-    /// </summary>
     procedure Load<T: class>(const AItems: IList<T>; AOwns: Boolean = False); overload;
     procedure Load<T: class>(const AItems: IList<T>; AClass: TClass; AOwns: Boolean = False); overload;
     procedure Load<T: class>(const AItems: TArray<T>); overload;
 
-    /// <summary>
-    ///  Generic Fluent Object matching (Json and other string sources)
-    /// </summary>
     procedure LoadFromJson(const AJson: string; AClass: TClass); overload;
     procedure LoadFromJson<T: class>(const AJson: string); overload;
-    
-    /// <summary>
-    ///  Data Export to Json
-    /// </summary>
     function AsJsonArray: string;
     function AsJsonObject: string;
     
-    /// <summary>
-    ///  UTF-8 JSON data loading (Zero-Alloc Pipeline)
-    /// </summary>
     procedure LoadFromUtf8Json(const ASpan: TByteSpan; AClass: TClass); overload;
     procedure LoadFromUtf8Json<T: class>(const ASpan: TByteSpan); overload;
     procedure Refresh;
@@ -905,10 +879,13 @@ procedure TEntityDataSet.SetFiltered(Value: Boolean);
 begin
   if Filtered <> Value then
   begin
-    if Active then
-      ApplyFilterAndSort(Value); // Atualiza antes do inherited disparar o resync interno!
-      
     inherited SetFiltered(Value);
+    if Active then 
+    begin
+       if Assigned(FMasterLink) and (FMasterLink.DataSource <> nil) then
+         SyncMasterDetail;
+       ApplyFilterAndSort(Value);
+    end;
   end;
 end;
 
@@ -916,12 +893,22 @@ procedure TEntityDataSet.SetFilterText(const Value: string);
 begin
   if Filter <> Value then
   begin
-    inherited SetFilterText(Value);
-    if Active and Filtered then
-    begin
-      ApplyFilterAndSort;
-      Resync([]);
-    end;
+     inherited SetFilterText(Value);
+     if Active then 
+     begin
+        if Assigned(FMasterLink) and (FMasterLink.DataSource <> nil) then
+          SyncMasterDetail;
+        ApplyFilterAndSort(Filtered);
+     end;
+  end;
+end;
+
+procedure TEntityDataSet.SetFilterOptions(Value: TFilterOptions);
+begin
+  if FilterOptions <> Value then
+  begin
+     inherited SetFilterOptions(Value);
+     if Active then ApplyFilterAndSort(Filtered);
   end;
 end;
 
@@ -938,72 +925,109 @@ end;
 procedure TEntityDataSet.ApplyFilterAndSort(AFiltered: Boolean; ATrackObj: TObject);
 var
   Context: TRttiContext;
-  CurrentObj: TObject;
   EntityType: TRttiType;
   Expr: IExpression;
   i: Integer;
   Names: TArray<string>;
   Passing: Boolean;
+  LCount: Integer;
+  CurrentObj: TObject;
 begin
-  // Salvar o objeto atual para restaurar FCurrentRec depois (mais seguro que índice físico)
-  CurrentObj := ATrackObj;
-  if (CurrentObj = nil) and (FCurrentRec >= 0) and (FCurrentRec < FVirtualIndex.Count) then
-    CurrentObj := FItems[FVirtualIndex[FCurrentRec]];
+  if FIsApplyingFilter then Exit;
+  FIsApplyingFilter := True;
+  try
+    if not Assigned(FItems) and not FIsDesignTimePreview then Exit;
 
-  FVirtualIndex.Clear;
+    // Sync Master-Detail filter if linked
+    if Assigned(FMasterLink) and (FMasterLink.DataSource <> nil) then
+      SyncMasterDetail;
 
-  Expr := nil;
-  if AFiltered and (Filter <> '') then
-    Expr := TStringExpressionParser.Parse(Filter);
+    FVirtualIndex.Clear;
+    FCurrentRec := -1;
 
-  if not Assigned(FItems) then Exit;
+    // Salvar objeto p/ restaurar cursor
+    CurrentObj := ATrackObj;
+    if Assigned(FItems) and (CurrentObj = nil) and (FCurrentRec >= 0) and (FCurrentRec < FVirtualIndex.Count) then
+      CurrentObj := FItems[FVirtualIndex[FCurrentRec]];
 
-  for i := 0 to FItems.Count - 1 do
-  begin
-    Passing := True;
+    if Assigned(FItems) and (FItems.Count > 0) then 
+      LCount := FItems.Count
+    else if FIsDesignTimePreview then 
+      LCount := Length(FPreviewData)
+    else 
+      LCount := 0;
 
-    if AFiltered then
-    begin
-      if Expr <> nil then
-        Passing := TExpressionEvaluator.Evaluate(Expr, FItems[I])
-      else if Assigned(OnFilterRecord) then
+    try
+      Expr := nil;
+      if AFiltered and (Filter <> '') then
+        Expr := TStringExpressionParser.Parse(Filter);
+    except
+      if csDesigning in ComponentState then
       begin
-        OnFilterRecord(Self, Passing);
+        FVirtualIndex.Clear;
+        for i := 0 to LCount - 1 do
+          FVirtualIndex.Add(i);
+        Exit;
+      end
+      else raise;
+    end;
+
+    for i := 0 to LCount - 1 do
+    begin
+      Passing := True;
+      if AFiltered then
+      begin
+        if Expr <> nil then
+        begin
+          try
+            if Assigned(FItems) then
+              Passing := TExpressionEvaluator.Evaluate(Expr, FItems[I])
+            else
+              Passing := TExpressionEvaluator.Evaluate(Expr, FPreviewData[I]);
+          except
+            if csDesigning in ComponentState then Passing := False
+            else raise;
+          end;
+        end
+        else if Assigned(OnFilterRecord) then
+          OnFilterRecord(Self, Passing);
+      end;
+      if Passing then
+        FVirtualIndex.Add(I);
+    end;
+
+    // Ordenação (Apenas runtime ou se FItems existe no preview)
+    if (FIndexFieldNames <> '') and (FVirtualIndex.Count > 1) and Assigned(FItems) then
+    begin
+      Names := FIndexFieldNames.Split([';']);
+      Context := TRttiContext.Create;
+      try
+        EntityType := Context.GetType(FEntityClass);
+        FVirtualIndex.Sort(Dext.Collections.Comparers.TComparer<Integer>.Construct(
+          function(const A, B: Integer): Integer
+          begin
+            Result := CompareObjectsInternal(FItems[A], FItems[B], Names, EntityType);
+          end));
+      finally
+        Context.Free;
       end;
     end;
 
-    if Passing then
-      FVirtualIndex.Add(I);
-  end;
-
-  if (FIndexFieldNames <> '') and (FVirtualIndex.Count > 1) then
-  begin
-    Names := FIndexFieldNames.Split([';']);
-    Context := TRttiContext.Create;
-    try
-      EntityType := Context.GetType(FEntityClass);
-      FVirtualIndex.Sort(Dext.Collections.Comparers.TComparer<Integer>.Construct(
-        function(const A, B: Integer): Integer
-        begin
-          // A and B are indices in FItems
-          Result := CompareObjectsInternal(FItems[A], FItems[B], Names, EntityType);
-        end));
-    finally
-      Context.Free;
-    end;
-  end;
-
-  // Restaurar a posição do cursor na visão virtual
-  if CurrentObj <> nil then
-  begin
-    var NewPhysicalIdx := FItems.IndexOf(CurrentObj);
-    if NewPhysicalIdx >= 0 then
-      FCurrentRec := FVirtualIndex.IndexOf(NewPhysicalIdx)
+    // Restaurar a posição do cursor na visão virtual
+    if CurrentObj <> nil then
+    begin
+      var NewPhysicalIdx := FItems.IndexOf(CurrentObj);
+      if (NewPhysicalIdx >= 0) then
+        FCurrentRec := FVirtualIndex.IndexOf(NewPhysicalIdx)
+      else
+        FCurrentRec := -1;
+    end
     else
       FCurrentRec := -1;
-  end
-  else
-    FCurrentRec := -1;
+      
+  finally
+    FIsApplyingFilter := False;
+  end;
 end;
 
 function TEntityDataSet.Locate(const KeyFields: string; const KeyValues: Variant; Options: TLocateOptions): Boolean;
@@ -1394,14 +1418,23 @@ end;
 
 procedure TEntityDataSet.SyncMasterDetail;
 begin
-  if not Active or (FMasterLink = nil) or (FMasterLink.DataSource = nil) or
+  if not (Active or FIsCursorOpen or FIsDesignTimePreview) or (FMasterLink = nil) or (FMasterLink.DataSource = nil) or
      (FMasterLink.DataSource.DataSet = nil) or (FMasterFields = '') or (FIndexFieldNames = '') then
-    Exit;
-
-  if not FMasterLink.DataSource.DataSet.Active or FMasterLink.DataSource.DataSet.IsEmpty then
   begin
-    Filter := '1=0';
-    Filtered := True;
+    if csDesigning in ComponentState then
+      Filter := '';
+    Exit;
+  end;
+
+  if (not FMasterLink.DataSource.DataSet.Active) or FMasterLink.DataSource.DataSet.IsEmpty then
+  begin
+    if csDesigning in ComponentState then
+      Filter := ''
+    else
+    begin
+       Filter := '1=0';
+       Filtered := True;
+    end;
     Exit;
   end;
 
@@ -1529,7 +1562,7 @@ begin
               Query.Open;
               while not Query.Eof do
               begin
-                var Row := TDictionary<string, Variant>.Create;
+                var Row := TDictionary<string, Variant>.Create(True, False, 0);
                 for var J := 0 to Query.Fields.Count - 1 do
                 begin
                   if Query.Fields[J].IsNull then
@@ -1575,18 +1608,7 @@ begin
   if FieldCount = 0 then
     CreateFields;
 
-  SyncMasterDetail;
-  ApplyFilterAndSort;
-
   // Design-time preview: populate virtual index from preview data
-  if FIsDesignTimePreview and (FVirtualIndex.Count = 0) then
-  begin
-    for i := 0 to Length(FPreviewData) - 1 do
-      FVirtualIndex.Add(i);
-  end;
-
-  BookmarkSize := SizeOf(Integer);
-
   // Calcular tamanho necessário para campos calculados
   CalcSize := 0;
   FCalcOffsets.Clear;
@@ -1611,13 +1633,14 @@ begin
 
   SetLength(FInternalCalcStorage, Max(0, ItemCount));
   for i := 0 to High(FInternalCalcStorage) do FInternalCalcStorage[i] := nil;
-  
-  // Native cursor reset
+
   FCurrentRec := -1;
   BindFields(True);
-
-  // Apply visual attributes from EntityMap to all Fields
   ApplyMapMetadataToFields;
+
+  // Now that fields are bound and ready, sync and filter
+  SyncMasterDetail;
+  ApplyFilterAndSort;
 end;
 
 
@@ -3268,14 +3291,20 @@ end;
 procedure TEntityMasterDataLink.ActiveChanged;
 begin
   if FEntityDataSet <> nil then
+  begin
     FEntityDataSet.SyncMasterDetail;
+    FEntityDataSet.ApplyFilterAndSort;
+  end;
 end;
 
 procedure TEntityMasterDataLink.RecordChanged(Field: TField);
 begin
   // Field = nil significa que o cursor mudou de posição no mestre
   if (FEntityDataSet <> nil) and (Field = nil) then
+  begin
     FEntityDataSet.SyncMasterDetail;
+    FEntityDataSet.ApplyFilterAndSort;
+  end;
 end;
 procedure TEntityDataSet.SetMasterInheritance(AEntity: TObject);
 begin

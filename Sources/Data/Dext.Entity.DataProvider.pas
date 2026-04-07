@@ -497,7 +497,13 @@ begin
     FDatabaseConnection := Value;
 
     if FDatabaseConnection <> nil then
+    begin
       FDatabaseConnection.FreeNotification(Self);
+      
+      // Auto-infer dialect from connection if not manually set
+      if (FDialect = ddUnknown) and (FDatabaseConnection.DriverName <> '') then
+        FDialect := TDialectFactory.DetectDialect(FDatabaseConnection.DriverName);
+    end;
   end;
 end;
 

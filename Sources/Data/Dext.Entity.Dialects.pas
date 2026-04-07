@@ -308,18 +308,18 @@ begin
   
   if LDriver.Contains('pg') or LDriver.Contains('postgres') then
     Result := ddPostgreSQL
-  else if LDriver.Contains('mysql') or LDriver.Contains('maria') then
-    Result := ddMySQL
-  else if LDriver.Contains('mssql') or LDriver.Contains('sqlserver') then
-    Result := ddSQLServer
-  else if LDriver.Contains('sqlite') then
-    Result := ddSQLite
   else if LDriver.Contains('fb') or LDriver.Contains('firebird') then
     Result := ddFirebird
+  else if LDriver.Contains('sqlite') then
+    Result := ddSQLite
+  else if LDriver.Contains('mssql') or LDriver.Contains('sqlserver') then
+    Result := ddSQLServer
+  else if LDriver.Contains('ora') or LDriver.Contains('oracle') then
+    Result := ddOracle
+  else if LDriver.Contains('mysql') or LDriver.Contains('maria') then
+    Result := ddMySQL
   else if LDriver.Contains('ib') or LDriver.Contains('interbase') then
     Result := ddInterbase
-  else if LDriver.Contains('oracle') or LDriver.Contains('ora') then
-    Result := ddOracle
   else
     Result := ddUnknown;
 end;

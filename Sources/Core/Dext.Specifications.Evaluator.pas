@@ -32,16 +32,18 @@ uses
   System.Rtti,
   System.TypInfo,
   System.Variants,
+  Dext.Collections.Dict,
   Dext.Specifications.Interfaces,
   Dext.Specifications.Types;
 
 type
   /// <summary>
-  ///   Evaluates an expression tree against an object instance in memory using RTTI.
+  ///   Evaluates an expression tree against an object instance or dictionary in memory.
   /// </summary>
   TExpressionEvaluator = class
   public
-    class function Evaluate(const AExpression: IExpression; const AObject: TObject): Boolean;
+    class function Evaluate(const AExpression: IExpression; const AObject: TObject): Boolean; overload;
+    class function Evaluate(const AExpression: IExpression; const ADict: TDictionary<string, Variant>): Boolean; overload;
   end;
 
 implementation
@@ -50,6 +52,7 @@ type
   TEvaluatorVisitor = class(TInterfacedObject, IExpressionVisitor)
   private
     FObject: TObject;
+    FDict: TDictionary<string, Variant>;
     FResult: Boolean;
     FCtx: TRttiContext;
     
@@ -58,7 +61,8 @@ type
     function Compare(const Left, Right: TValue; Op: TBinaryOperator): Boolean;
     function Calculate(const Left, Right: TValue; Op: TArithmeticOperator): TValue;
   public
-    constructor Create(AObject: TObject);
+    constructor Create(AObject: TObject); overload;
+    constructor Create(ADict: TDictionary<string, Variant>); overload;
     procedure Visit(const AExpression: IExpression);
     property Result: Boolean read FResult;
   end;
@@ -80,11 +84,34 @@ begin
   end;
 end;
 
+class function TExpressionEvaluator.Evaluate(const AExpression: IExpression; const ADict: TDictionary<string, Variant>): Boolean;
+var
+  Visitor: TEvaluatorVisitor;
+begin
+  if AExpression = nil then Exit(True);
+  
+   Visitor := TEvaluatorVisitor.Create(ADict);
+  try
+    Visitor.Visit(AExpression);
+    Result := Visitor.Result;
+  finally
+    Visitor.Free;
+  end;
+end;
+
 { TEvaluatorVisitor }
 
 constructor TEvaluatorVisitor.Create(AObject: TObject);
 begin
   FObject := AObject;
+  FDict := nil;
+  FCtx := TRttiContext.Create;
+end;
+
+constructor TEvaluatorVisitor.Create(ADict: TDictionary<string, Variant>);
+begin
+  FObject := nil;
+  FDict := ADict;
   FCtx := TRttiContext.Create;
 end;
 
@@ -94,21 +121,55 @@ var
   Prop: TRttiProperty;
   Fld: TRttiField;
   Val: TValue;
+  V: Variant;
 begin
-  Typ := FCtx.GetType(FObject.ClassType);
-  Prop := Typ.GetProperty(APropertyName);
+  Val := TValue.Empty;
   
-  if Prop <> nil then
-    Val := Prop.GetValue(FObject)
-  else
+  if FDict <> nil then
   begin
-    Fld := Typ.GetField(APropertyName);
-    if Fld <> nil then
-      Val := Fld.GetValue(FObject)
+    if FDict.TryGetValue(APropertyName, V) then
+      Val := TValue.FromVariant(V);
+  end
+  else if FObject <> nil then
+  begin
+    Typ := FCtx.GetType(FObject.ClassType);
+    Prop := Typ.GetProperty(APropertyName);
+    
+    if Prop = nil then
+    begin
+      // Fallback: Case-insensitive search for properties
+      for var P in Typ.GetProperties do
+        if SameText(P.Name, APropertyName) then
+        begin
+          Prop := P;
+          Break;
+        end;
+    end;
+
+    if Prop <> nil then
+      Val := Prop.GetValue(FObject)
     else
-      raise Exception.CreateFmt('Property or Field "%s" not found on class "%s"', [APropertyName, FObject.ClassName]);
+    begin
+      Fld := Typ.GetField(APropertyName);
+      if Fld = nil then
+      begin
+        // Fallback: Case-insensitive search for fields
+        for var F in Typ.GetFields do
+          if SameText(F.Name, APropertyName) then
+          begin
+            Fld := F;
+            Break;
+          end;
+      end;
+
+      if Fld <> nil then
+        Val := Fld.GetValue(FObject);
+    end;
   end;
   
+  if Val.IsEmpty then
+    raise Exception.CreateFmt('Property or Field "%s" not found', [APropertyName]);
+
   // Unwrap Smart Types (Prop<T>)
   if (Val.Kind = tkRecord) and string(Val.TypeInfo.Name).StartsWith('Prop<') then
   begin
