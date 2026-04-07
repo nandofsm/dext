@@ -30,66 +30,42 @@ var
   ParsedCollection: ICollection;
   FileName, Content: string;
   MD: TEntityClassMetadata;
-  LogPath: string;
-  LogStrings: TStringList;
 begin
   if AProvider = nil then
     Exit;
 
-  LogPath := 'C:\dev\Dext\dext_metadata_debug.log';
-  LogStrings := TStringList.Create;
+  AProvider.ClearMetadata;
+  Parser := TEntityMetadataParser.Create;
   try
-    LogStrings.Add('--- Dext Metadata Refresh Log ---');
-    LogStrings.Add('Time: ' + DateTimeToStr(Now));
-    LogStrings.Add('ModelUnits Count: ' + IntToStr(AProvider.ModelUnits.Count));
+    for FileName in AProvider.ModelUnits do
+    begin
 
-    AProvider.ClearMetadata;
-    Parser := TEntityMetadataParser.Create;
-    try
-      for FileName in AProvider.ModelUnits do
-      begin
-        LogStrings.Add('Parsing: ' + FileName);
-        
-        Content := '';
-        if Assigned(GOnGetSourceContent) then
-          Content := GOnGetSourceContent(FileName);
+      Content := '';
+      if Assigned(GOnGetSourceContent) then
+        Content := GOnGetSourceContent(FileName);
 
-        ParsedList := Parser.ParseUnit(FileName, Content);
-        try
-          LogStrings.Add(Format('  Result: Found %d classes', [ParsedList.Count]));
-          for MD in ParsedList do
+      ParsedList := Parser.ParseUnit(FileName, Content);
+      try
+        for MD in ParsedList do
+        begin
+          AProvider.AddOrSetMetadata(MD);
+          for var I := 0 to MD.Members.Count - 1 do
           begin
-            AProvider.AddOrSetMetadata(MD);
-            LogStrings.Add(Format('  Entity: %s (Table=%s, Members=%d)',
-              [MD.EntityClassName, MD.TableName, MD.Members.Count]));
-            
-            for var I := 0 to MD.Members.Count - 1 do
-            begin
-              var Member := MD.Members[I];
-              LogStrings.Add(Format('    Member [%d]: %s (DisplayLabel="%s", DisplayWidth=%d, Currency=%s)',
-                [I, Member.Name, Member.DisplayLabel, Member.DisplayWidth, BoolToStr(Member.IsCurrency, True)]));
-            end;
+            var Member := MD.Members[I];
           end;
-
-          if Supports(ParsedList, ICollection, ParsedCollection) then
-            ParsedCollection.OwnsObjects := False;
-        finally
-          // ParsedList cleaned by interface
         end;
-      end;
-    finally
-      Parser.Free;
-    end;
 
-    AProvider.UpdateRefreshSummary;
-    LogStrings.Add('Refresh completed.');
-    try
-      TFile.AppendAllText(LogPath, LogStrings.Text);
-    except
+        if Supports(ParsedList, ICollection, ParsedCollection) then
+          ParsedCollection.OwnsObjects := False;
+      finally
+        // ParsedList cleaned by interface
+      end;
     end;
   finally
-    LogStrings.Free;
+    Parser.Free;
   end;
+
+  AProvider.UpdateRefreshSummary;
 end;
 
 end.

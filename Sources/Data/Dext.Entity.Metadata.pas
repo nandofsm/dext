@@ -24,7 +24,6 @@ type
     constructor Create;
     destructor Destroy; override;
     function ParseUnit(const AFileName: string; const AContent: string = ''): IList<TEntityClassMetadata>;
-    procedure Log(const Msg: string);
   end;
 
 implementation
@@ -35,19 +34,6 @@ uses
   System.Types,
   System.TypInfo,
   System.StrUtils;
-
-const
-  LogPath = 'C:\dev\Dext\dext_metadata_debug.log';
-
-procedure TEntityMetadataParser.Log(const Msg: string);
-begin
-  try
-    TFile.AppendAllText(LogPath, Msg + sLineBreak);
-    OutputDebugString(PChar('DextMetadata: ' + Msg));
-  except
-    // ignore logging errors
-  end;
-end;
 
 function TEntityMetadataParser.GetNodeText(Node: TSyntaxNode): string;
   function FindText(ANode: TSyntaxNode): string;
@@ -100,7 +86,6 @@ function TEntityMetadataParser.HasAttribute(Nodes: TList<TSyntaxNode>; const Att
         if SameText(FoundName, AttrName) or 
            SameText(FoundName, AttrName + 'Attribute') then
         begin
-          Log('      ATTR_MATCH: Found [' + AttrName + '] on current search');
           Exit(True);
         end;
       end;
@@ -138,7 +123,6 @@ function TEntityMetadataParser.GetAttributeValue(Nodes: TList<TSyntaxNode>; cons
         if ValNode <> nil then
         begin
           RawVal := GetNodeText(ValNode);
-          Log('        ARG_DEBUG: Raw value for [' + AttrName + ']: ' + RawVal);
           Result := RawVal.DeQuotedString('''');
           if Result <> '' then Exit;
         end;
@@ -163,7 +147,6 @@ function TEntityMetadataParser.GetAttributeValue(Nodes: TList<TSyntaxNode>; cons
            SameText(FoundName, AttrName + 'Attribute') then
         begin
           Result := GetValFromAttr(Attr);
-          Log('        ARG_VAL: [' + AttrName + '] = ' + Result);
           if Result <> '' then Exit;
         end;
       end;
@@ -201,11 +184,8 @@ procedure TEntityMetadataParser.ExtractMembers(AMetadata: TEntityClassMetadata; 
   begin
     for CChild in ContextNode.ChildNodes do
     begin
-      Log(Format('      SCAN_NODE: Type=%d, Name=%s', [Integer(CChild.Typ), GetNodeText(CChild)]));
-      
       if CChild.Typ = ntAttributes then
       begin
-        Log('      ATTR_COLLECT: Adding attribute block');
         FMemberAttributes.Add(CChild);
         Continue;
       end;
@@ -219,7 +199,6 @@ procedure TEntityMetadataParser.ExtractMembers(AMetadata: TEntityClassMetadata; 
         if (CChild.Typ = ntField) and (FMemberAttributes.Count = 0) and (MName.StartsWith('F')) then
           Continue;
 
-        Log('    MEMBER_SCAN: ' + MName);
         MType := CChild.GetAttribute(anType);
         if MType = '' then
         begin
@@ -279,13 +258,10 @@ procedure TEntityMetadataParser.ExtractMembers(AMetadata: TEntityClassMetadata; 
       end
       else if CChild.Typ in [ntPrivate, ntPublic, ntPublished, ntProtected, ntStrictPrivate, ntStrictProtected] then
       begin
-        Log('      SCAN_SCOPE: Entering ' + GetNodeText(CChild));
         Scan(CChild);
       end
       else if not (CChild.Typ in [ntAnsiComment, ntBorComment, ntSlashesComment]) then
       begin
-        if FMemberAttributes.Count > 0 then
-          Log(Format('      ATTR_CLEAR: Noise node (%d) cleared %d attrs', [Integer(CChild.Typ), FMemberAttributes.Count]));
         FMemberAttributes.Clear;
       end;
     end;
@@ -324,24 +300,18 @@ begin
   begin
     if not FileExists(AFileName) then
     begin
-       Log('  ERROR: File ' + AFileName + ' not found');
        Exit;
     end;
     try
       LContent := TFile.ReadAllText(AFileName);
     except
-      on E: Exception do 
+      on E: Exception do
       begin
-        Log('  ERROR reading file: ' + E.Message);
         Exit;
       end;
     end;
   end;
 
-  Log('--- Dext Metadata Parsing Start ---');
-  Log('Time: ' + DateTimeToStr(Now));
-  Log('Unit: ' + LUnitName);
-  
   Builder := TPasSyntaxTreeBuilder.Create;
   try
     Builder.InitDefinesDefinedByCompiler;
@@ -350,65 +320,57 @@ begin
 
     Stream := TStringStream.Create(LContent);
     try
+      SyntaxTree := Builder.Run(Stream);
       try
-        SyntaxTree := Builder.Run(Stream);
-        try
-          InterfaceNode := SyntaxTree.FindNode(ntInterface);
-          if InterfaceNode = nil then InterfaceNode := SyntaxTree;
+        InterfaceNode := SyntaxTree.FindNode(ntInterface);
+        if InterfaceNode = nil then InterfaceNode := SyntaxTree;
 
-          for TypeSection in InterfaceNode.ChildNodes do
+        for TypeSection in InterfaceNode.ChildNodes do
+        begin
+          if TypeSection.Typ <> ntTypeSection then Continue;
+
+          FTypeAttributes.Clear;
+          for TypeNode in TypeSection.ChildNodes do
           begin
-            if TypeSection.Typ <> ntTypeSection then Continue;
-
-            FTypeAttributes.Clear;
-            for TypeNode in TypeSection.ChildNodes do
+            if TypeNode.Typ = ntAttributes then
             begin
-              if TypeNode.Typ = ntAttributes then
+              FTypeAttributes.Add(TypeNode);
+              Continue;
+            end;
+
+            if TypeNode.Typ = ntTypeDecl then
+            begin
+              ClassName := TypeNode.GetAttribute(anName);
+              ClassNode := TypeNode.FindNode(ntType);
+
+              if (ClassNode <> nil) and SameText(ClassNode.GetAttribute(anType), 'class') then
               begin
-                FTypeAttributes.Add(TypeNode);
-                Continue;
-              end;
-
-              if TypeNode.Typ = ntTypeDecl then
-              begin
-                ClassName := TypeNode.GetAttribute(anName);
-                ClassNode := TypeNode.FindNode(ntType);
-
-                if (ClassNode <> nil) and SameText(ClassNode.GetAttribute(anType), 'class') then
-                begin
-                   if HasAttribute(FTypeAttributes, 'Table', TypeNode) or HasAttribute(FTypeAttributes, 'Entity', TypeNode) then
-                   begin
-                    Log('    Found Entity Class: ' + ClassName);
+                 if HasAttribute(FTypeAttributes, 'Table', TypeNode) or HasAttribute(FTypeAttributes, 'Entity', TypeNode) then
+                 begin
+                  TableName := GetAttributeValue(FTypeAttributes, 'Table', TypeNode);
+                  if TableName = '' then TableName := GetAttributeValue(FTypeAttributes, 'Entity', TypeNode);
+                  if TableName = '' then TableName := ClassName;
                     
-                    TableName := GetAttributeValue(FTypeAttributes, 'Table', TypeNode);
-                    if TableName = '' then TableName := GetAttributeValue(FTypeAttributes, 'Entity', TypeNode);
-                    if TableName = '' then TableName := ClassName;
-                    
-                    DisplayName := GetAttributeValue(FTypeAttributes, 'DisplayLabel', TypeNode);
-                    if DisplayName = '' then DisplayName := GetAttributeValue(FTypeAttributes, 'DisplayName', TypeNode);
-                    if DisplayName = '' then DisplayName := GetAttributeValue(FTypeAttributes, 'Caption', TypeNode);
+                  DisplayName := GetAttributeValue(FTypeAttributes, 'DisplayLabel', TypeNode);
+                  if DisplayName = '' then DisplayName := GetAttributeValue(FTypeAttributes, 'DisplayName', TypeNode);
+                  if DisplayName = '' then DisplayName := GetAttributeValue(FTypeAttributes, 'Caption', TypeNode);
 
-                    Metadata := TEntityClassMetadata.Create;
-                    Metadata.EntityClassName := ClassName;
-                    Metadata.DisplayName := DisplayName;
-                    Metadata.EntityUnitName := LUnitName;
-                    Metadata.TableName := TableName;
-                    ExtractMembers(Metadata, ClassNode);
-                    Result.Add(Metadata);
-                  end
-                  else
-                    Log('    Skipping Class (no Entity/Table attribute): ' + ClassName);
+                  Metadata := TEntityClassMetadata.Create;
+                  Metadata.EntityClassName := ClassName;
+                  Metadata.DisplayName := DisplayName;
+                  Metadata.EntityUnitName := LUnitName;
+                  Metadata.TableName := TableName;
+                  ExtractMembers(Metadata, ClassNode);
+                  Result.Add(Metadata);
                 end;
-                // ALWAYS clear after any type declaration node to prepare for the next potential class
-                FTypeAttributes.Clear;
               end;
+              // ALWAYS clear after any type declaration node to prepare for the next potential class
+              FTypeAttributes.Clear;
             end;
           end;
-        finally
-          SyntaxTree.Free;
         end;
-      except
-        on E: Exception do Log('  FATAL: Parser Exception: ' + E.Message);
+      finally
+        SyntaxTree.Free;
       end;
     finally
       Stream.Free;
