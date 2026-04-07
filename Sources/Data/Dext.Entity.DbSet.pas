@@ -363,14 +363,11 @@ end;
 function TSqlQueryIterator<T>.MoveNextCore: Boolean;
 var
   Cmd: IDbCommand;
-  i: Integer;
 begin
   if not FInitialized then
   begin
     Cmd := FDbSet.FContext.Connection.CreateCommand(FSql);
-    for i := 0 to Length(FParams) - 1 do
-      Cmd.AddParam('p' + IntToStr(i), FParams[i]);
-      
+    Cmd.BindSequentialParams(FParams);
     FReader := Cmd.ExecuteQuery;
     FInitialized := True;
   end;
@@ -845,7 +842,14 @@ begin
           TReflection.SetValue(Pointer(Target), Prop, Val);
       except
         on E: Exception do
-          raise Exception.CreateFmt('Error hydrating %s.%s: %s', [Target.ClassName, Prop.Name, E.Message]);
+        begin
+          var PropTypeName := '';
+          if Prop.PropertyType <> nil then
+            PropTypeName := Prop.PropertyType.Name;
+          raise Exception.CreateFmt(
+            'Error hydrating %s.%s (property type %s) from column "%s": %s',
+            [Target.ClassName, Prop.Name, PropTypeName, ColName, E.Message]);
+        end;
       end;
     end
     else
@@ -1075,6 +1079,10 @@ begin
       end;
       if AutoIncProp <> nil then Break;
     end;
+
+    // Mirror GenerateInsert: apply naming strategy when no explicit column name was mapped
+    if (AutoIncProp <> nil) and (AutoIncColumn = AutoIncProp.Name) and (Generator.NamingStrategy <> nil) then
+      AutoIncColumn := Generator.NamingStrategy.GetColumnName(AutoIncProp);
 
     UseReturning := (AutoIncColumn <> '') and FContext.Dialect.SupportsInsertReturning;
     if UseReturning then

@@ -36,6 +36,23 @@ type
     property Data: TBytes read FData write FData;
   end;
 
+procedure TestFirebird;
+var
+  Generator: TSqlGenerator<TAdvancedEntity>;
+  Dialect: ISQLDialect;
+begin
+  WriteLn('--- Firebird ---');
+  Dialect := TFirebirdDialect.Create;
+  Generator := TSqlGenerator<TAdvancedEntity>.Create(Dialect, nil);
+  try
+    WriteLn('DDL:');
+    WriteLn(Generator.GenerateCreateTable('test_advanced_types'));
+  finally
+    Generator.Free;
+  end;
+  WriteLn;
+end;
+
 procedure TestPostgreSQL;
 var
   Generator: TSqlGenerator<TAdvancedEntity>;
@@ -96,6 +113,7 @@ end;
 
 begin
   try
+    TestFirebird;
     TestPostgreSQL;
     TestSQLite;
     TestSQLServer;

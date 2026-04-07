@@ -18,6 +18,7 @@ uses
   Dext.Entity.DbSet,
   Dext.Entity.Drivers.Interfaces,
   Dext.Entity.Dialects,
+  Dext.Entity.Naming,
   Dext.Entity.Setup,
   Dext.Entity.Core;
 
@@ -126,6 +127,9 @@ type
 
     [Test]
     procedure Test_String_Id_Return;
+
+    [Test]
+    procedure Test_Integer_Id_With_NamingStrategy;
   end;
 
 implementation
@@ -289,6 +293,56 @@ begin
     begin
       Should(E.Id).Be('some-uuid-string');
     end);
+end;
+
+procedure TEntityIdReturnTests.Test_Integer_Id_With_NamingStrategy;
+var
+  Conn: Mock<IDbConnection>;
+  Cmd: Mock<IDbCommand>;
+  Dialect: Mock<ISQLDialect>;
+  Ctx: TDbContext;
+  Entity: TIntEntity;
+  CapturedColumn: string;
+begin
+  // Verifies that PersistAdd passes the naming-strategy-transformed column name
+  // to GetReturningSQL — regression test for the a0ac0de naming strategy fix.
+  CapturedColumn := '';
+
+  Cmd := Mock<IDbCommand>.Create;
+  Cmd.Setup.Returns(TValue.From<Integer>(42)).When.ExecuteScalar;
+
+  Dialect := Mock<ISQLDialect>.Create;
+  Dialect.Setup.Returns(True).When.SupportsInsertReturning;
+  Dialect.Setup.Executes(
+    procedure(Invocation: IInvocation)
+    begin
+      CapturedColumn := Invocation.Arguments[0].AsString;
+      Invocation.Result := 'RETURNING ' + CapturedColumn;
+    end).When.GetReturningSQL(Arg.Any<string>);
+  Dialect.Setup.Returns(ddPostgreSQL).When.GetDialect;
+  Dialect.Setup.Returns(':').When.GetParamPrefix;
+  Dialect.Setup.Executes(
+    procedure(Invocation: IInvocation)
+    begin
+      Invocation.Result := '"' + Invocation.Arguments[0].AsString + '"';
+    end).When.QuoteIdentifier(Arg.Any<string>);
+
+  Conn := Mock<IDbConnection>.Create;
+  Conn.Setup.Returns(Cmd.Instance).When.CreateCommand(Arg.Any<string>);
+
+  // Use snake_case naming strategy — 'Id' should become 'id'
+  Ctx := TDbContext.Create(Conn.Instance, Dialect.Instance, TSnakeCaseNamingStrategy.Create);
+  try
+    Entity := TIntEntity.Create;
+    Ctx.Entities<TIntEntity>.Add(Entity);
+    Ctx.SaveChanges;
+
+    // The column name passed to GetReturningSQL must be the renamed column, not the Delphi property name
+    Should(CapturedColumn).Be('id');
+    Should(Entity.Id).Be(42);
+  finally
+    Ctx.Free;
+  end;
 end;
 
 end.

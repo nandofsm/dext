@@ -465,6 +465,7 @@ var
   SymName, SourceFile: string;
   SymDelta: NativeUInt;
   LineNum: Integer;
+  Module: HMODULE;
 begin
   if TStackTrace.Options.ResolveOnlyIfLoaded and not MapLoaded then
     goto Fallback;
@@ -495,7 +496,7 @@ begin
 
 Fallback:
   // Fallback: module + offset
-  var Module := GetModuleFromAddress(Address);
+  Module := GetModuleFromAddress(Address);
   if Module <> 0 then
   begin
     Offset := NativeUInt(Address) - NativeUInt(Module);

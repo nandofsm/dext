@@ -11,9 +11,16 @@ Flutter-inspired navigation and declarative binding for VCL desktop applications
 
 ```pascal
 uses
-  Dext.UI;          // TSimpleNavigator, INavigator, TBindingEngine
-  Dext.UI.Binding;  // TBindingEngine, binding attribute types
+  Dext.UI;          // Facade: INavigator, TNavigator, TMessage, all Bind* attributes, OnClickMsg
+  Dext.UI.Binder;   // TMVUBinder<TModel, TMsg> — use directly (not re-exported by Dext.UI)
+  Dext.UI.Navigator.Interfaces; // INavigator, INavigationMiddleware (if needed explicitly)
+  Dext.UI.Navigator;            // TNavigator
+  Dext.UI.Message;              // TMessage (if not using Dext.UI facade)
 ```
+
+> `Dext.UI` re-exports: `BindText`, `BindChecked`, `BindEnabled`, `BindVisible`, `BindItems`,
+> `OnClickMsg`, `INavigator`, `TNavigator`, `TMessage`.
+> `TMVUBinder` must be imported from `Dext.UI.Binder` directly.
 
 > 📦 Example: `Desktop.MVVM.CustomerCRUD`
 
@@ -24,19 +31,24 @@ uses
 ### Setup
 
 ```pascal
-var Navigator := TSimpleNavigator.Create;
+uses
+  Dext.UI.Navigator;            // TNavigator
+  Dext.UI.Navigator.Interfaces; // INavigator, INavigatorAdapter
+
+// Create with DI provider (views are resolved via DI):
+var Navigator := TNavigator.Create(ServiceProvider);
 Navigator.UseAdapter(TCustomContainerAdapter.Create(ContentPanel));
 ```
 
 ### Navigation Methods
 
 ```pascal
-Navigator.Push(TCustomerListFrame);              // Push new view
-Navigator.Push(TCustomerEditFrame,               // Push with data
-  TValue.From(Customer));
+Navigator.Push(TCustomerListFrame, []);           // Push new view (ViewClass, Params)
+Navigator.Push(TCustomerEditFrame, ['id', 42]);   // Push with named params
+Navigator.PushNamed('/customers/edit');           // Push by registered route name
 Navigator.Pop;                                    // Go back
-Navigator.Replace(TNewView);                      // Replace current
-Navigator.PopUntil(THomeView);                    // Pop to specific type
+Navigator.Replace(TNewView, []);                  // Replace current
+Navigator.PopAndPush(THomeView);                  // Pop all + push new root
 ```
 
 ### Receive Data in Target Frame
@@ -102,12 +114,14 @@ Navigator.UseAdapter(TMDIAdapter.Create(Application));              // MDI windo
 ### DI Integration
 
 ```pascal
-Services.AddSingleton<ISimpleNavigator>(
+// Register TNavigator (DI-based, uses ServiceProvider to create view instances):
+FNavigator := TNavigator.Create(FProvider);
+
+// Or in DI container:
+FServices.AddSingleton<INavigator>(
   function(P: IServiceProvider): TObject
   begin
-    var Nav := TSimpleNavigator.Create;
-    Nav.UseAdapter(TCustomContainerAdapter.Create(MainForm.ContentPanel));
-    Result := Nav;
+    Result := TNavigator.Create(P);
   end);
 ```
 
@@ -121,28 +135,40 @@ Declarative two-way binding between VCL controls and ViewModel properties via RT
 
 ```pascal
 type
+  // Messages for UI actions
+  TSaveMsg = class(TMessage);
+  TCancelMsg = class(TMessage);
+
   TCustomerEditFrame = class(TFrame)
   private
     FViewModel: TCustomerViewModel;
-    FBindingEngine: TBindingEngine;
+    FBinder: TMVUBinder<TCustomerViewModel, TMessage>;
+    procedure DispatchMsg(Msg: TMessage);
   published
-    [BindEdit('Name')]          // TEdit ↔ ViewModel.Name (two-way)
+    [BindEdit('Name')]               // TEdit ↔ ViewModel.Name (two-way)
     NameEdit: TEdit;
 
-    [BindEdit('Email')]
-    EmailEdit: TEdit;
+    [BindText('Id', 'Customer #%s')] // TLabel ← format string with ViewModel.Id
+    TitleLabel: TLabel;
 
-    [BindText('ErrorMessage')]  // TLabel ← ViewModel.ErrorMessage (one-way)
-    ErrorLabel: TLabel;
+    [BindText('Errors.Text')]        // TLabel ← ViewModel.Errors.Text (one-way)
+    ErrorsLabel: TLabel;
 
-    [BindCheckBox('IsActive')]  // TCheckBox ↔ ViewModel.IsActive
-    ActiveCheck: TCheckBox;
+    [BindChecked('Active')]          // TCheckBox ↔ ViewModel.Active
+    ActiveCheckBox: TCheckBox;
 
-    [OnClickMsg(TSaveMsg)]      // Button click → dispatch TSaveMsg
+    [BindMemo('Notes')]              // TMemo ↔ ViewModel.Notes
+    NotesMemo: TMemo;
+
+    [BindEnabled('CanSave')]         // Control.Enabled ← ViewModel.CanSave
+    [OnClickMsg(TSaveMsg)]           // Button click → dispatch TSaveMsg
     SaveButton: TButton;
 
     [OnClickMsg(TCancelMsg)]
     CancelButton: TButton;
+
+    [BindVisible('Errors.Count', False)] // Panel.Visible ← Errors.Count <> 0 (inverted)
+    ErrorPanel: TPanel;
   end;
 ```
 
@@ -150,23 +176,62 @@ type
 |-----------|---------|-----------|
 | `[BindEdit('Prop')]` | TEdit | Two-way |
 | `[BindText('Prop')]` | TLabel | One-way (read) |
-| `[BindCheckBox('Prop')]` | TCheckBox | Two-way |
+| `[BindText('Prop', 'fmt %s')]` | TLabel | One-way with format string |
+| `[BindChecked('Prop')]` | TCheckBox | Two-way |
+| `[BindMemo('Prop')]` | TMemo | Two-way |
+| `[BindEnabled('Prop')]` | Any control | One-way (Enabled) |
+| `[BindVisible('Prop', Invert)]` | Any control | One-way (Visible, optional invert) |
 | `[OnClickMsg(TMsgClass)]` | TButton | Click → message dispatch |
 
-### Setup and Refresh
+> **IMPORTANT**: The attribute is `[BindChecked]` — NOT `[BindCheckBox]`.
+> Controls with binding attributes must be declared as `published` fields of the Frame.
+
+### Setup and Render
 
 ```pascal
-procedure TCustomerEditFrame.AfterConstruction;
+uses
+  Dext.UI.Binder;  // TMVUBinder<TModel, TMsg>
+
+constructor TCustomerEditFrame.Create(AOwner: TComponent);
 begin
   inherited;
-  FBindingEngine := TBindingEngine.Create(Self, FViewModel);
+  FViewModel := TCustomerViewModel.Create;
+  // Create binder: (Frame, DispatchCallback)
+  FBinder := TMVUBinder<TCustomerViewModel, TMessage>.Create(Self, DispatchMsg);
 end;
 
-// Call after ViewModel data changes externally
-procedure TCustomerEditFrame.LoadCustomer(Customer: TCustomer);
+destructor TCustomerEditFrame.Destroy;
 begin
-  FViewModel.Load(Customer);
-  FBindingEngine.Refresh;
+  FBinder.Free;
+  FViewModel.Free;
+  inherited;
+end;
+
+// Call after ViewModel data changes to sync controls
+procedure TCustomerEditFrame.LoadCustomer(AViewModel: TCustomerViewModel);
+begin
+  FViewModel.Load(AViewModel.GetEntity);
+  FBinder.Render(FViewModel);  // Push Model → controls
+end;
+
+// Message handler — called by binder on UI events
+procedure TCustomerEditFrame.DispatchMsg(Msg: TMessage);
+begin
+  if Msg is TSaveMsg then
+  begin
+    if FViewModel.Validate then
+    begin
+      if Assigned(FOnSave) then
+        FOnSave(FViewModel);
+    end
+    else
+      FBinder.Render(FViewModel); // Re-render to show validation errors
+  end
+  else if Msg is TCancelMsg then
+  begin
+    if Assigned(FOnCancel) then
+      FOnCancel();
+  end;
 end;
 ```
 
@@ -269,31 +334,189 @@ type
 
 ```pascal
 type
-  {$M+}  // REQUIRED for Mock<ICustomerView> to work
+{$M+}  // REQUIRED for Mock<ICustomerView> to work — wrap the whole block
   ICustomerView = interface
-    ['{...}']
-    procedure RefreshList(Customers: IList<TCustomer>);
+    ['{B7E206D4-A6A4-4A2D-A2A6-D2C979E9B9A6}']
+    procedure RefreshList(const Customers: IList<TCustomer>);
     procedure ShowEditView(ViewModel: TCustomerViewModel);
-    procedure ShowError(const Msg: string);
+    procedure ShowListView;
+    procedure ShowMessage(const Msg: string);
   end;
-  {$M-}
+{$M-}
 ```
 
-> Use `{$M+}` on any interface you plan to mock in tests.
+> Use `{$M+}...{$M-}` around any interface you plan to mock in tests.
+> Note: the method is `ShowMessage`, not `ShowError`.
 
 ### DI Registration
 
 ```pascal
-Services
-  .AddScoped<ICustomerService, TCustomerService>
-  .AddScoped<ICustomerController, TCustomerController>
-  .AddSingleton<ISimpleNavigator>(NavigatorFactory);
+FServices := TDextServices.New;
+FServices.AddSingleton<ILogger>(TConsoleLogger.Create('App'));
+FServices.AddDbContext<TCustomerContext>(...);
+FServices.AddSingleton<ICustomerService, TCustomerService>;
+FServices.AddTransient<ICustomerController, TCustomerController>;
+FProvider := FServices.BuildServiceProvider;
+
+// Navigator requires the built provider:
+FNavigator := TNavigator.Create(FProvider);
 ```
+
+---
+
+## MVU Pattern
+
+Model-View-Update: immutable state, unidirectional data flow, pure update function. Framework-independent — just Delphi.
+
+### Model (immutable record)
+
+```pascal
+type
+  TCounterModel = record
+    Count: Integer;
+    Step: Integer;
+    History: string;
+
+    class function Init: TCounterModel; static;
+
+    // With* methods return a copy with one field changed:
+    function WithCount(const NewCount: Integer): TCounterModel;
+    function WithStep(const NewStep: Integer): TCounterModel;
+  end;
+```
+
+### Messages
+
+Two styles — enum (simple) or class-based (with data):
+
+```pascal
+// Simple enum style (Desktop.MVU.Counter):
+TCounterMessage = (IncrementMsg, DecrementMsg, ResetMsg, SetStep1Msg, ...);
+
+// Class-based style (Desktop.MVU.CounterFrame — preferred):
+uses Dext.UI.Message;  // TMessage base class
+
+type
+  TIncrementMsg = class(TMessage);
+  TDecrementMsg = class(TMessage);
+  TResetMsg = class(TMessage);
+
+  // Messages carrying data:
+  TSetStepMsg = class(TMessage)
+  public
+    Step: Integer;
+    constructor Create(AStep: Integer); reintroduce;
+  end;
+```
+
+### Update (pure function)
+
+```pascal
+type
+  TCounterUpdate = class
+    class function Update(const Model: TCounterModel;
+      const Msg: TCounterMessage): TCounterModel; static;
+  end;
+
+class function TCounterUpdate.Update(const Model: TCounterModel;
+  const Msg: TCounterMessage): TCounterModel;
+begin
+  Result := Model;
+  case Msg of
+    IncrementMsg:
+      Result := Model.WithCount(Model.Count + 1);
+    DecrementMsg:
+      Result := Model.WithCount(Model.Count - 1);
+    ResetMsg:
+      Result := TCounterModel.Init;
+  end;
+end;
+```
+
+### View (TFrame in IDE + Render)
+
+```pascal
+uses Dext.UI.Message;
+
+// Dispatch callback type
+TDispatchProc = reference to procedure(const Msg: TCounterMsg);
+
+type
+  TCounterViewFrame = class(TFrame)
+    CountLabel: TLabel;
+    IncrementButton: TButton;
+    // ... designed in IDE
+  private
+    FDispatch: TDispatchProc;
+    procedure OnIncrementClick(Sender: TObject);
+    procedure WireEvents;
+  public
+    procedure Initialize(ADispatch: TDispatchProc);
+    procedure Render(const Model: TCounterModel);
+  end;
+
+procedure TCounterViewFrame.Initialize(ADispatch: TDispatchProc);
+begin
+  FDispatch := ADispatch;
+  WireEvents;
+end;
+
+procedure TCounterViewFrame.WireEvents;
+begin
+  IncrementButton.OnClick := OnIncrementClick;
+end;
+
+procedure TCounterViewFrame.OnIncrementClick(Sender: TObject);
+begin
+  if Assigned(FDispatch) then
+    FDispatch(TIncrementMsg.Create);
+end;
+
+// Called every time model changes:
+procedure TCounterViewFrame.Render(const Model: TCounterModel);
+begin
+  CountLabel.Caption := Model.Count.ToString;
+  StepLabel.Caption := Format('Step: %d', [Model.Step]);
+end;
+```
+
+### Runtime (MVU loop)
+
+```pascal
+// Generic MVU runtime (from Counter example):
+TMVURuntime<TModel> = class
+  private
+    FModel: TModel;
+    FOnModelChanged: TProc<TModel>;
+  public
+    constructor Create(const InitialModel: TModel; OnChanged: TProc<TModel>);
+    procedure UpdateModel(const NewModel: TModel);
+    property Model: TModel read FModel;
+  end;
+
+// Usage in main form:
+FRuntime := TMVURuntime<TCounterModel>.Create(
+  TCounterModel.Init,
+  procedure(M: TCounterModel)
+  begin
+    FView.Render(M);  // Re-render on every state change
+  end);
+
+FView := TCounterViewFrame.Create(ContentPanel);
+FView.Initialize(
+  procedure(Msg: TCounterMsg)
+  begin
+    // Dispatch: current model + message → new model
+    FRuntime.UpdateModel(TCounterUpdate.Update(FRuntime.Model, Msg));
+  end);
+```
+
+---
 
 ## Examples
 
 | Example | What it shows |
 |---------|---------------|
-| `Desktop.MVVM.CustomerCRUD` | Full MVVM: Magic Binding, Navigator + middleware, validation, mocked tests |
-| `Desktop.MVU.Counter` | Model-View-Update pattern: immutable state, pure update functions |
-| `Desktop.MVU.CounterFrame` | MVU with TFrame designed in IDE, class-based messages, modular separation |
+| `Desktop.MVVM.CustomerCRUD` | Full MVVM: TMVUBinder, Navigator, TNavigator, validation, mocked tests |
+| `Desktop.MVU.Counter` | MVU with enum messages, pure update, no framework deps |
+| `Desktop.MVU.CounterFrame` | MVU with class-based messages (TMessage), TFrame in IDE, Render pattern |

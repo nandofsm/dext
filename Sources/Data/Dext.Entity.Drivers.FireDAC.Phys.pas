@@ -110,6 +110,7 @@ type
     procedure SetSQL(const ASQL: string);
     procedure AddParam(const AName: string; const AValue: TValue); overload;
     procedure AddParam(const AName: string; const AValue: TValue; ADataType: TFieldType); overload;
+    procedure BindSequentialParams(const AValues: TArray<TValue>);
     procedure SetParamType(const AName: string; AType: TParamType);
     function GetParamValue(const AName: string): TValue;
     procedure ClearParams;
@@ -165,6 +166,9 @@ type
   end;
 
 implementation
+
+uses
+  Dext.Core.Reflection;
 
 { TFireDACPhysTransaction }
 
@@ -242,7 +246,13 @@ begin
     dtDateTime, dtDate, dtTime, dtDateTimeStamp: Result := TValue.From<TDateTime>(TDateTime(Data));
     dtAnsiString, dtWideString, dtByteString, dtMemo, dtWideMemo, dtXML: Result := TValue.From<string>(string(Data));
     dtBlob, dtHBlob, dtHBFile: Result := TValue.From<TBytes>(TBytes(Data));
-    dtGUID: Result := TValue.From<TGUID>(TGUID(Data));
+    dtGUID:
+    // Variant cannot be cast to TGUID on Win64 (E2089); FireDAC exposes GUID as string in DatS.
+    try
+      Result := TValue.From<TGUID>(StringToGUID(Trim(VarToStr(Data))));
+    except
+      Result := TValue.FromVariant(Data);
+    end;
     dtBoolean: Result := TValue.From<Boolean>(Boolean(Data));
   else
     Result := TValue.FromVariant(Data);
@@ -352,12 +362,31 @@ begin
   SetParamValueWithType(Param, AValue, ADataType);
 end;
 
-procedure TFireDACPhysCommand.SetParamValueWithType(Param: TFDParam; const AValue: TValue; ADataType: TFieldType);
+procedure TFireDACPhysCommand.BindSequentialParams(const AValues: TArray<TValue>);
+var
+  i: Integer;
 begin
+  if Length(AValues) = 0 then
+    Exit;
+  if FCommand.Params.Count <> Length(AValues) then
+    raise Exception.CreateFmt(
+      'FromSql parameter count mismatch: SQL has %d parameter(s) but %d value(s) were supplied.',
+      [FCommand.Params.Count, Length(AValues)]);
+  for i := 0 to High(AValues) do
+    SetParamValue(FCommand.Params[i], AValues[i]);
+end;
+
+procedure TFireDACPhysCommand.SetParamValueWithType(Param: TFDParam; const AValue: TValue; ADataType: TFieldType);
+var
+  V: TValue;
+begin
+  V := AValue;
+  TReflection.TryUnwrapProp(V, V);
+
   // Force the explicit data type first
   Param.DataType := ADataType;
   
-  if AValue.IsEmpty then
+  if V.IsEmpty then
   begin
     Param.Clear;
     Exit;
@@ -366,30 +395,42 @@ begin
   // Set value based on the explicit type
   case ADataType of
     ftString, ftWideString, ftMemo, ftWideMemo:
-      Param.AsWideString := AValue.AsString;
+      Param.AsWideString := V.AsString;
     ftSmallint, ftInteger, ftWord, ftShortint:
-      Param.AsInteger := AValue.AsInteger;
+      if V.Kind = tkEnumeration then
+        Param.AsInteger := V.AsOrdinal
+      else
+        Param.AsInteger := V.AsInteger;
     ftLargeint:
-      Param.AsLargeInt := AValue.AsInt64;
+      Param.AsLargeInt := V.AsInt64;
     ftFloat, ftCurrency, ftExtended:
-      Param.AsFloat := AValue.AsExtended;
+      Param.AsFloat := V.AsExtended;
     ftBCD:
-      Param.AsBCD := AValue.AsType<Currency>;
+      Param.AsBCD := V.AsType<Currency>;
     ftFMTBcd:
-      Param.AsFMTBCD := StrToBcd(AValue.AsString);
+      case V.Kind of
+        tkFloat:
+          Param.AsFMTBCD := DoubleToBcd(V.AsExtended);
+        tkInteger, tkInt64:
+          Param.AsFMTBCD := DoubleToBcd(V.AsInt64);
+        tkString, tkUString, tkWString, tkLString:
+          Param.AsFMTBCD := StrToBcd(V.AsString);
+      else
+        Param.AsFMTBCD := DoubleToBcd(V.AsExtended);
+      end;
     ftDate:
-      Param.AsDate := AValue.AsType<TDate>;
+      Param.AsDate := V.AsType<TDate>;
     ftTime:
-      Param.AsTime := AValue.AsType<TTime>;
+      Param.AsTime := V.AsType<TTime>;
     ftDateTime, ftTimeStamp:
-      Param.AsDateTime := AValue.AsType<TDateTime>;
+      Param.AsDateTime := V.AsType<TDateTime>;
     ftBoolean:
-      Param.AsBoolean := AValue.AsBoolean;
+      Param.AsBoolean := V.AsBoolean;
     ftBlob, ftGraphic, ftParadoxOle, ftDBaseOle, ftTypedBinary, ftOraBlob:
     begin
-      if AValue.TypeInfo = TypeInfo(TBytes) then
+      if V.TypeInfo = TypeInfo(TBytes) then
       begin
-        var Bytes := AValue.AsType<TBytes>;
+        var Bytes := V.AsType<TBytes>;
         var RawStr: RawByteString;
         SetLength(RawStr, Length(Bytes));
         if Length(Bytes) > 0 then
@@ -397,13 +438,13 @@ begin
         Param.AsBlob := RawStr;
       end
       else
-        Param.Value := AValue.AsVariant;
+        Param.Value := V.AsVariant;
     end;
     ftGuid:
-      Param.AsGUID := StringToGUID(AValue.AsString);
+      Param.AsGUID := StringToGUID(V.AsString);
   else
     // Fallback: use variant conversion
-    Param.Value := AValue.AsVariant;
+    Param.Value := V.AsVariant;
   end;
 end;
 

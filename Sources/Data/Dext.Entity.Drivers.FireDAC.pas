@@ -104,6 +104,7 @@ type
     procedure SetSQL(const ASQL: string);
     procedure AddParam(const AName: string; const AValue: TValue); overload;
     procedure AddParam(const AName: string; const AValue: TValue; ADataType: TFieldType); overload;
+    procedure BindSequentialParams(const AValues: TArray<TValue>);
     procedure SetParamType(const AName: string; AType: TParamType);
     function GetParamValue(const AName: string): TValue;
     procedure ClearParams;
@@ -157,7 +158,63 @@ type
 implementation
 
 uses
-  FireDAC.ConsoleUI.Wait;
+  FireDAC.ConsoleUI.Wait,
+  Dext.Core.Reflection;
+
+function FireDACFieldToTValue(Field: TField): TValue;
+begin
+  if (Field = nil) or Field.IsNull then
+    Exit(TValue.Empty);
+  try
+    case Field.DataType of
+      ftUnknown:
+        Result := TValue.FromVariant(Field.Value);
+      ftString, ftWideString, ftMemo, ftWideMemo, ftFixedChar, ftFixedWideChar:
+        Result := TValue.From<string>(Field.AsString);
+      ftSmallint, ftShortint:
+        Result := TValue.From<Integer>(Field.AsInteger);
+      ftInteger, ftAutoInc, ftWord:
+        Result := TValue.From<Integer>(Field.AsInteger);
+      ftLongWord:
+        Result := TValue.From<Int64>(Field.AsLargeInt);
+      ftLargeint:
+        Result := TValue.From<Int64>(Field.AsLargeInt);
+      ftFloat, ftSingle:
+        Result := TValue.From<Double>(Field.AsFloat);
+      ftExtended:
+        Result := TValue.From<Double>(Field.AsFloat);
+      ftCurrency, ftBCD:
+        Result := TValue.From<Currency>(Field.AsCurrency);
+      ftFMTBcd:
+        try
+          Result := TValue.From<Currency>(Field.AsCurrency);
+        except
+          Result := TValue.From<Double>(Field.AsFloat);
+        end;
+      ftBoolean:
+        Result := TValue.From<Boolean>(Field.AsBoolean);
+      ftDate:
+        Result := TValue.From<TDate>(DateOf(Field.AsDateTime));
+      ftTime:
+        Result := TValue.From<TTime>(TimeOf(Field.AsDateTime));
+      ftDateTime, ftTimeStamp, ftOraTimeStamp:
+        Result := TValue.From<TDateTime>(Field.AsDateTime);
+      ftBlob, ftOraBlob, ftGraphic, ftTypedBinary, ftParadoxOle, ftDBaseOle, ftVarBytes, ftBytes:
+        try
+          Result := TValue.From<TBytes>(Field.AsBytes);
+        except
+          Result := TValue.FromVariant(Field.Value);
+        end;
+      ftGuid:
+        Result := TValue.From<TGUID>(Field.AsGuid);
+    else
+      Result := TValue.FromVariant(Field.Value);
+    end;
+  except
+    on E: EVariantTypeCastError do
+      Result := TValue.FromVariant(Field.Value);
+  end;
+end;
 
 { TFireDACTransaction }
 
@@ -250,28 +307,8 @@ begin
 end;
 
 function TFireDACReader.GetValue(AColumnIndex: Integer): TValue;
-var
-  Field: TField;
 begin
-  Field := FQuery.Fields[AColumnIndex];
-  if Field.IsNull then
-    Exit(TValue.Empty);
-
-  case Field.DataType of
-    ftInteger, ftAutoInc, ftSmallint: Result := TValue.From<Integer>(Field.AsInteger);
-    ftLargeint: Result := TValue.From<Int64>(Field.AsLargeInt);
-    ftFloat: Result := TValue.From<Double>(Field.AsFloat);
-    ftCurrency: Result := TValue.From<Currency>(Field.AsCurrency);
-    ftBoolean: Result := TValue.From<Boolean>(Field.AsBoolean);
-    ftDate: Result := TValue.From<TDate>(DateOf(Field.AsDateTime));
-    ftTime: Result := TValue.From<TTime>(TimeOf(Field.AsDateTime));
-    ftDateTime, ftTimeStamp: Result := TValue.From<TDateTime>(Field.AsDateTime);
-    ftBlob, ftOraBlob, ftGraphic: Result := TValue.From<TBytes>(Field.AsBytes);
-    ftString, ftWideString, ftMemo, ftWideMemo: Result := TValue.From<string>(Field.AsString);
-    ftGuid: Result := TValue.From<TGUID>(Field.AsGuid);
-  else
-    Result := TValue.FromVariant(Field.Value);
-  end;
+  Result := FireDACFieldToTValue(FQuery.Fields[AColumnIndex]);
 end;
 
 function TFireDACReader.GetValue(const AColumnName: string): TValue;
@@ -337,12 +374,32 @@ begin
   SetParamValueWithType(Param, AValue, ADataType);
 end;
 
-procedure TFireDACCommand.SetParamValueWithType(Param: TFDParam; const AValue: TValue; ADataType: TFieldType);
+procedure TFireDACCommand.BindSequentialParams(const AValues: TArray<TValue>);
+var
+  i: Integer;
 begin
+  if Length(AValues) = 0 then
+    Exit;
+  FQuery.Prepare;
+  if FQuery.Params.Count <> Length(AValues) then
+    raise Exception.CreateFmt(
+      'FromSql parameter count mismatch: SQL has %d parameter(s) but %d value(s) were supplied.',
+      [FQuery.Params.Count, Length(AValues)]);
+  for i := 0 to High(AValues) do
+    SetParamValue(FQuery.Params[i], AValues[i]);
+end;
+
+procedure TFireDACCommand.SetParamValueWithType(Param: TFDParam; const AValue: TValue; ADataType: TFieldType);
+var
+  V: TValue;
+begin
+  V := AValue;
+  TReflection.TryUnwrapProp(V, V);
+
   // Force the explicit data type first
   Param.DataType := ADataType;
   
-  if AValue.IsEmpty then
+  if V.IsEmpty then
   begin
     Param.Clear;
     Exit;
@@ -351,42 +408,42 @@ begin
   // Set value based on the explicit type
   case ADataType of
     ftString, ftWideString, ftMemo, ftWideMemo:
-      Param.AsWideString := AValue.AsString;
+      Param.AsWideString := V.AsString;
     ftSmallint, ftInteger, ftWord, ftShortint:
-      if AValue.Kind = tkEnumeration then
-        Param.AsInteger := AValue.AsOrdinal
+      if V.Kind = tkEnumeration then
+        Param.AsInteger := V.AsOrdinal
       else
-        Param.AsInteger := AValue.AsInteger;
+        Param.AsInteger := V.AsInteger;
     ftLargeint:
-      Param.AsLargeInt := AValue.AsInt64;
+      Param.AsLargeInt := V.AsInt64;
     ftFloat, ftCurrency, ftExtended:
-      Param.AsFloat := AValue.AsExtended;
+      Param.AsFloat := V.AsExtended;
     ftBCD:
-      Param.AsBCD := AValue.AsType<Currency>;
+      Param.AsBCD := V.AsType<Currency>;
     ftFMTBcd:
-      case AValue.Kind of
+      case V.Kind of
         tkFloat:
-          Param.AsFMTBCD := DoubleToBcd(AValue.AsExtended);
+          Param.AsFMTBCD := DoubleToBcd(V.AsExtended);
         tkInteger, tkInt64:
-          Param.AsFMTBCD := DoubleToBcd(AValue.AsInt64);
+          Param.AsFMTBCD := DoubleToBcd(V.AsInt64);
         tkString, tkUString, tkWString, tkLString:
-          Param.AsFMTBCD := StrToBcd(AValue.AsString);
+          Param.AsFMTBCD := StrToBcd(V.AsString);
       else
-        Param.AsFMTBCD := DoubleToBcd(AValue.AsExtended);
+        Param.AsFMTBCD := DoubleToBcd(V.AsExtended);
       end;
     ftDate:
-      Param.AsDate := AValue.AsType<TDate>;
+      Param.AsDate := V.AsType<TDate>;
     ftTime:
-      Param.AsTime := AValue.AsType<TTime>;
+      Param.AsTime := V.AsType<TTime>;
     ftDateTime, ftTimeStamp:
-      Param.AsDateTime := AValue.AsType<TDateTime>;
+      Param.AsDateTime := V.AsType<TDateTime>;
     ftBoolean:
-      Param.AsBoolean := AValue.AsBoolean;
+      Param.AsBoolean := V.AsBoolean;
     ftBlob, ftGraphic, ftParadoxOle, ftDBaseOle, ftTypedBinary, ftOraBlob:
     begin
-      if AValue.TypeInfo = TypeInfo(TBytes) then
+      if V.TypeInfo = TypeInfo(TBytes) then
       begin
-        var Bytes := AValue.AsType<TBytes>;
+        var Bytes := V.AsType<TBytes>;
         var RawStr: RawByteString;
         SetLength(RawStr, Length(Bytes));
         if Length(Bytes) > 0 then
@@ -394,13 +451,13 @@ begin
         Param.AsBlob := RawStr;
       end
       else
-        Param.Value := AValue.AsVariant;
+        Param.Value := V.AsVariant;
     end;
     ftGuid:
-      Param.AsGUID := StringToGUID(AValue.AsString);
+      Param.AsGUID := StringToGUID(V.AsString);
   else
     // Fallback: use variant conversion
-    Param.Value := AValue.AsVariant;
+    Param.Value := V.AsVariant;
   end;
 end;
 
@@ -771,13 +828,7 @@ begin
   FQuery.Open;
   try
     if not FQuery.Eof then
-    begin
-      var Field := FQuery.Fields[0];
-      if Field.DataType = ftGuid then
-        Result := TValue.From<TGUID>(Field.AsGuid)
-      else
-        Result := TValue.FromVariant(Field.Value);
-    end
+      Result := FireDACFieldToTValue(FQuery.Fields[0])
     else
       Result := TValue.Empty;
   finally
