@@ -613,8 +613,18 @@ end;
 
 procedure TDextIndyHttpResponse.Write(const AContent: string);
 begin
-  FResponseInfo.ContentText := AContent;
-  // Only set default content type if not already set
+  { Append instead of overwrite so consumers that build the response body
+    in multiple calls accumulate correctly. The main case is TSSEWriter:
+    WriteEvent calls Response.Write twice (once for 'event:' line, once for
+    'data:' line), and the SSE middleware loop calls WriteData repeatedly
+    for each message and WriteComment for keep-alive. With overwrite, only
+    the last Write reached the client, so Server-Sent Events streams were
+    effectively broken on the Indy backend.
+
+    Also relevant for streamed error messages and any handler that builds
+    its body in stages. Single-call handlers are unaffected because appending
+    to an empty ContentText is equivalent to assignment. }
+  FResponseInfo.ContentText := FResponseInfo.ContentText + AContent;
   if FResponseInfo.ContentType = '' then
     FResponseInfo.ContentType := 'text/plain; charset=utf-8';
 end;
