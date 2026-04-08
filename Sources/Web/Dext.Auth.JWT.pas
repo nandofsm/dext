@@ -1,4 +1,4 @@
-﻿{***************************************************************************}
+{***************************************************************************}
 {                                                                           }
 {           Dext Framework                                                  }
 {                                                                           }
@@ -65,6 +65,9 @@ type
   /// <summary>
   ///   JWT token generator and validator interface.
   /// </summary>
+  /// <summary>
+  ///   Contrato para o manipulador de tokens JWT, permitindo geração e validação.
+  /// </summary>
   IJwtTokenHandler = interface
     ['{A1B2C3D4-E5F6-7A8B-9C0D-1E2F3A4B5C6D}']
     function GenerateToken(const AClaims: TArray<TClaim>): string;
@@ -88,6 +91,9 @@ type
 
   /// <summary>
   ///   JWT authentication configuration options.
+  /// </summary>
+  /// <summary>
+  ///   Opções de configuração de JWT (Secret, Issuer, Audience).
   /// </summary>
   TJwtOptions = record
   public
@@ -122,6 +128,9 @@ type
   /// </summary>
   /// <summary>
   ///   Fluent builder for creating JWT options.
+  /// </summary>
+  /// <summary>
+  ///   Builder fluente para construção de objetos <see cref="TJwtOptions"/>.
   /// </summary>
   TJwtOptionsBuilder = record
   private
@@ -176,6 +185,9 @@ type
 
   /// <summary>
   ///   JWT token generator and validator.
+  /// </summary>
+  /// <summary>
+  ///   Implementação padrão do manipulador de tokens JWT usando HS256.
   /// </summary>
   TJwtTokenHandler = class(TInterfacedObject, IJwtTokenHandler)
   private

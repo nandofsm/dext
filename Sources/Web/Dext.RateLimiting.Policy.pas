@@ -1,4 +1,4 @@
-﻿{***************************************************************************}
+{***************************************************************************}
 {                                                                           }
 {           Dext Framework                                                  }
 {                                                                           }
@@ -38,6 +38,10 @@ type
   /// </summary>
   /// <summary>
   ///   Fluent builder for rate limiting policies.
+  /// </summary>
+  /// <summary>
+  ///   Record gerenciado que fornece uma interface fluente para definir políticas de Rate Limiting.
+  ///   Suporta limites por janela fixa, deslizante, bucket de tokens e concorrência.
   /// </summary>
   TRateLimitPolicy = record
   private

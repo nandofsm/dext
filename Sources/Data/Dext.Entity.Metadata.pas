@@ -13,6 +13,10 @@ uses
   Dext.Entity.Core;
 
 type
+  /// <summary>
+  ///   Specialized syntax analyzer to extract Delphi entity metadata via AST (Static Analysis).
+  ///   Allows discovering tables, columns, and attributes directly from .pas files without compilation.
+  /// </summary>
   TEntityMetadataParser = class
     FTypeAttributes: TList<TSyntaxNode>;
     FMemberAttributes: TList<TSyntaxNode>;

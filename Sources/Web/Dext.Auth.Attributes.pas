@@ -1,4 +1,4 @@
-﻿{***************************************************************************}
+{***************************************************************************}
 {                                                                           }
 {           Dext Framework                                                  }
 {                                                                           }
@@ -35,6 +35,10 @@ type
   /// <summary>
   ///   Marks a handler as requiring authentication.
   /// </summary>
+  /// <summary>
+  ///   Atributo que exige que o usuário esteja autenticado para acessar o recurso.
+  ///   Opcionalmente permite filtrar por Papéis (Roles) e Esquema de Autenticação.
+  /// </summary>
   AuthorizeAttribute = class(TCustomAttribute)
   private
     FRoles: string;
@@ -50,6 +54,9 @@ type
 
   /// <summary>
   ///   Marks a handler as allowing anonymous access (bypasses authentication).
+  /// </summary>
+  /// <summary>
+  ///   Atributo que permite acesso anônimo ao recurso, ignorando políticas globais de autorização.
   /// </summary>
   AllowAnonymousAttribute = class(TCustomAttribute)
   end;

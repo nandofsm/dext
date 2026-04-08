@@ -37,7 +37,8 @@ uses
 
 type
   /// <summary>
-  ///   Interface for a single migration step.
+  ///   Interface for an individual migration step.
+  ///   Defines Up (evolution) and Down (rollback) operations using TSchemaBuilder.
   /// </summary>
   IMigration = interface
     ['{8A9B7C6D-5E4F-3A2B-1C0D-9E8F7A6B5C4D}']
@@ -47,7 +48,7 @@ type
   end;
 
   /// <summary>
-  ///   Registry for available migrations.
+  ///   Central migration registry. Orchestrates the chronological execution order based on the migration ID.
   /// </summary>
   TMigrationRegistry = class
   private

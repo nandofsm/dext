@@ -42,6 +42,9 @@ uses
 
 
 type
+  /// <summary>
+  ///   Internal registration of a middleware in the pipeline.
+  /// </summary>
   TMiddlewareRegistration = record
     MiddlewareClass: TClass;
     MiddlewareDelegate: TMiddlewareDelegate;
@@ -59,6 +62,10 @@ type
     procedure Invoke(AContext: IHttpContext; ANext: TRequestDelegate);
   end;
 
+  /// <summary>
+  ///   Default implementation of the web application builder. 
+  ///   Manages middleware registration and the construction of the Request Pipeline.
+  /// </summary>
   TApplicationBuilder = class(TInterfacedObject, IApplicationBuilder)
   private
     FMiddlewares: IList<TMiddlewareRegistration>;
@@ -95,8 +102,13 @@ type
     procedure RegisterForDisposal(AObject: TObject);
   end;
 
+  /// <summary>
+  ///   Base administrative class for creating structured middlewares.
+  ///   Implement <see cref="Invoke"/> to add logic to the request flow.
+  /// </summary>
   TMiddleware = class(TInterfacedObject, IMiddleware)
   public
+    /// <summary>Method executed during the pipeline. Call ANext(AContext) to proceed to the next middleware.</summary>
     procedure Invoke(AContext: IHttpContext; ANext: TRequestDelegate); virtual; abstract;
   end;
 

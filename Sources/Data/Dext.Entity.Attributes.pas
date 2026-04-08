@@ -37,6 +37,9 @@ type
   TInheritanceStrategy = (None, TablePerHierarchy, TablePerType);
 
 type
+  /// <summary>
+  ///   Especifica o nome da tabela e esquema no banco de dados para a entidade.
+  /// </summary>
   TableAttribute = class(TCustomAttribute)
   private
     FName: string;
@@ -49,6 +52,9 @@ type
     property Schema: string read FSchema;
   end;
 
+  /// <summary>
+  ///   Especifica o nome da coluna no banco de dados para a propriedade.
+  /// </summary>
   ColumnAttribute = class(TCustomAttribute)
   private
     FName: string;
@@ -181,6 +187,9 @@ type
 
   /// <summary>
   ///   Marks a property as JSON/JSONB column (PostgreSQL).
+  /// </summary>
+  /// <summary>
+  ///   Marca uma propriedade como coluna JSON (ou JSONB no PostgreSQL).
   /// </summary>
   JsonColumnAttribute = class(TCustomAttribute)
   private

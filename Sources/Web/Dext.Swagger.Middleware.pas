@@ -1,4 +1,4 @@
-﻿{***************************************************************************}
+{***************************************************************************}
 {                                                                           }
 {           Dext Framework                                                  }
 {                                                                           }
@@ -38,6 +38,10 @@ type
   /// <summary>
   ///   Middleware that serves Swagger UI and OpenAPI specification.
   /// </summary>
+  /// <summary>
+  ///   Middleware responsável por servir a interface visual do Swagger UI e o documento OpenAPI (JSON).
+  ///   Otimizado para cachear o esquema JSON durante a inicialização para máxima performance.
+  /// </summary>
   TSwaggerMiddleware = class(TMiddleware)
   private
     FOptions: TOpenAPIOptions;
@@ -66,6 +70,9 @@ type
   /// </summary>
   /// <summary>
   ///   Extension methods for adding Swagger to the application.
+  /// </summary>
+  /// <summary>
+  ///   Métodos de extensão para habilitar a documentação interativa Swagger no pipeline da aplicação.
   /// </summary>
   TSwaggerExtensions = class
   public

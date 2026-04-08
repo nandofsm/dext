@@ -1,4 +1,4 @@
-﻿{***************************************************************************}
+{***************************************************************************}
 {                                                                           }
 {           Dext Framework                                                  }
 {                                                                           }
@@ -57,8 +57,8 @@ type
   );
 
   /// <summary>
-  ///   A high-performance, forward-only, zero-allocation reader for UTF-8 encoded JSON text.
-  ///   It reads directly from a TByteSpan (ReadOnlySpan<byte>).
+  ///   High-performance, forward-only, zero-allocation JSON reader for UTF-8 text.
+  ///   Operates directly on a TByteSpan (ReadOnlySpan of bytes), avoiding string allocations during parsing.
   /// </summary>
   TUtf8JsonReader = record
   private
@@ -79,10 +79,7 @@ type
     /// </summary>
     constructor Create(const AData: TByteSpan);
 
-    /// <summary>
-    ///   Reads the next token from the JSON source.
-    ///   Returns True if a token was read, False if end of data.
-    /// </summary>
+    /// <summary>Reads the next token from the JSON source. Returns True if a token was read, False if end of data.</summary>
     function Read: Boolean;
 
     /// <summary>
@@ -90,15 +87,12 @@ type
     /// </summary>
     procedure Skip;
 
-    /// <summary>
-    ///   Gets the type of the current token.
-    /// </summary>
+    /// <summary>Type of the current token (StartObject, PropertyName, String, etc.).</summary>
     property TokenType: TJsonTokenType read FCurrentToken;
 
     /// <summary>
-    ///   Gets the raw byte span representing the current token's value.
-    ///   For PropertyName and StringValue, this includes the quotes? No, let's strip them for usability.
-    ///   Implementation decision: This returns the content *inside* quotes for strings.
+    ///   Span of raw bytes representing the current token value.
+    ///   For strings, returns the inner content (without quotes).
     /// </summary>
     property ValueSpan: TByteSpan read FValueSpan;
 
@@ -122,7 +116,8 @@ type
   end;
 
   /// <summary>
-  ///   A high-performance, forward-only JSON writer that writes UTF-8 encoded text directly to a stream.
+  ///   High-performance, forward-only JSON writer that records UTF-8 text directly to a Stream.
+  ///   Minimizes memory usage by avoiding the creation of large intermediate string buffers.
   /// </summary>
   TUtf8JsonWriter = record
   private

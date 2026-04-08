@@ -1,4 +1,4 @@
-﻿{***************************************************************************}
+{***************************************************************************}
 {                                                                           }
 {           Dext Framework                                                  }
 {                                                                           }
@@ -62,6 +62,9 @@ type
   /// <summary>
   ///   Result of a rate limit check.
   /// </summary>
+  /// <summary>
+  ///   Representa o resultado de uma verificação de limite de taxa.
+  /// </summary>
   TRateLimitResult = record
     IsAllowed: Boolean;
     RetryAfter: Integer;  // Seconds until retry
@@ -76,6 +79,9 @@ type
   /// <summary>
   ///   Base interface for rate limiters.
   /// </summary>
+  /// <summary>
+  ///   Interface base para todos os limitadores de taxa (FixedWindow, TokenBucket, etc).
+  /// </summary>
   IRateLimiter = interface
     ['{8A9B1C2D-3E4F-5A6B-7C8D-9E0F1A2B3C4D}']
     function TryAcquire(const APartitionKey: string): TRateLimitResult;
@@ -85,6 +91,9 @@ type
 
   /// <summary>
   ///   Configuration for rate limiting policy.
+  /// </summary>
+  /// <summary>
+  ///   Objeto de configuração que detalha os limites, algoritmos e mensagens de rejeição.
   /// </summary>
   TRateLimitConfig = class
   private

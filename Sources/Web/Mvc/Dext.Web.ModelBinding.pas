@@ -64,20 +64,17 @@ type
     FSource: TBindingSource;
   public
     constructor Create(ASource: TBindingSource);
+    /// <summary>Data source (Body, Query, Route, Header, etc.).</summary>
     property Source: TBindingSource read FSource;
   end;
 
-  /// <summary>
-  ///   Specifies that a parameter or property should be bound using the request body.
-  /// </summary>
+  /// <summary>Attribute to bind a parameter from the request body (JSON).</summary>
   FromBodyAttribute = class(BindingAttribute)
   public
     constructor Create; overload;
   end;
 
-  /// <summary>
-  ///   Specifies that a parameter or property should be bound using the request query string.
-  /// </summary>
+  /// <summary>Attribute to bind a parameter from the query string.</summary>
   FromQueryAttribute = class(BindingAttribute)
   private
     FName: string;
@@ -87,9 +84,7 @@ type
     property Name: string read FName;
   end;
 
-  /// <summary>
-  ///   Specifies that a parameter or property should be bound using route data.
-  /// </summary>
+  /// <summary>Attribute to bind a parameter from route data ({id}).</summary>
   FromRouteAttribute = class(BindingAttribute)
   private
     FName: string;
@@ -99,9 +94,7 @@ type
     property Name: string read FName;
   end;
 
-  /// <summary>
-  ///   Specifies that a parameter or property should be bound using the request headers.
-  /// </summary>
+  /// <summary>Attribute to bind a parameter from HTTP headers.</summary>
   FromHeaderAttribute = class(BindingAttribute)
   private
     FName: string;
@@ -111,9 +104,7 @@ type
     property Name: string read FName;
   end;
 
-  /// <summary>
-  ///   Specifies that a parameter should be bound using the dependency injection container.
-  /// </summary>
+  /// <summary>Attribute to inject a service directly from the DI container into the handler parameter.</summary>
   FromServicesAttribute = class(BindingAttribute)
   public
     constructor Create; overload;
@@ -124,54 +115,41 @@ type
   /// </summary>
   IModelBinder = interface
     ['{6CDDAA4C-EB6B-42F0-A138-614FFBA931A5}']
-    /// <summary>
-    ///   Binds a model from the request body.
-    /// </summary>
+    /// <summary>Binds a model from the request body (JSON).</summary>
     function BindBody(AType: PTypeInfo; Context: IHttpContext): TValue;
     
-    /// <summary>
-    ///   Binds a model from the query string.
-    /// </summary>
+    /// <summary>Binds a model from the query string.</summary>
     function BindQuery(AType: PTypeInfo; Context: IHttpContext): TValue;
     
-    /// <summary>
-    ///   Binds a model from route data.
-    /// </summary>
+    /// <summary>Binds a model from route parameters.</summary>
     function BindRoute(AType: PTypeInfo; Context: IHttpContext): TValue;
     
-    /// <summary>
-    ///   Binds a model from request headers.
-    /// </summary>
+    /// <summary>Binds a model from HTTP headers.</summary>
     function BindHeader(AType: PTypeInfo; Context: IHttpContext): TValue;
     
-    /// <summary>
-    ///   Binds a model from the service provider.
-    /// </summary>
+    /// <summary>Injects a dependency from the service container.</summary>
     function BindServices(AType: PTypeInfo; Context: IHttpContext): TValue;
 
-    /// <summary>
-    ///   Binds all parameters of a method.
-    /// </summary>
+    /// <summary>Binds all parameters of a controller/handler method.</summary>
     function BindMethodParameters(AMethod: TRttiMethod; AContext: IHttpContext): TArray<TValue>;
     
-    /// <summary>
-    ///   Binds a single parameter.
-    /// </summary>
+    /// <summary>Binds a single parameter, applying inference rules if necessary.</summary>
     function BindParameter(AParam: TRttiParameter; AContext: IHttpContext): TValue;
 
     /// <summary>
-    ///   Binds a record from multiple sources (header, query, route, body, services)
-    ///   based on field attributes. This is the preferred method for Minimal API
-    ///   where records may have fields from different sources.
+    ///   Performs hybrid binding of a Record. 
+    ///   Fields can come from different sources based on meta-informative attributes.
     /// </summary>
     function BindRecordHybrid(AType: PTypeInfo; Context: IHttpContext): TValue;
 
-    /// <summary>
-    ///   Binds a raw string value to a specific type using internal conversion rules.
-    /// </summary>
+    /// <summary>Converts a raw string value to the specified native type via RTTI.</summary>
     function BindValue(const AValue: string; AType: PTypeInfo): TValue;
   end;
 
+  /// <summary>
+  ///   Dext Model Binding mechanism.
+  ///   Converts data from various HTTP sources to native Delphi types using RTTI.
+  /// </summary>
   TModelBinder = class(TInterfacedObject, IModelBinder)
   private
     function ConvertStringToType(const AValue: string; AType: PTypeInfo): TValue;
@@ -187,17 +165,20 @@ type
     function BindHeader(AType: PTypeInfo; Context: IHttpContext): TValue;
     function BindServices(AType: PTypeInfo; Context: IHttpContext): TValue;
 
-    // Helper methods com genéricos
+    // Helper methods with generics
+    /// <summary>Binds and deserializes the request body to type T.</summary>
     function BindBody<T>(Context: IHttpContext): T; overload;
+    /// <summary>Binds the query string to type T (record or class).</summary>
     function BindQuery<T>(Context: IHttpContext): T; overload;
+    /// <summary>Binds route parameters to type T.</summary>
     function BindRoute<T>(Context: IHttpContext): T; overload;
 
     function BindMethodParameters(AMethod: TRttiMethod; AContext: IHttpContext): TArray<TValue>;
     function BindParameter(AParam: TRttiParameter; AContext: IHttpContext): TValue;
 
     /// <summary>
-    ///   Binds a record from multiple sources based on field attributes.
-    ///   Supports [FromHeader], [FromQuery], [FromRoute], [FromServices] and implicit [FromBody].
+    ///   Performs hybrid binding: record properties can come from different sources 
+    ///   based on attributes (Header, Query, Route, Body).
     /// </summary>
     function BindRecordHybrid(AType: PTypeInfo; Context: IHttpContext): TValue;
 

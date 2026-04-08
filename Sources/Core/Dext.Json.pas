@@ -135,7 +135,8 @@ type
   TDextSettings = TJsonSettings deprecated 'Use TJsonSettings instead';
   
   /// <summary>
-  ///   Main entry point for JSON serialization and deserialization.
+  ///   Main entry point for JSON serialization and deserialization in Dext.
+  ///   Acts as a high-level facade that uses configurable providers (drivers).
   /// </summary>
   TDextJson = class
   private
@@ -214,8 +215,8 @@ type
   end;
 
   /// <summary>
-  ///   Internal serializer class responsible for the conversion logic.
-  ///   Usually you should use TDextJson static methods instead.
+  ///   Internal class responsible for complex conversion logic.
+  ///   Manages type mapping, RTTI, attributes, and List/Dictionary conversion.
   /// </summary>
   TDextSerializer = class
   private
@@ -255,19 +256,7 @@ type
   end;
 
   /// <summary>
-  ///   Fluent JSON builder for programmatic JSON construction.
-  ///   Example usage:
-  ///     TJsonBuilder.Create
-  ///       .Add('name', 'John')
-  ///       .Add('age', 30)
-  ///       .AddObject('address')
-  ///         .Add('city', 'NYC')
-  ///       .EndObject
-  ///       .AddArray('tags')
-  ///         .AddValue('one')
-  ///         .AddValue('two')
-  ///       .EndArray
-  ///       .ToString
+  ///   Fluent builder for programmatic construction of JSON objects and arrays.
   /// </summary>
   TJsonBuilder = class
   private
@@ -504,7 +493,7 @@ end;
 
 class function TDextJson.Deserialize(AType: PTypeInfo; const AJson: string): TValue;
 begin
-  // Usar RTTI para chamar o método genérico apropriado
+  // Use RTTI to call the appropriate generic method
   case AType.Kind of
     tkInteger:
       Result := TValue.From<Integer>(Deserialize<Integer>(AJson));

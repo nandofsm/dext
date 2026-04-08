@@ -35,12 +35,18 @@ uses
   Dext.Web.Routing;  // ? Para IRouteMatcher
 
 type
+  /// <summary>
+  ///   Middleware responsible for matching incoming requests to registered routes.
+  ///   Injects route parameters and enforces basic authorization rules based on endpoint metadata.
+  /// </summary>
   TRoutingMiddleware = class(TMiddleware)
   private
-    FRouteMatcher: IRouteMatcher;  // ? Interface - sem reference circular!
+    FRouteMatcher: IRouteMatcher;  // Interface - no circular dependency
   public
+    /// <summary>Initializes the routing middleware with a specific route matcher.</summary>
     constructor Create(const ARouteMatcher: IRouteMatcher);
     destructor Destroy; override;
+    /// <summary>Executes the routing logic and passes the request to the matching handler.</summary>
     procedure Invoke(AContext: IHttpContext; ANext: TRequestDelegate); override;
   end;
 

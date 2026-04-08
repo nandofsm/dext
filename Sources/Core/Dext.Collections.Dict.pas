@@ -68,23 +68,33 @@ type
     property Items[const AKey: string]: string read GetItem write SetItem; default;
   end;
 
-  /// <summary>Generic dictionary interface</summary>
+  /// <summary>Interface genérica para dicionários (Hash Maps).</summary>
   IDictionary<K, V> = interface(Dext.Collections.Base.IEnumerable<TPair<K, V>>)
     ['{A7E3F294-60B1-4C01-B8D5-4E5F3A2C1D70}']
     function GetCount: Integer;
     function GetItem(const Key: K): V;
     procedure SetItem(const Key: K; const Value: V);
 
+    /// <summary>Adiciona um novo par chave-valor. Lança exceção se a chave já existir.</summary>
     procedure Add(const Key: K; const Value: V);
+    /// <summary>Adiciona ou atualiza o valor associado a uma chave.</summary>
     procedure AddOrSetValue(const Key: K; const Value: V);
+    /// <summary>Tenta obter o valor associado a uma chave sem lançar exceções.</summary>
     function TryGetValue(const Key: K; out Value: V): Boolean;
+    /// <summary>Verifica se uma chave está presente no dicionário.</summary>
     function ContainsKey(const Key: K): Boolean;
+    /// <summary>Remove uma chave e seu valor. Retorna True se a chave existia.</summary>
     function Remove(const Key: K): Boolean;
+    /// <summary>Remove e retorna o valor associado a uma chave.</summary>
     function Extract(const Key: K): V;
+    /// <summary>Remove todos os itens do dicionário.</summary>
     procedure Clear;
 
+    /// <summary>Retorna um array contendo todas as chaves.</summary>
     function Keys: TArray<K>;
+    /// <summary>Retorna um array contendo todos os valores.</summary>
     function Values: TArray<V>;
+    /// <summary>Converte o dicionário em um array de pares TPair.</summary>
     function ToArray: TArray<TPair<K, V>>;
 
     property Count: Integer read GetCount;
@@ -123,7 +133,10 @@ type
     function GetEnumerator: IEnumerator<TPair<K, V>>;
   end;
 
-  /// <summary>Generic dictionary implementation backed by TRawDictionary</summary>
+  /// <summary>
+  ///   Implementação de dicionário genérico de alto desempenho.
+  ///   Utiliza um backend TRawDictionary para reduzir o "bloat" de generics e otimizar o uso de memória.
+  /// </summary>
   TDictionary<K, V> = class(TDictionaryBase<K, V>, IDictionary<K, V>)
   private
     type
@@ -139,12 +152,17 @@ type
     function GetInterfaceEnumerator: IEnumerator<TPair<K, V>>; override;
 
     constructor Create; overload;
+    /// <summary>Cria o dicionário com uma capacidade inicial pré-alocada.</summary>
     constructor Create(ACapacity: Integer); overload;
+    /// <summary>Cria o dicionário definindo se ele deve ser o dono (Owns) dos valores (apenas para classes).</summary>
     constructor Create(AOwnsValues: Boolean; ACapacity: Integer = 0); overload;
+    /// <summary>Cria o dicionário com opções avançadas de sensibilidade a caso e capacidade.</summary>
     constructor Create(AIgnoreCase: Boolean; AOwnsValues: Boolean; ACapacity: Integer); overload;
     destructor Destroy; override;
 
+    /// <summary>Retorna um enumerador baseado em Record para alta performance em loops for-in.</summary>
     function GetEnumerator: TDictionaryEnumerator<K, V>; reintroduce; inline;
+    
     procedure Add(const Key: K; const Value: V);
     procedure AddOrSetValue(const Key: K; const Value: V);
     function TryGetValue(const Key: K; out Value: V): Boolean;
@@ -157,8 +175,11 @@ type
     function Values: TArray<V>;
     function ToArray: TArray<TPair<K, V>>;
 
+    /// <summary>Número de elementos presentes no dicionário.</summary>
     property Count: Integer read GetCount;
+    /// <summary>Acesso direto aos valores via chave. Lança exceção se a chave não existir no 'read'.</summary>
     property Items[const Key: K]: V read GetItem write SetItem; default;
+    /// <summary>Se True, o dicionário irá liberar automaticamente os objetos (TObject) associados aos valores no Destroy/Clear.</summary>
     property OwnsValues: Boolean read FOwnsValues write FOwnsValues;
   end;
 

@@ -46,10 +46,19 @@ uses
   Dext.Testing.Runner;
 
 type
-  /// <summary>
-  ///   Report format type.
-  /// </summary>
-  TReportFormat = (rfJUnit, rfXUnit, rfJSON, rfSonarQube, rfTRX);
+  /// <summary>Define os formatos de saída suportados para os relatórios de teste.</summary>
+  TReportFormat = (
+    /// <summary>Formato XML padrão JUnit ( Jenkins, GitHub Actions, GitLab CI).</summary>
+    rfJUnit, 
+    /// <summary>Formato XML padrão xUnit.net v2.</summary>
+    rfXUnit, 
+    /// <summary>Formato JSON estruturado para ferramentas customizadas.</summary>
+    rfJSON, 
+    /// <summary>Formato XML genérico compatível com SonarQube.</summary>
+    rfSonarQube, 
+    /// <summary>Formato XML TRX (Visual Studio / Azure DevOps).</summary>
+    rfTRX
+  );
 
   /// <summary>
   ///   Test case result for reporting.
@@ -78,8 +87,8 @@ type
   end;
 
   /// <summary>
-  ///   JUnit XML report generator.
-  ///   Generates reports compatible with Jenkins, GitHub Actions, GitLab CI, Azure DevOps.
+  ///   Gerador de relatórios no formato JUnit XML.
+  ///   Altamente compatível com ecossistemas CI/CD como Jenkins, GitHub Actions, GitLab CI e Azure DevOps.
   /// </summary>
   TJUnitReporter = class
   private
@@ -139,14 +148,13 @@ type
     procedure BeginSuite(const Name: string);
     procedure AddTestCase(const Info: TTestInfo);
     procedure EndSuite;
+    /// <summary>Gera a string JSON contendo todos os resultados.</summary>
     function GenerateJson: string;
     procedure SaveToFile(const FileName: string);
     procedure Clear;
   end;
 
-  /// <summary>
-  ///   SonarQube Generic Test Data format reporter.
-  /// </summary>
+  /// <summary>Gerador de relatórios no formato "Generic Test Data" do SonarQube.</summary>
   TSonarQubeReporter = class
   private
     FTestCases: IList<TTestCaseReport>;
@@ -163,10 +171,7 @@ type
     procedure Clear;
   end;
 
-  /// <summary>
-  ///   xUnit.net v2 XML report generator.
-  ///   Compatible with .NET ecosystem tools and CI systems.
-  /// </summary>
+  /// <summary>Gerador de relatórios no formato xUnit.net v2 XML.</summary>
   TXUnitReporter = class
   private
     FTestSuites: IList<TTestSuiteReport>;
@@ -216,8 +221,8 @@ type
   end;
 
   /// <summary>
-  ///   HTML report generator with modern styling and charts.
-  ///   Creates a beautiful standalone HTML file for test results.
+  ///   Gerador de relatórios HTML modernos e responsivos.
+  ///   Cria um arquivo HTML independente com gráficos e detalhes visuais para consumo humano.
   /// </summary>
   THTMLReporter = class
   private

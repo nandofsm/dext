@@ -1,4 +1,4 @@
-﻿
+
 unit Dext.Entity.DataSet;
 
 interface
@@ -31,15 +31,19 @@ type
   PObject = ^TObject;
 
   /// <summary>
-  ///   Data Structure of a Record Buffer for TEntityDataSet.
-  ///   Stores fully updated bytes and modification trackers.
+  ///   Record header for TEntityDataSet's internal buffer.
+  ///   Stores row state metadata, bookmarks, and modification masks.
   /// </summary>
   PEntityRecordHeader = ^TEntityRecordHeader;
   TEntityRecordHeader = packed record
+    /// <summary>Unique index of the record in the virtual list.</summary>
     BookmarkIndex: Integer;
+    /// <summary>Marker state flag (valid, invalid, boe, eof).</summary>
     BookmarkFlag: TBookmarkFlag;
+    /// <summary>Current state of the row in the dataset (dsBrowse, dsEdit, dsInsert).</summary>
     RowState: TDataSetState;
-    DirtyMask: UInt64; // Mask indicating which fields were modified in the Grid
+    /// <summary>Bitmask indicating which fields were altered in the current buffer.</summary>
+    DirtyMask: UInt64;
   end;
 
   TPrepareFieldEvent = procedure(Sender: TObject; AField: TField) of object;
@@ -49,7 +53,8 @@ type
   EEntityDataSetException = class(Exception);
 
   /// <summary>
-  ///   Custom TDataSet for high-performance reading and writing to direct objects/lists.
+  ///   Specialized high-performance dataset that maps lists of objects and records directly to VCL/FMX.
+  ///   Supports Sorting, Filtering, Master-Detail, Streaming Iterators, and Design-Time Preview without compilation.
   /// </summary>
   [ComponentPlatformsAttribute(pidWin32 or pidWin64 or pidWin64x)]
   TEntityDataSet = class(TDataSet)
@@ -238,7 +243,7 @@ type
   end;
 
   /// <summary>
-  ///   Internal DataLink to handle Master-Detail synchronization.
+  ///   Specialized internal data link for master-detail synchronization.
   /// </summary>
   TEntityMasterDataLink = class(TMasterDataLink)
   private

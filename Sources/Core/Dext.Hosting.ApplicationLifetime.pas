@@ -1,4 +1,4 @@
-﻿{***************************************************************************}
+{***************************************************************************}
 {                                                                           }
 {           Dext Framework                                                  }
 {                                                                           }
@@ -33,31 +33,19 @@ uses
   Dext.Threading.CancellationToken;
 
 type
-  /// <summary>
-  ///   Allows consumers to be notified of application lifetime events.
-  /// </summary>
+  /// <summary>Permite que serviços e componentes sejam notificados sobre eventos de ciclo de vida da aplicação.</summary>
   IHostApplicationLifetime = interface
     ['{DA4C3B2A-1E5F-4D8C-9B0A-2F3E4D5C6B7A}']
-    /// <summary>
-    ///   Triggered when the application host has fully started.
-    /// </summary>
+    /// <summary>Acionado quando o host da aplicação está totalmente iniciado.</summary>
     function GetApplicationStarted: ICancellationToken;
     
-    /// <summary>
-    ///   Triggered when the application host is starting a graceful shutdown.
-    ///   Requests may still be in flight.
-    /// </summary>
+    /// <summary>Acionado quando o host está iniciando o encerramento gracioso. Requisições ainda podem estar em processamento.</summary>
     function GetApplicationStopping: ICancellationToken;
     
-    /// <summary>
-    ///   Triggered when the application host has completed a graceful shutdown.
-    ///   The application will exit shortly after this.
-    /// </summary>
+    /// <summary>Acionado quando o host completou o encerramento. A aplicação finalizará em breve.</summary>
     function GetApplicationStopped: ICancellationToken;
 
-    /// <summary>
-    ///   Requests termination of the current application.
-    /// </summary>
+    /// <summary>Solicita o encerramento imediato da aplicação atual.</summary>
     procedure StopApplication;
 
     property ApplicationStarted: ICancellationToken read GetApplicationStarted;

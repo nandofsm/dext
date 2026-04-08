@@ -12,7 +12,7 @@ uses
 
 type
   /// <summary>
-  ///   Utilitário para manipulação de tipos enumerados no estilo Dext.
+  ///   Utility for manipulating enumerated types in Dext style.
   /// </summary>
   EnumValue = class
   public

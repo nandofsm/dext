@@ -62,10 +62,8 @@ type
   end;
 
   /// <summary>
-  ///   Type-safe event handler. Implement this interface to handle event type T.
-  ///   Handlers are resolved from the DI container on every Publish call, so
-  ///   constructor injection of all service lifetimes is fully supported.
-  ///   Register via Services.AddEventHandler<TEvent, THandler>().
+  ///   Manipulador de eventos tipado. Implemente esta interface para reagir ao tipo de evento T.
+  ///   Os manipuladores (Handlers) são resolvidos via DI a cada publicação, permitindo injeção de dependências.
   /// </summary>
   IEventHandler<T> = interface(IEventHandler)
     ['{B2F85D39-4E0A-5C6B-9D1F-3E7A2B8C4D0F}']
@@ -89,50 +87,35 @@ type
   end;
 
   /// <summary>
-  ///   Typed single-event publisher facade. Narrower dependency than IEventBus —
-  ///   inject IEventPublisher<TOrderCreatedEvent> instead of IEventBus in
-  ///   components that only ever publish one specific event type.
-  ///
-  ///   Follows the Interface Segregation Principle: the consumer declares
-  ///   exactly which event it can emit, improving readability and testability
-  ///   (mock a single-method interface rather than the whole bus).
-  ///
-  ///   Register via Services.AddEventPublisher<TOrderCreatedEvent>.
-  ///   The implementation delegates to the registered IEventBus.
+  ///   Fachada para publicação de um único tipo de evento.
+  ///   Segue o Princípio de Segregação de Interface (ISP) — injete IEventPublisher&lt;T&gt; ao invés de IEventBus
+  ///   em componentes que publicam apenas um tipo específico de evento.
   /// </summary>
   IEventPublisher<T> = interface
     ['{A7B3C9D1-E5F4-4B2A-9E0D-1C8F7A6B5D3E}']
+    /// <summary>Publica o evento de forma síncrona e aguarda o processamento de todos os handlers.</summary>
     function Publish(const AEvent: T): TPublishResult;
+    /// <summary>Publica o evento em uma thread de background (fire-and-forget).</summary>
     procedure PublishBackground(const AEvent: T);
   end;
 
   /// <summary>
-  ///   The central event bus.
-  ///   Register as singleton via Services.AddEventBus() or as scoped
-  ///   (shares the request DI scope) via Services.AddScopedEventBus().
-  ///
-  ///   IEventBus intentionally uses TValue-based methods — Delphi interfaces
-  ///   cannot declare generic methods (E2535). For generic call-site sugar use
-  ///   TEventBusExtensions.Publish&lt;T&gt; / PublishBackground&lt;T&gt;, or inject the
-  ///   narrow IEventPublisher&lt;T&gt; (preferred — cleaner, ISP-compliant).
+  ///   O Barramento Central de Eventos do Dext (Event Bus).
+  ///   Permite o desacoplamento total entre produtores e consumidores de mensagens In-Memory.
   /// </summary>
   IEventBus = interface
     ['{D4B07F5B-6A2C-7E8D-1F3B-5A9C4D0E6F2B}']
 
     /// <summary>
-    ///   Dispatches AEvent synchronously. All handlers execute in registration
-    ///   order. Returns dispatch statistics.
-    ///   Raises EEventDispatchAggregate if any handler raised an exception.
-    ///   Prefer TEventBusExtensions.Publish&lt;T&gt; for a typed call site.
+    ///   Despacha um evento de forma síncrona. Invoca todos os Handlers e Behaviors registrados.
+    ///   Retorna estatísticas da publicação. Lança exceção se algum handler falhar.
     /// </summary>
     function Dispatch(AEventType: PTypeInfo;
       const AEvent: TValue): TPublishResult;
 
     /// <summary>
-    ///   Dispatches AEvent on a background thread (fire-and-forget).
-    ///   Returns immediately; a fresh DI scope is created for background
-    ///   handlers regardless of bus lifetime.
-    ///   Prefer TEventBusExtensions.PublishBackground&lt;T&gt; for a typed call site.
+    ///   Despacha um evento de forma assíncrona (fire-and-forget).
+    ///   O processamento ocorre em uma thread separada com um escopo de DI isolado.
     /// </summary>
     procedure DispatchBackground(AEventType: PTypeInfo; const AEvent: TValue);
   end;

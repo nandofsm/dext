@@ -115,10 +115,13 @@ type
   // Generated Aliases
 
   // Dext.Auth.Attributes
+  /// <summary> Attribute to require authentication or a specific policy. </summary>
   AuthorizeAttribute = Dext.Auth.Attributes.AuthorizeAttribute;
+  /// <summary> Attribute to skip authentication for a controller or method. </summary>
   AllowAnonymousAttribute = Dext.Auth.Attributes.AllowAnonymousAttribute;
 
   // Dext.Auth.BasicAuth
+  /// <summary> Options for configuring Basic Authentication. </summary>
   TBasicAuthOptions = Dext.Auth.BasicAuth.TBasicAuthOptions;
   TBasicAuthValidateFunc = Dext.Auth.BasicAuth.TBasicAuthValidateFunc;
   TBasicAuthValidateWithRolesFunc = Dext.Auth.BasicAuth.TBasicAuthValidateWithRolesFunc;
@@ -126,7 +129,9 @@ type
   TApplicationBuilderBasicAuthExtensions = Dext.Auth.BasicAuth.TApplicationBuilderBasicAuthExtensions;
 
   // Dext.Auth.Identity
+  /// <summary> Base interface for user identities. </summary>
   IIdentity = Dext.Auth.Identity.IIdentity;
+  /// <summary> Principal containing user claims and identities. </summary>
   IClaimsPrincipal = Dext.Auth.Identity.IClaimsPrincipal;
   TClaimsIdentity = Dext.Auth.Identity.TClaimsIdentity;
   TClaimsPrincipal = Dext.Auth.Identity.TClaimsPrincipal;
@@ -135,9 +140,11 @@ type
   TClaimsBuilder = Dext.Auth.Identity.TClaimsBuilder;
 
   // Dext.Auth.JWT
+  /// <summary> Represents an individual claim for a JWT token. </summary>
   TClaim = Dext.Auth.JWT.TClaim;
   TJwtValidationResult = Dext.Auth.JWT.TJwtValidationResult;
   IJwtTokenHandler = Dext.Auth.JWT.IJwtTokenHandler;
+  /// <summary> Options for JWT token validation and generation. </summary>
   TJwtOptions = Dext.Auth.JWT.TJwtOptions;
   TJwtOptionsBuilder = Dext.Auth.JWT.TJwtOptionsBuilder;
   TJwtOptionsHelper = Dext.Auth.JWT.TJwtOptionsHelper;
@@ -149,9 +156,11 @@ type
   TApplicationBuilderJwtExtensions = Dext.Auth.Middleware.TApplicationBuilderJwtExtensions;
 
   // Dext.Caching
+  /// <summary> Interface for cache providers (Memory, Redis, etc.). </summary>
   ICacheStore = Dext.Caching.ICacheStore;
   TCacheEntry = Dext.Caching.TCacheEntry;
   TMemoryCacheStore = Dext.Caching.TMemoryCacheStore;
+  /// <summary> Options for HTTP response caching middleware. </summary>
   TResponseCacheOptions = Dext.Caching.TResponseCacheOptions;
   TResponseCaptureWrapper = Dext.Caching.TResponseCaptureWrapper;
   TResponseCacheMiddleware = Dext.Caching.TResponseCacheMiddleware;
@@ -161,6 +170,7 @@ type
   TResponseCacheBuilderProc = Dext.Caching.TResponseCacheBuilderProc;
 
   // Dext.Caching.Redis
+  /// <summary> Distributed cache implementation using Redis. </summary>
   TRedisCacheStore = Dext.Caching.Redis.TRedisCacheStore;
 
   // Dext.DI.Middleware
@@ -171,6 +181,7 @@ type
   TActionDescriptor = Dext.Filters.TActionDescriptor;
   IActionExecutingContext = Dext.Filters.IActionExecutingContext;
   IActionExecutedContext = Dext.Filters.IActionExecutedContext;
+  /// <summary> Base interface for Action Filters. </summary>
   IActionFilter = Dext.Filters.IActionFilter;
   ActionFilterAttribute = Dext.Filters.ActionFilterAttribute;
   TActionExecutingContext = Dext.Filters.TActionExecutingContext;
@@ -180,6 +191,7 @@ type
   LogActionAttribute = Dext.Filters.BuiltIn.LogActionAttribute;
   RequireHeaderAttribute = Dext.Filters.BuiltIn.RequireHeaderAttribute;
   ResponseCacheAttribute = Dext.Filters.BuiltIn.ResponseCacheAttribute;
+  /// <summary> Attribute that automatically validates the model before executing the action. </summary>
   ValidateModelAttribute = Dext.Filters.BuiltIn.ValidateModelAttribute;
   AddHeaderAttribute = Dext.Filters.BuiltIn.AddHeaderAttribute;
 
@@ -193,8 +205,11 @@ type
   THealthCheckBuilder = Dext.HealthChecks.THealthCheckBuilder;
 
   // Dext.OpenAPI.Attributes
+  /// <summary> Attribute to hide a controller or method from Swagger/OpenAPI. </summary>
   SwaggerIgnoreAttribute = Dext.OpenAPI.Attributes.SwaggerIgnoreAttribute;
+  /// <summary> Attribute to define operation details (ID, Summary, Description). </summary>
   SwaggerOperationAttribute = Dext.OpenAPI.Attributes.SwaggerOperationAttribute;
+  /// <summary> Attribute to document potential API responses. </summary>
   SwaggerResponseAttribute = Dext.OpenAPI.Attributes.SwaggerResponseAttribute;
   SwaggerSchemaAttribute = Dext.OpenAPI.Attributes.SwaggerSchemaAttribute;
   SwaggerIgnorePropertyAttribute = Dext.OpenAPI.Attributes.SwaggerIgnorePropertyAttribute;
@@ -245,7 +260,9 @@ type
   TRateLimiterType = Dext.RateLimiting.Core.TRateLimiterType;
   TPartitionStrategy = Dext.RateLimiting.Core.TPartitionStrategy;
   TRateLimitResult = Dext.RateLimiting.Core.TRateLimitResult;
+  /// <summary> Interface for rate limiter implementations (FixedWindow, TokenBucket, etc.). </summary>
   IRateLimiter = Dext.RateLimiting.Core.IRateLimiter;
+  /// <summary> Base configuration for Rate Limiting policies (limit rules). </summary>
   TRateLimitConfig = Dext.RateLimiting.Core.TRateLimitConfig;
 
   // Dext.RateLimiting.Limiters
@@ -286,6 +303,7 @@ type
   TMiddleware = Dext.Web.Core.TMiddleware;
 
   // Dext.Web.Cors
+  /// <summary> Options for configuring Cross-Origin Resource Sharing (CORS). </summary>
   TCorsOptions = Dext.Web.Cors.TCorsOptions;
   TStringArrayHelper = Dext.Web.Cors.TStringArrayHelper;
   TCorsMiddleware = Dext.Web.Cors.TCorsMiddleware;
@@ -419,8 +437,11 @@ type
   EBindingException = Dext.Web.ModelBinding.EBindingException;
   TBindingSource = Dext.Web.ModelBinding.TBindingSource;
   BindingAttribute = Dext.Web.ModelBinding.BindingAttribute;
+  /// <summary> Defines that a parameter should be bound from the request body (JSON). </summary>
   FromBodyAttribute = Dext.Web.ModelBinding.FromBodyAttribute;
+  /// <summary> Defines that a parameter should be bound from the query string. </summary>
   FromQueryAttribute = Dext.Web.ModelBinding.FromQueryAttribute;
+  /// <summary> Defines that a parameter should be bound from the route (URL). </summary>
   FromRouteAttribute = Dext.Web.ModelBinding.FromRouteAttribute;
   FromHeaderAttribute = Dext.Web.ModelBinding.FromHeaderAttribute;
   FromServicesAttribute = Dext.Web.ModelBinding.FromServicesAttribute;
@@ -458,7 +479,9 @@ type
   TRoutePattern = Dext.Web.Routing.TRoutePattern;
   TRouteDefinition = Dext.Web.Routing.TRouteDefinition;
   IRouteMatcher = Dext.Web.Routing.IRouteMatcher;
+  /// <summary> Heart of the Dext Web routing engine. </summary>
   TRouteMatcher = Dext.Web.Routing.TRouteMatcher;
+  /// <summary> Exception thrown when a routing configuration or resolution error occurs. </summary>
   ERouteException = Dext.Web.Routing.ERouteException;
 
   // Dext.Web.Routing.Attributes - New Names (ASP.NET Core style)
@@ -592,7 +615,7 @@ type
     {$ENDIF}
 
     /// <summary>
-    ///   Scans the application for controllers (classes with [ApiController]) and registers them in the DI container.
+    ///   Scans the application for controllers (classes with [ApiController]) and registers them in the DI.
     /// </summary>
     function AddControllers: TDextServices;
     

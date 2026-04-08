@@ -51,10 +51,13 @@ uses
 type
   EOptimisticConcurrencyException = class(Exception);
 
+  /// <summary>
+  ///   Represents the possible states of an entity within the Change Tracker lifecycle.
+  /// </summary>
   TEntityState = (esDetached, esUnchanged, esAdded, esDeleted, esModified);
 
   /// <summary>
-  ///   Tracks the state of entities in the context.
+  ///   Change tracker responsible for monitoring the state of entities and detecting modifications for persistence.
   /// </summary>
   IChangeTracker = interface
     ['{954BAFF5-3022-4AB8-AE14-A111295B3903}']
@@ -220,6 +223,9 @@ type
     property IsModified: Boolean read GetIsModified write SetIsModified;
   end;
 
+  /// <summary>
+  ///   Provides access to information and tracking operations for a specific entity.
+  /// </summary>
   IEntityEntry = interface
     ['{C3D4E5F6-A7B8-4901-2345-678901CDEF01}']
     function Collection(const APropName: string): ICollectionEntry;
@@ -333,7 +339,7 @@ type
   end;
 
   /// <summary>
-  ///   Represents a session with the database.
+  ///   Represents a session with the database (Unit of Work), allowing to query and save entity instances.
   /// </summary>
   IDbContext = interface
     ['{631803BB-AEDD-4453-B2CC-D44C7AFDD9F1}']

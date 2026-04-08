@@ -47,6 +47,9 @@ uses
   Dext.Core.SmartTypes; // Add SmartTypes
 
 type
+  /// <summary>
+  ///   Represents the result of a paginated query, containing the items and page metadata.
+  /// </summary>
   IPagedResult<T> = interface
     ['{6A8B9C0D-1E2F-3A4B-5C6D-7E8F9A0B1C2D}']
     function GetItems: IList<T>;
@@ -103,6 +106,10 @@ type
   ///   Concrete type for fluent queries.
   ///   Implemented as a record for automatic lifecycle management.
   /// </summary>
+  /// <summary>
+  ///   Orquestrador de consultas fluentes (LINQ-like). 
+  ///   Implemented as a record for automatic lifecycle management and low overhead.
+  /// </summary>
   TFluentQuery<T> = record
   private
     FIteratorFactory: TFunc<TQueryIterator<T>>;
@@ -138,7 +145,14 @@ type
       const AStreamingFactory: TFunc<IEnumerator<T>> = nil
     ); overload;
     
+    /// <summary>
+    ///   Returns an enumerator for data materialization.
+    /// </summary>
     function GetEnumerator: IEnumerator<T>;
+    
+    /// <summary>
+    ///   Retorna um enumerador especializado para alta performance que reutiliza instâncias de objetos.
+    /// </summary>
     function GetStreamingEnumerator: IEnumerator<T>;
     
     /// <summary>

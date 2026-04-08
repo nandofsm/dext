@@ -33,8 +33,11 @@ uses
 {$ENDIF}
   Dext.Core.Writers;
 
+/// <summary>Pauses the console execution unless the 'no-wait' switch is present.</summary>
 function ConsolePause: Boolean;
+/// <summary>Writes a message to the debug output and the console.</summary>
 procedure DebugLog(const AMessage: string);
+/// <summary>Sets the console output character set (UTF-8 by default).</summary>
 procedure SetConsoleCharSet(CharSet: Cardinal = 65001);
 
 /// <summary>
@@ -52,9 +55,8 @@ procedure SafeWriteLn; overload;
 procedure SafeWrite(const AMessage: string);
 
 /// <summary>
-///  Initialize the standard framework output to route to the specified writer
-///  instance. This defaults to the console if available then the debug messages
-///  if debugging followed by just ignoring the framework output messages.
+///   Initializes the standard framework output to route to the specified writer.
+///   If nil, it chooses the best available writer (Console, Debugger, or Null).
 /// </summary>
 procedure InitializeDextWriter(ADextWriter:IDextWriter);
 

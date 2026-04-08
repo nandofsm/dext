@@ -1,4 +1,4 @@
-﻿{***************************************************************************}
+{***************************************************************************}
 {                                                                           }
 {           Dext Framework                                                  }
 {                                                                           }
@@ -32,14 +32,15 @@ uses
 
 type
   /// <summary>
-  ///   Internal interface to manage object lifetime via ARC.
+  ///   Interface para gerenciar o ciclo de vida de objetos via ARC (Automatic Reference Counting).
   /// </summary>
   ILifetime<T: class> = interface
     function GetValue: T;
   end;
 
   /// <summary>
-  ///   Implementation of lifetime manager.
+  ///   Implementação do gerenciador de ciclo de vida. 
+  ///   Desta forma, um objeto comum pode ser "embarcado" em uma interface para ser liberado automaticamente.
   /// </summary>
   TLifetime<T: class> = class(TInterfacedObject, ILifetime<T>)
   private
@@ -51,14 +52,15 @@ type
   end;
 
   /// <summary>
-  ///   Interface for deferred actions.
+  ///   Interface para ações diferidas (Padrão Defer).
   /// </summary>
   IDeferred = interface
     ['{D1E2F3A4-B5C6-4D7E-8F9A-0B1C2D3E4F5A}']
   end;
 
   /// <summary>
-  ///   Implementation of deferred action.
+  ///   Implementação de uma ação que será executada automaticamente no Destrutor (quando a interface sair de escopo).
+  ///   Inspirado no comando 'defer' da linguagem Go.
   /// </summary>
   TDeferredAction = class(TInterfacedObject, IDeferred)
   private

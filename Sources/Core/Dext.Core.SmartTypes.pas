@@ -57,9 +57,8 @@ uses
 
 type
   /// <summary>
-  ///   Interface that carries column metadata for a property.
-  ///   When present, the Prop<T> operates in Query Mode (generates expressions).
-  ///   When nil, operates in Runtime Mode (normal value comparison).
+  ///   Interface that carries column metadata for a Smart Property.
+  ///   Allows Prop<T> to know the physical column name in the database.
   /// </summary>
   IPropInfo = interface
     ['{6DCBC43A-0D70-40BA-ADEE-BC450A69F296}']
@@ -70,8 +69,9 @@ type
   end;
 
   /// <summary>
-  ///   Hybrid record that can hold a runtime Boolean OR an IExpression node.
-  ///   Enables seamless transition between query building and runtime evaluation.
+  ///   Hybrid record representing a boolean expression.
+  ///   Can contain a literal Boolean value or an IExpression (AST) expression node.
+  ///   Bridge that allows using logical operators (and, or, not) in fluent SQL queries.
   /// </summary>
   BooleanExpression = record
   private
@@ -106,9 +106,7 @@ type
 
   /// <summary>
   ///   Generic property wrapper that enables operator overloading for queries.
-  ///   When FInfo is assigned (via TPrototype), operators generate Expression Trees.
-  ///   When FInfo is nil (normal usage), operators perform runtime comparisons.
-  /// </summary>
+  ///   In "Query Mode", it generates expression trees (AST). In "Runtime Mode", it performs normal comparisons.
   /// </summary>
   {$RTTI EXPLICIT FIELDS([vcPrivate..vcPublished])}
   [SmartProp]

@@ -9,17 +9,29 @@ uses
   Dext.Collections.Dict;
 
 type
+  /// <summary>Interface para dicionários thread-safe otimizados para alta concorrência.</summary>
   IDextConcurrentDictionary<K, V> = interface
+    /// <summary>Obtém o valor se existir ou cria-o usando uma fábrica (ValueFactory) de forma atômica.</summary>
     function GetOrAdd(const Key: K; const ValueFactory: TFunc<K, V>): V;
+    /// <summary>Tenta adicionar um par chave-valor. Retorna False se a chave já existir.</summary>
     function TryAdd(const Key: K; const Value: V): Boolean;
+    /// <summary>Tenta obter o valor associado a uma chave de forma segura.</summary>
     function TryGetValue(const Key: K; out Value: V): Boolean;
+    /// <summary>Tenta remover uma chave e retorna seu valor.</summary>
     function TryRemove(const Key: K; out Value: V): Boolean;
+    /// <summary>Compara o valor atual com ComparisonValue e, se igual, atualiza para NewValue (Atomic CAS).</summary>
     function TryUpdate(const Key: K; const NewValue, ComparisonValue: V): Boolean;
+    /// <summary>Limpa todos os itens de todas as listras de bloqueio.</summary>
     procedure Clear;
     function GetCount: Integer;
     property Count: Integer read GetCount;
   end;
 
+  /// <summary>
+  ///   Dicionário concorrente de alta performance utilizando técnica de Lock Striping.
+  ///   Divide o armazenamento em múltiplas "listras" (stripes), cada uma com seu próprio SpinLock,
+  ///   permitindo múltiplas operações de escrita simultâneas em stripes diferentes.
+  /// </summary>
   TConcurrentDictionary<K, V> = class(TInterfacedObject, IDextConcurrentDictionary<K, V>)
   private
     const DEFAULT_CONCURRENCY_LEVEL = 32;
@@ -34,6 +46,7 @@ type
     FComparer: IEqualityComparer<K>;
     function GetStripeIndex(const Key: K): Integer; inline;
   public
+    /// <summary>Cria o dicionário concorrente com o nível de paralelismo especificado.</summary>
     constructor Create(ConcurrencyLevel: Integer = DEFAULT_CONCURRENCY_LEVEL);
     
     function GetOrAdd(const Key: K; const ValueFactory: TFunc<K, V>): V;
@@ -43,6 +56,7 @@ type
     function TryUpdate(const Key: K; const NewValue, ComparisonValue: V): Boolean;
     procedure Clear;
     function GetCount: Integer;
+    /// <summary>Retorna a soma total de itens em todas as listras de bloqueio.</summary>
     property Count: Integer read GetCount;
   end;
 

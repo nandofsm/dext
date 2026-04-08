@@ -1,4 +1,4 @@
-﻿{***************************************************************************}
+{***************************************************************************}
 {                                                                           }
 {           Dext Framework                                                  }
 {                                                                           }
@@ -37,6 +37,9 @@ uses
   Dext.Web.Core;
 
 type
+  /// <summary>
+  ///   Provedor de tipos MIME baseado em extensões de arquivos.
+  /// </summary>
   TContentTypeProvider = class
   private
     FMimeTypes: IDictionary<string, string>;
@@ -46,6 +49,9 @@ type
     function TryGetContentType(const AFileName: string; out AContentType: string): Boolean;
   end;
 
+  /// <summary>
+  ///   Opções de configuração para o servidor de arquivos estáticos.
+  /// </summary>
   TStaticFileOptions = record
     RootPath: string;
     DefaultFile: string;
@@ -55,6 +61,9 @@ type
     class function Create: TStaticFileOptions; static;
   end;
 
+  /// <summary>
+  ///   Middleware responsável por servir arquivos físicos do sistema de arquivos.
+  /// </summary>
   TStaticFileMiddleware = class(TMiddleware)
   private
     FOptions: TStaticFileOptions;

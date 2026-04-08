@@ -1,4 +1,4 @@
-﻿{***************************************************************************}
+{***************************************************************************}
 {                                                                           }
 {           Dext Framework                                                  }
 {                                                                           }
@@ -52,7 +52,7 @@ type
 
   /// <summary>
   ///   Interface for individual health checks.
-  ///   Implement this interface to create custom health checks.
+  ///   Implement this interface to create custom health checks (e.g. DB, Redis, External API).
   /// </summary>
   IHealthCheck = interface
     ['{7C3E8A9B-2D4F-4A1C-8E5B-9F0D3C6A7B8E}']
@@ -61,7 +61,7 @@ type
 
   /// <summary>
   ///   Interface for the Health Check Service.
-  ///   Manages the collection of health checks and executes them.
+  ///   Orchestrates the execution of all registered health checks.
   ///   Lifecycle is managed by DI (ARC) as a Singleton.
   /// </summary>
   IHealthCheckService = interface
@@ -72,8 +72,8 @@ type
   end;
 
   /// <summary>
-  ///   Implementation of IHealthCheckService.
-  ///   Inherits from TInterfacedObject for automatic memory management via ARC.
+  ///   Default implementation of IHealthCheckService.
+  ///   Executes checks in isolation and captures exceptions.
   /// </summary>
   THealthCheckService = class(TInterfacedObject, IHealthCheckService)
   private
@@ -87,7 +87,7 @@ type
   end;
 
   /// <summary>
-  ///   Middleware that handles /health endpoint requests.
+  ///   Middleware that intercepts "/health" endpoint requests and returns system status in JSON.
   ///   Registered as Singleton in the DI container.
   ///   Receives IHealthCheckService via constructor injection.
   /// </summary>

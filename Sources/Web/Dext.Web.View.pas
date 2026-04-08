@@ -45,6 +45,9 @@ type
   /// <summary>
   ///   Encapsulates data passed from the controller to the view.
   /// </summary>
+  /// <summary>
+  ///   Contêiner que encapsula os dados (primitivos e objetos) transferidos do Controller para a View.
+  /// </summary>
   IViewData = interface
     ['{B9E2A1D4-5C3F-4B8E-9D1A-2F7E6B5D4C3A}']
     procedure SetValue(const AName: string; const AValue: TValue);
@@ -61,6 +64,9 @@ type
   ///   Base interface for all view engines (e.g. Web Stencils, Mustache, Native).
   /// </summary>
   {$M+}
+  /// <summary>
+  ///   Contrato base para motores de renderização (ex: WebStencils, Mustache).
+  /// </summary>
   IViewEngine = interface(IInterface)
     ['{A1B2C3D4-E5F6-4789-0123-456789ABCDEF}']
     function Render(AContext: IHttpContext; const AViewName: string; AViewData: IViewData): string;
@@ -126,6 +132,9 @@ type
     procedure Execute(AContext: IHttpContext);
   end;
 
+  /// <summary>
+  ///   Opções de configuração globais para o sistema de visualização.
+  /// </summary>
   TViewOptions = class
   private
     FTemplateRoot: string;
@@ -142,6 +151,9 @@ type
     property WhitelistEntities: Boolean read FWhitelistEntities write FWhitelistEntities;
   end;
 
+  /// <summary>
+  ///   Builder fluente para configuração de diretórios de templates e regras de segurança (Whitelist).
+  /// </summary>
   TViewOptionsBuilder = record
   private
     FTemplateRoot: string;

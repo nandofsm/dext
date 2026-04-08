@@ -1,4 +1,4 @@
-﻿{***************************************************************************}
+{***************************************************************************}
 {                                                                           }
 {           Dext Framework                                                  }
 {                                                                           }
@@ -47,7 +47,8 @@ type
   end;
 
   /// <summary>
-  ///   A Span is a lightweight, zero-allocation reference to a contiguous region of memory.
+  ///   Uma Span é uma referência leve e sem alocação (zero-allocation) para uma região contígua de memória.
+  ///   Ideal para processar buffers, arrays e strings sem criar cópias desnecessárias.
   /// </summary>
   TSpan<T> = record
   private
@@ -78,12 +79,14 @@ type
     property Items[Index: Integer]: T read GetItem write SetItem; default;
     property IsEmpty: Boolean read GetLength; // Added helper
   public
+    /// <summary>Cria uma Span vazia (nil).</summary>
     class function Empty: TSpan<T>; static;
+    /// <summary>Cria uma Span a partir de um array dinâmico, referenciando a memória original.</summary>
     class function From(var AArray: TArray<T>): TSpan<T>; static;
   end;
 
   /// <summary>
-  ///   A Read-Only version of TSpan.
+  ///   Versão somente-leitura de TSpan. Garante que os dados originais não sejam modificados via interface de Span.
   /// </summary>
   TReadOnlySpan<T> = record
   private
@@ -113,7 +116,8 @@ type
   end;
 
   /// <summary>
-  ///   Specialization of TSpan for Bytes, optimized for network and JSON processing.
+  ///   Especialização de TSpan para Bytes (TByteSpan).
+  ///   Otimizada para processamento de protocolos de rede e motores de parsing (JSON/REST).
   /// </summary>
   TByteSpan = record
   private

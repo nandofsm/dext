@@ -57,6 +57,9 @@ uses
   Dext.Json;
 
 type
+  /// <summary>
+  ///   Implementação de <see cref="IHttpResponse"/> para o servidor Indy.
+  /// </summary>
   TDextIndyHttpResponse = class(TInterfacedObject, IHttpResponse)
   private
     FResponseInfo: TIdHTTPResponseInfo;
@@ -81,6 +84,10 @@ type
     property ContentType: string read GetContentType write SetContentType;
   end;
 
+  /// <summary>
+  ///   Implementação de <see cref="IHttpRequest"/> para o servidor Indy.
+  ///   Inclui suporte a parsing de QueryString, Headers, Cookies e Multipart/form-data.
+  /// </summary>
   TDextIndyHttpRequest = class(TInterfacedObject, IHttpRequest)
   private
     FRequestInfo: TIdHTTPRequestInfo;
@@ -119,6 +126,10 @@ type
     property RemoteIpAddress: string read GetRemoteIpAddress;
   end;
 
+  /// <summary>
+  ///   Contexto de execução HTTP para o servidor Indy.
+  ///   Gerencia o ciclo de vida do escopo de serviços (DI) por requisição.
+  /// </summary>
   TDextIndyHttpContext = class(TInterfacedObject, IHttpContext)
   private
     FRequest: IHttpRequest;

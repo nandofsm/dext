@@ -1,4 +1,4 @@
-﻿{***************************************************************************}
+{***************************************************************************}
 {                                                                           }
 {           Dext Framework                                                  }
 {                                                                           }
@@ -41,42 +41,50 @@ uses
 
 type
   /// <summary>
-  ///   Extended response including request metadata for display purposes.
+  ///   Resultado detalhado de uma execução HTTP, incluindo metadados da requisição.
+  ///   Ideal para exibição em interfaces de depuração e logs técnicos.
   /// </summary>
   THttpExecutionResult = record
+    /// <summary>Nome atribuído à requisição no arquivo .http.</summary>
     RequestName: string;
+    /// <summary>Verbo HTTP utilizado (GET, POST, etc).</summary>
     RequestMethod: string;
+    /// <summary>URL completa após a resolução de variáveis.</summary>
     RequestUrl: string;
+    /// <summary>Código de status retornado pelo servidor.</summary>
     StatusCode: Integer;
+    /// <summary>Texto descritivo do status.</summary>
     StatusText: string;
+    /// <summary>Corpo da resposta em formato string.</summary>
     ResponseBody: string;
+    /// <summary>Coleção de cabeçalhos retornados pelo servidor.</summary>
     ResponseHeaders: IDictionary<string, string>;
+    /// <summary>Tempo total de execução em milissegundos.</summary>
     DurationMs: Int64;
+    /// <summary>Indica se a requisição obteve um status de sucesso (2xx ou 3xx).</summary>
     Success: Boolean;
+    /// <summary>Mensagem de erro técnica em caso de falha de conexão ou execução.</summary>
     ErrorMessage: string;
   end;
 
   /// <summary>
-  ///   Executor for HTTP requests using Dext.Net.RestClient.
+  ///   Executor especializado para requisições HTTP baseadas em THttpRequestInfo.
+  ///   Atua como ponte entre o parser de arquivos .http e o TRestClient do Dext.
   /// </summary>
   THttpExecutor = class
   private
     class function MethodToEnum(const AMethod: string): TDextHttpMethod; static;
   public
-    /// <summary>
-    ///   Executes a single HTTP request asynchronously.
-    /// </summary>
+    /// <summary>Executa uma requisição HTTP de forma assíncrona.</summary>
     class function ExecuteAsync(const ARequest: THttpRequestInfo): TAsyncBuilder<IRestResponse>; static;
     
-    /// <summary>
-    ///   Executes a request with variables resolved from the collection.
-    /// </summary>
+    /// <summary>Executa uma requisição resolvendo variáveis dinâmicas antes do envio.</summary>
     class function ExecuteWithVariablesAsync(ARequest: THttpRequestInfo; 
       AVariables: IList<THttpVariable>): TAsyncBuilder<IRestResponse>; static;
     
     /// <summary>
-    ///   Executes a request and returns a detailed result record.
-    ///   This is a synchronous wrapper for use in Dashboard UI.
+    ///   Executa uma requisição de forma síncrona (blocante) e retorna um resultado detalhado.
+    ///   Recomendado apenas para ferramentas de CLI ou Dashboards de monitoramento.
     /// </summary>
     class function ExecuteSync(ARequest: THttpRequestInfo; 
       AVariables: IList<THttpVariable>): THttpExecutionResult; static;

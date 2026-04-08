@@ -1,4 +1,4 @@
-﻿{***************************************************************************}
+{***************************************************************************}
 {                                                                           }
 {           Dext Framework                                                  }
 {                                                                           }
@@ -34,16 +34,21 @@ uses
   Dext.Types.UUID;
 
 type
-  /// <summary>
-  ///   Defines logging severity levels.
-  /// </summary>
+  /// <summary>Defines the severity levels for the logging system.</summary>
   TLogLevel = (
+    /// <summary>Detailed logs for deep diagnostics. May contain sensitive data.</summary>
     Trace = 0,
+    /// <summary>Logs for debugging during development.</summary>
     Debug = 1,
+    /// <summary>Normal application flows (e.g., startup, requests).</summary>
     Information = 2,
+    /// <summary>Anomalous events that do not interrupt the flow but require attention.</summary>
     Warning = 3,
+    /// <summary>Failures that prevent a specific operation, but not the entire application.</summary>
     Error = 4,
+    /// <summary>Critical failures that require immediate attention (e.g., out of resources, crash).</summary>
     Critical = 5,
+    /// <summary>Desativa todo o registro de logs.</summary>
     None = 6
   );
   {$M+}
@@ -55,20 +60,23 @@ type
     procedure Dispose;
   end;
 
-  /// <summary>
-  ///   Represents a type used to perform logging.
-  /// </summary>
+  /// <summary>Interface principal para registro de mensagens de log estruturadas.</summary>
   ILogger = interface
     ['{A1B2C3D4-E5F6-7890-1234-567890ABCDEF}']
+    /// <summary>Logs a message with the specified severity level.</summary>
     procedure Log(ALevel: TLogLevel; const AMessage: string; const AArgs: array of const); overload;
+    /// <summary>Logs an exception and an explanatory message.</summary>
     procedure Log(ALevel: TLogLevel; const AException: Exception; const AMessage: string; const AArgs: array of const); overload;
     
+    /// <summary>Checks if the specified log level is enabled.</summary>
     function IsEnabled(ALevel: TLogLevel): Boolean;
     
+    /// <summary>Starts a logical log scope (e.g., RequestId, TransactionId). The scope is closed when releasing the IDisposable.</summary>
     function BeginScope(const AMessage: string; const AArgs: array of const): IDisposable; overload;
+    /// <summary>Inicia um escopo baseado em um objeto de estado (ex: um registro ou entidade).</summary>
     function BeginScope(const AState: TObject): IDisposable; overload;
 
-    // Short method names (preferred)
+    // Métodos curtos (Preferidos)
     procedure Trace(const AMessage: string); overload;
     procedure Trace(const AMessage: string; const AArgs: array of const); overload;
     
@@ -89,7 +97,7 @@ type
     procedure Critical(const AMessage: string; const AArgs: array of const); overload;
     procedure Critical(const AException: Exception; const AMessage: string; const AArgs: array of const); overload;
     
-    // Legacy method names (for backwards compatibility)
+    // Métodos legados (Compatibilidade)
     procedure LogTrace(const AMessage: string); overload;
     procedure LogTrace(const AMessage: string; const AArgs: array of const); overload;
     
@@ -121,11 +129,13 @@ type
   end;
 
   /// <summary>
-  ///   Represents a type used to configure the logging system and create instances of ILogger.
+  ///   Central factory for configuring the logging system and creating ILogger instances.
   /// </summary>
   ILoggerFactory = interface
     ['{C3D4E5F6-7890-1234-5678-90ABCDEF1234}']
+    /// <summary>Creates a logger for a specific category (usually the class or component name).</summary>
     function CreateLogger(const ACategoryName: string): ILogger;
+    /// <summary>Adds a log provider (Console, File, etc.) to the factory pipeline.</summary>
     procedure AddProvider(const AProvider: ILoggerProvider);
     procedure Dispose;
   end;

@@ -1,4 +1,4 @@
-﻿{***************************************************************************}
+{***************************************************************************}
 {                                                                           }
 {           Dext Framework                                                  }
 {                                                                           }
@@ -41,6 +41,10 @@ uses
 
 type
   {$IFDEF DEXT_ENABLE_WEB_STENCILS}
+  /// <summary>
+  ///   Motor de visualização baseado no WebStencils da Embarcadero (Delphi 12.2+).
+  ///   Fornece integração profunda com o ecossistema Dext (Entities, SmartProps).
+  /// </summary>
   TWebStencilsViewEngine = class(TInterfacedObject, IViewEngine)
   private
     FEngine: TWebStencilsEngine;
@@ -53,6 +57,9 @@ type
     function Render(AContext: IHttpContext; const AViewName: string; AViewData: IViewData): string;
   end;
 
+  /// <summary>
+  ///   Contexto de renderização que mapeia o <see cref="IViewData"/> para variáveis do WebStencils.
+  /// </summary>
   TWebStencilsRenderContext = class
   private
     FViewData: IViewData;

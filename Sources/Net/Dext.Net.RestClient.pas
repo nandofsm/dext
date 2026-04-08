@@ -1,4 +1,4 @@
-﻿{***************************************************************************}
+{***************************************************************************}
 {                                                                           }
 {           Dext Framework                                                  }
 {                                                                           }
@@ -43,25 +43,24 @@ uses
   Dext.Threading.CancellationToken;
 
  type
-  /// <summary>
-  ///   Supported HTTP Methods.
-  /// </summary>
+  /// <summary>Métodos HTTP suportados pelo cliente REST.</summary>
   TDextHttpMethod = (hmGET, hmPOST, hmPUT, hmDELETE, hmPATCH, hmHEAD, hmOPTIONS);
 
-  /// <summary>
-  ///   Content-Type for requests.
-  /// </summary>
+  /// <summary>Tipos de conteúdo (MIME) comuns para requisições e respostas.</summary>
   TDextContentType = (ctJson, ctXml, ctFormUrlEncoded, ctMultipartFormData, ctBinary, ctText);
 
-  /// <summary>
-  ///   Interface for a REST Response.
-  /// </summary>
+  /// <summary>Representa a resposta de uma requisição HTTP.</summary>
   IRestResponse = interface
     ['{B1A2C3D4-E5F6-4A7B-8C9D-0E1F2A3B4C5D}']
+    /// <summary>Retorna o código de status HTTP (ex: 200, 404).</summary>
     function GetStatusCode: Integer;
+    /// <summary>Retorna o texto descritivo do status (ex: "OK", "Not Found").</summary>
     function GetStatusText: string;
+    /// <summary>Retorna o corpo da resposta como um Stream.</summary>
     function GetContentStream: TStream;
+    /// <summary>Retorna o corpo da resposta como string (UTF-8).</summary>
     function GetContentString: string;
+    /// <summary>Obtém o valor de um cabeçalho específico da resposta.</summary>
     function GetHeader(const AName: string): string;
     
     property StatusCode: Integer read GetStatusCode;
@@ -70,11 +69,10 @@ uses
     property ContentString: string read GetContentString;
   end;
 
-  /// <summary>
-  ///   Interface for a Typed REST Response.
-  /// </summary>
+  /// <summary>Representa uma resposta HTTP cujo conteúdo é automaticamente desserializado para o tipo T.</summary>
   IRestResponse<T> = interface(IRestResponse)
     ['{C1D2E3F4-A5B6-4C7D-8E9F-0A1B2C3D4E5F}']
+    /// <summary>Retorna o objeto desserializado.</summary>
     function GetData: T;
     property Data: T read GetData;
   end;
@@ -107,18 +105,23 @@ uses
     destructor Destroy; override;
   end;
 
-  /// <summary>
-  ///   Internal interface for Client Implementation.
-  /// </summary>
+  /// <summary>Interface de um Cliente REST altamente configurável e assíncrono.</summary>
   IRestClient = interface
     ['{A3B4C5D6-E7F8-49A0-B1C2-D3E4F5A6B7C8}']
+    /// <summary>Define a URL base para todas as subseqüentes requisições.</summary>
     function BaseUrl(const AValue: string): IRestClient;
+    /// <summary>Define o tempo limite global (em milissegundos).</summary>
     function Timeout(AValue: Integer): IRestClient;
+    /// <summary>Configura o número máximo de retentativas automáticas em caso de falha de rede.</summary>
     function Retry(AValue: Integer): IRestClient;
+    /// <summary>Associa um provedor de autenticação (Bearer, Basic, API Key).</summary>
     function Auth(AProvider: IAuthenticationProvider): IRestClient;
+    /// <summary>Adiciona um cabeçalho HTTP fixo ao cliente.</summary>
     function Header(const AName, AValue: string): IRestClient;
+    /// <summary>Define o Content-Type padrão das requisições.</summary>
     function ContentType(AValue: TDextContentType): IRestClient;
     
+    /// <summary>Executa uma requisição HTTP de forma assíncrona.</summary>
     function ExecuteAsync(AMethod: TDextHttpMethod; const AEndpoint: string; 
       const ABody: TStream = nil; AOwnsBody: Boolean = False;
       AHeaders: IDictionary<string, string> = nil): TAsyncBuilder<IRestResponse>;
@@ -154,7 +157,8 @@ uses
   end;
 
   /// <summary>
-  ///   Fluent REST Client - Record Pattern to support Generics.
+  ///   Fachada fluente para o Cliente REST do Dext. 
+  ///   Combina alta performance (Connection Pooling) com simplicidade de uso.
   /// </summary>
   TRestClient = record
   private
@@ -162,25 +166,33 @@ uses
     class var FSharedPool: TConnectionPool;
     class destructor Destroy;
   public
+    /// <summary>Inicia a configuração de um novo cliente REST.</summary>
     class function Create(const ABaseUrl: string = ''): TRestClient; static;
     
-    // Fluent Configuration
+    // Configuração Fluída
     function BaseUrl(const AValue: string): TRestClient;
     function Timeout(AValue: Integer): TRestClient;
     function Retry(AValue: Integer): TRestClient;
+    /// <summary>Configura autenticação Bearer (JWT) para as requisições.</summary>
     function BearerToken(const AToken: string): TRestClient;
+    /// <summary>Configura autenticação básica (Username/Password).</summary>
     function BasicAuth(const AUsername, APassword: string): TRestClient;
+    /// <summary>Configura autenticação via Chave de API.</summary>
     function ApiKey(const AName, AValue: string; AInHeader: Boolean = True): TRestClient;
     function Auth(AProvider: IAuthenticationProvider): TRestClient;
     function Header(const AName, AValue: string): TRestClient;
     function ContentType(AValue: TDextContentType): TRestClient;
 
     // HTTP Operations
+    /// <summary>Executa um GET assíncrono e retorna a resposta bruta.</summary>
     function Get(const AEndpoint: string = ''): TAsyncBuilder<IRestResponse>; overload;
+    /// <summary>Executa um GET assíncrono e desserializa o JSON automaticamente para o tipo T.</summary>
     function Get<T: class>(const AEndpoint: string = ''): TAsyncBuilder<T>; overload;
     
+    /// <summary>Executa um POST assíncrono.</summary>
     function Post(const AEndpoint: string = ''): TAsyncBuilder<IRestResponse>; overload;
     function Post(const AEndpoint: string; const ABody: TStream): TAsyncBuilder<IRestResponse>; overload;
+    /// <summary>Executa um POST enviando um objeto serializado como JSON e aguarda resposta tipada.</summary>
     function Post<TRes: class>(const AEndpoint: string; const ABody: TRes): TAsyncBuilder<IRestResponse<TRes>>; overload;
     
     function Put(const AEndpoint: string = ''): TAsyncBuilder<IRestResponse>; overload;
@@ -188,7 +200,6 @@ uses
     function Put<TRes: class>(const AEndpoint: string; const ABody: TRes): TAsyncBuilder<IRestResponse<TRes>>; overload;
     function Put<T: class>(const AEndpoint: string = ''): TAsyncBuilder<T>; overload;
 
-    
     function Delete(const AEndpoint: string = ''): TAsyncBuilder<IRestResponse>; overload;
     function Delete<T: class>(const AEndpoint: string = ''): TAsyncBuilder<T>; overload;
     
@@ -197,7 +208,7 @@ uses
       AHeaders: IDictionary<string, string> = nil): TAsyncBuilder<IRestResponse>;
 
     /// <summary>
-    ///   Executes a request defined by a THttpRequestInfo object (from .http parser).
+    ///   Executa uma requisição definida por um objeto THttpRequestInfo (compatível com parsers .http).
     /// </summary>
     function Execute(RequestInfo: THttpRequestInfo): TAsyncBuilder<IRestResponse>;
 

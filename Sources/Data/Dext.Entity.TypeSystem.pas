@@ -42,6 +42,11 @@ type
   ///   operator overloading for the Query Expressions syntax.
   ///   TProp<Integer> -> allows operators >, <, =, etc. against Integers.
   /// </summary>
+  /// <summary>
+  ///   Wrapper leve (Smart Property) para TPropertyInfo que fornece tipagem forte e
+  ///   sobrecarga de operadores para a sintaxe de Query Expressions.
+  ///   Ex: TProp&lt;Integer&gt; permite operadores &gt;, &lt;, =, etc. contra inteiros.
+  /// </summary>
   TProp<T> = record
   private
     FInfo: TPropertyInfo;
@@ -89,6 +94,9 @@ type
   /// <summary>
   ///   Fluent builder for creating and populating entities using TypeSystem metadata.
   /// </summary>
+  /// <summary>
+  ///   Fluent builder for creating and populating entities using TypeSystem metadata.
+  /// </summary>
   IEntityBuilder<T: class> = interface
     ['{A1C2E3B4-D5F6-4789-8123-456789ABCDEF}']
     function Prop(const AInfo: TPropertyInfo; const AValue: TValue): IEntityBuilder<T>; overload;
@@ -122,6 +130,10 @@ type
   ///   The static registry for an Entity Type.
   ///   This class is meant to be inherited and populated via Scaffolding/Experts.
   ///   e.g. TUserType = class(TEntityType<TUser>)
+  /// </summary>
+  /// <summary>
+  ///   Static registry for an entity type.
+  ///   This class is inherited by scaffolded classes to provide fast access to metadata and builders.
   /// </summary>
   TEntityType<T: class> = class
   public

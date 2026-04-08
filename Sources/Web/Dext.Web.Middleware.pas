@@ -40,6 +40,9 @@ uses
 
 type
   // Common HTTP Exceptions
+  /// <summary>
+  ///   Classe base para exceções que resultam em códigos de status HTTP específicos.
+  /// </summary>
   EHttpException = class(Exception)
   private
     FStatusCode: Integer;
@@ -78,6 +81,9 @@ type
     class function Production: TExceptionHandlerOptions; static;
   end;
 
+  /// <summary>
+  ///   Estrutura para reportar erros HTTP seguindo o padrão RFC 7807 (Problem Details).
+  /// </summary>
   TProblemDetails = record
     &Type: string;
     Title: string;
@@ -88,6 +94,9 @@ type
     function ToJson: string;
   end;
 
+  /// <summary>
+  ///   Middleware responsável por capturar exceções não tratadas e retornar respostas padronizadas.
+  /// </summary>
   TExceptionHandlerMiddleware = class(TMiddleware)
   private
     FLogger: ILogger;
@@ -98,6 +107,9 @@ type
   end;
   
   // Minimal implementation reuse TExceptionHandlerMiddleware logic with Development options
+  /// <summary>
+  ///   Middleware que exibe uma página de erro detalhada durante o desenvolvimento.
+  /// </summary>
   TDeveloperExceptionPageMiddleware = class(TExceptionHandlerMiddleware)
   public
     constructor Create(ALogger: ILogger);
@@ -113,6 +125,9 @@ type
     class function Default: THttpLoggingOptions; static;
   end;
 
+  /// <summary>
+  ///   Middleware para logar detalhes das requisições e respostas HTTP.
+  /// </summary>
   THttpLoggingMiddleware = class(TMiddleware)
   private
     FLogger: ILogger;

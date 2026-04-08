@@ -40,6 +40,9 @@ type
 
 type
   /// <summary>Base options for Data API, allowing non-generic configuration.</summary>
+  /// <summary>
+  ///   Opções de configuração para uma Data API, permitindo controle de permissões, nomenclatura e Swagger.
+  /// </summary>
   TDataApiOptions = class
   protected
     FAllowedMethods: TApiMethods;
@@ -90,6 +93,9 @@ type
     function EnumsAsNumbers: TDataApiOptions<T>;
   end;
 
+  /// <summary>
+  ///   Handler responsável por processar as requisições HTTP para uma entidade específica, mapeando-as para o ORM.
+  /// </summary>
   TDataApiHandler<T: class> = class
   private
     FOptions: TDataApiOptions<T>;
@@ -122,6 +128,9 @@ type
   end;
 
   /// <summary>Non-generic entry point for Data API mapping.</summary>
+  /// <summary>
+  ///   Ponto de entrada para mapeamento simplificado de Data APIs no pipeline da aplicação.
+  /// </summary>
   TDataApi = class
   public
     class procedure Map(const ABuilder: IApplicationBuilder; const AClass: TClass; const APath: string; AOptions: TDataApiOptions = nil);

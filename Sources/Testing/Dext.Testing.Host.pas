@@ -37,12 +37,12 @@ uses
   Dext.Testing.Runner;
 
 type
-  /// <summary>
-  ///   TTestHost manages the application lifecycle during test execution.
-  /// </summary>
+  /// <summary>Gerencia o ciclo de vida e o ambiente de execução durante os testes (Console, IDE ou CI).</summary>
   TTestHost = class
   public
+    /// <summary>Executa a suíte de testes com uma configuração específica.</summary>
     class procedure Execute(const AConfig: TTestConfigurator); overload;
+    /// <summary>Executa os testes utilizando as configurações padrão detectadas.</summary>
     class procedure Execute; overload;
   end;
 

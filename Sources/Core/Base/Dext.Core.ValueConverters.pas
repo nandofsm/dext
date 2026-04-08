@@ -46,6 +46,10 @@ type
     function Convert(const AValue: TValue; ATargetType: PTypeInfo): TValue;
   end;
 
+  /// <summary>
+  ///   Registro central de conversores de tipo no Dext.
+  ///   Permite mapear transformações entre pares de tipos (Ex: String -> GUID) ou categorias (Ex: Variant -> Enum).
+  /// </summary>
   TValueConverterRegistry = class
   private
     class var FConverters: IDictionary<string, IValueConverter>; 
@@ -54,16 +58,27 @@ type
     class destructor Destroy;
     class function GetKey(ASource, ATarget: PTypeInfo): string;
   public
+    /// <summary>Registra um conversor para um par exato de tipos via PTypeInfo.</summary>
     class procedure RegisterConverter(ASource, ATarget: PTypeInfo; AConverter: IValueConverter); overload;
+    /// <summary>Registra um conversor para categorias de tipos (Ex: qualquer Integer para qualquer Enum).</summary>
     class procedure RegisterConverter(ASourceKind, ATargetKind: TTypeKind; AConverter: IValueConverter); overload;
+    /// <summary>Localiza o melhor conversor disponível para o par de tipos solicitado.</summary>
     class function GetConverter(ASource, ATarget: PTypeInfo): IValueConverter;
   end;
 
+  /// <summary>
+  ///   Motor de execução de conversões. 
+  ///   Esta classe orquestra a lógica de conversão, lidando inclusive com Smart Types (Prop<T>) e Nullables automaticamente.
+  /// </summary>
   TValueConverter = class
   public
+    /// <summary>Converte um TValue para o tipo alvo especificado.</summary>
     class function Convert(const AValue: TValue; ATargetType: PTypeInfo): TValue; overload;
+    /// <summary>Converte um TValue para o tipo genérico T solicitado.</summary>
     class function Convert<T>(const AValue: TValue): T; overload;
+    /// <summary>Converte o valor e o atribui diretamente a uma propriedade RTTI de uma instância.</summary>
     class procedure ConvertAndSet(Instance: TObject; Prop: TRttiProperty; const Value: TValue);
+    /// <summary>Converte o valor e o atribui diretamente a um campo (Field) RTTI de uma instância.</summary>
     class procedure ConvertAndSetField(Instance: TObject; Field: TRttiField; const Value: TValue);
   end;
 

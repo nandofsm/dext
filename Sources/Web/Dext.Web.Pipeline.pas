@@ -34,11 +34,17 @@ uses
   Dext.Web.Interfaces, Dext.Web.Routing;
 
 type
+  /// <summary>
+  ///   Contrato base para o pipeline de execução do Dext, responsável por orquestrar o processamento de uma requisição HTTP.
+  /// </summary>
   IDextPipeline = interface
     ['{A3B4C5D6-E7F8-4A9B-8C0D-1E2F3A4B5C6D}']
     procedure Execute(AContext: IHttpContext);
   end;
 
+  /// <summary>
+  ///   Implementação padrão do pipeline Dext que armazena a cadeia completa de middlewares e rotas.
+  /// </summary>
   TDextPipeline = class(TInterfacedObject, IDextPipeline)
   private
     FMappedRoutes: IDictionary<string, TRequestDelegate>;       // Rotas fixas

@@ -23,6 +23,7 @@ uses
   Dext.EF.Design.Preview;
 
 type
+  /// <summary>Property editor for selecting a TEntityDataProvider in the Object Inspector.</summary>
   TEntityDataProviderComponentProperty = class(TComponentProperty)
   public
     function GetAttributes: TPropertyAttributes; override;
@@ -30,6 +31,7 @@ type
     procedure SetValue(const Value: string); override;
   end;
 
+  /// <summary>Property editor for dynamic selection of Entity classes from discovered metadata.</summary>
   TEntityClassNameProperty = class(TStringProperty)
   public
     function GetAttributes: TPropertyAttributes; override;
@@ -44,6 +46,7 @@ type
     procedure ExecuteVerb(Index: Integer); override;
   end;
 
+  /// <summary>Selection editor for TEntityDataSet, providing context menus for field generation and preview.</summary>
   TEntityDataSetSelectionEditor = class(TSelectionEditor)
   public
     function GetVerbCount: Integer; override;
