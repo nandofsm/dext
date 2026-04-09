@@ -36,6 +36,7 @@ type
     procedure OnFixtureComplete(const FixtureName: string);
     procedure OnTestStart(const UnitName, Fixture, Test: string);
     procedure OnTestComplete(const Info: TTestInfo);
+    procedure OnTestsComplete(const InfoArray: TArray<TTestInfo>);
     
     // Helper
     procedure BroadcastEvent(const EventType: string; const DataJson: string);
@@ -279,6 +280,14 @@ begin
   
   BroadcastEvent('test_complete', Format('{"fixture": "%s", "test": "%s", "status": "%s", "passed": %s, "duration": %d, "error": "%s"}', 
     [Info.FixtureName, Info.DisplayName, Status, BoolToStr(Info.Result = trPassed, True).ToLower, Round(Info.Duration.TotalMilliseconds), ErrMsg]));
+end;
+
+procedure TDashboardListener.OnTestsComplete(const InfoArray: TArray<TTestInfo>);
+var
+  Info: TTestInfo;
+begin
+  for Info in InfoArray do
+    OnTestComplete(Info);
 end;
 
 end.

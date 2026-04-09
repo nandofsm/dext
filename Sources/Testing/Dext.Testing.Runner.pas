@@ -1,4 +1,4 @@
-{***************************************************************************}
+﻿{***************************************************************************}
 {                                                                           }
 {           Dext Framework                                                  }
 {                                                                           }
@@ -118,7 +118,7 @@ type
   ///   Event fired when a fixture completes.
   /// </summary>
   TFixtureCompleteEvent = procedure(const FixtureName: string) of object;
-  
+
   /// <summary>
   ///   Interface for listening to test execution events.
   /// </summary>
@@ -130,6 +130,7 @@ type
     procedure OnFixtureComplete(const FixtureName: string);
     procedure OnTestStart(const UnitName, Fixture, Test: string);
     procedure OnTestComplete(const Info: TTestInfo);
+    procedure OnTestsComplete(const InfoArray: TArray<TTestInfo>);
   end;
 
   /// <summary>
@@ -191,13 +192,13 @@ type
   public
     constructor Create(const AFixture, ATest: string);
     destructor Destroy; override;
-    
+
     function GetCurrentTest: string;
     function GetCurrentFixture: string;
     procedure WriteLine(const Msg: string); overload;
     procedure WriteLine(const Fmt: string; const Args: array of const); overload;
     procedure AttachFile(const FilePath: string);
-    
+
     function GetOutput: string;
     function GetAttachedFiles: TArray<string>;
   end;
@@ -219,7 +220,7 @@ type
     class var FTestResults: IList<TTestInfo>;
     class var FDiscoveryMode: Boolean;
     class var FSelectedTests: TArray<string>;
-    
+
     // Assembly-level hooks (execute once for entire test suite)
     class var FAssemblyInitMethod: TRttiMethod;
     class var FAssemblyCleanupMethod: TRttiMethod;
@@ -229,16 +230,17 @@ type
     class var FOnTestComplete: TTestCompleteEvent;
     class var FOnFixtureStart: TFixtureStartEvent;
     class var FOnFixtureComplete: TFixtureCompleteEvent;
-    
+
     class var FListeners: IList<ITestListener>;
     class var FIsTestInsightActive: Boolean;
-    
+
     class procedure NotifyRunStart(TotalTests: Integer);
     class procedure NotifyRunComplete(const Summary: TTestSummary);
     class procedure NotifyFixtureStart(const FixtureName: string; TestCount: Integer);
     class procedure NotifyFixtureComplete(const FixtureName: string);
     class procedure NotifyTestStart(const UnitName, Fixture, Test: string);
     class procedure NotifyTestComplete(const Info: TTestInfo);
+    class procedure NotifyTestsComplete(const TestInfos: TArray<TTestInfo>);
 
     class procedure DiscoverFixtures;
     class procedure DiscoverTestMethods(Fixture: TTestFixtureInfo);
@@ -336,6 +338,7 @@ type
     ///   Returns the total discovered test count.
     /// </summary>
     class function TestCount: Integer;
+    class function GetActiveTestCount: Integer;
 
     /// <summary>
     ///   Clears discovered fixtures (for re-discovery).
@@ -348,7 +351,7 @@ type
     ///   where RTTI discovery may not work automatically.
     /// </summary>
     class procedure RegisterFixture(AClass: TClass); overload;
-    
+
     /// <summary>
     ///   Registers multiple test fixture classes at once.
     /// </summary>
@@ -362,12 +365,12 @@ type
     /// <summary>
     ///   Enables or disables discovery mode (skips test execution).
     /// </summary>
-    class procedure SetDiscoveryMode(AValue: Boolean);
+    class procedure SetDiscoveryMode(Value: Boolean);
 
     /// <summary>
     ///   Restricts test execution to a specific list of full names.
     /// </summary>
-    class procedure SetSelectedTests(const ATests: TArray<string>);
+    class procedure SetSelectedTests(const Tests: TArray<string>);
 
     /// <summary>
     ///   Returns if the runner is currently in discovery mode.
@@ -380,7 +383,7 @@ type
     class function GetSelectedTests: TArray<string>;
     class function GetAllTestPaths: TArray<string>;
     class function IsTestInsightActive: Boolean; static;
-    class procedure SetTestInsightActive(AValue: Boolean); static;
+    class procedure SetTestInsightActive(Value: Boolean); static;
 
     /// <summary>
     ///   Configures automatic report file generation after test run.
@@ -507,7 +510,7 @@ begin
     // TestInsight and IDEs usually send: Unit.Class.Method OR Class.Method
     FullName := AUnitName + '.' + AClassName + '.' + ATestName;
     FullNameAlt := AClassName + '.' + ATestName;
-    
+
     for Selected in ASelectedTests do
     begin
       var CleanSelected := Selected;
@@ -672,7 +675,7 @@ begin
   begin
     if not (RttiType is TRttiInstanceType) then
       Continue;
-      
+
     for Attr in RttiType.GetAttributes do
     begin
       if (Attr is TestFixtureAttribute) then
@@ -698,13 +701,13 @@ var
   Methods: TArray<TRttiMethod>;
 begin
   Methods := Fixture.RttiType.GetMethods;
-  
+
   for Method in Methods do
   begin
     for Attr in Method.GetAttributes do
     begin
       var AttrName := Attr.ClassName;
-      
+
       // Test methods
       if (Attr is TestAttribute) or (AttrName = 'TestAttribute') then
       begin
@@ -750,7 +753,7 @@ begin
   FAssemblyInitMethod := nil;
   FAssemblyCleanupMethod := nil;
   FAssemblyHookClass := nil;
-  
+
   // Scan all fixtures for assembly-level hooks
   for Fixture in FFixtures do
   begin
@@ -784,13 +787,13 @@ var
 begin
   if FAssemblyInitMethod = nil then
     Exit;
-    
+
   if FVerbosity > ovSilent then
   begin
     SafeWriteLn;
     TTestConsole.WriteInfo('🌐 [AssemblyInitialize] Running global setup...');
   end;
-  
+
   try
     // Create instance and invoke (or invoke as class method if static)
     if FAssemblyInitMethod.IsClassMethod then
@@ -806,7 +809,7 @@ begin
         Instance.Free;
       end;
     end;
-    
+
     if FVerbosity > ovSilent then
       SafeWriteLn('    ✅ Global setup complete.');
   except
@@ -824,13 +827,13 @@ var
 begin
   if FAssemblyCleanupMethod = nil then
     Exit;
-    
+
   if FVerbosity > ovSilent then
   begin
     SafeWriteLn;
     TTestConsole.WriteInfo('🌐 [AssemblyCleanup] Running global cleanup...');
   end;
-  
+
   try
     if FAssemblyCleanupMethod.IsClassMethod then
     begin
@@ -845,7 +848,7 @@ begin
         Instance.Free;
       end;
     end;
-    
+
     if FVerbosity > ovSilent then
       SafeWriteLn('    ✅ Global cleanup complete.');
   except
@@ -1149,7 +1152,7 @@ begin
   // Enable UTF-8 for Unicode symbols in console
   SetConsoleCharSet(CP_UTF8);
 {$ENDIF}
-  
+
   if FFixtures = nil then
     Discover;
 
@@ -1161,12 +1164,10 @@ begin
   FFilter.IncludeExplicit := False;
 
   Stopwatch := TStopwatch.StartNew;
-
+  
   NotifyRunStart(TestCount);
-  // Log.Info('Run Started: %d tests', [TestCount]);
-
   TTestConsole.WriteHeader('DEXT TEST RUNNER');
-  TTestConsole.WriteInfo(Format(ICON_LIGHT + ' Discovered %d fixtures with %d tests', [FixtureCount, TestCount]));
+  TTestConsole.WriteInfo(Format('Discovered %d fixtures with %d tests', [FixtureCount, TestCount]));
   SafeWriteLn;
 
   // Execute global setup (if defined)
@@ -1184,10 +1185,10 @@ begin
   FSummary.TotalDuration := Stopwatch.Elapsed;
 
   PrintSummary;
-  
-  // Log.Info('Run Completed: %d Tests, %d Passed, %d Failed, %d Skipped. Duration: %.3fs', 
+
+  // Log.Info('Run Completed: %d Tests, %d Passed, %d Failed, %d Skipped. Duration: %.3fs',
   //  [FSummary.TotalTests, FSummary.Passed, FSummary.Failed, FSummary.Skipped, FSummary.TotalDuration.TotalSeconds]);
-    
+
   NotifyRunComplete(FSummary);
 end;
 
@@ -1207,7 +1208,50 @@ begin
 
   Stopwatch := TStopwatch.StartNew;
 
-  NotifyRunStart(0);
+  if FIsTestInsightActive then
+    NotifyRunStart(TestCount)
+  else
+    NotifyRunStart(GetActiveTestCount);
+  
+  { Fast Pre-Skip reporting for TestInsight to improve UI responsiveness }
+  if FIsTestInsightActive and (Length(FSelectedTests) > 0) then
+  begin
+    var Skips := TList<TTestInfo>.Create;
+    try
+      for Fixture in FFixtures do
+      begin
+        var Method: TRttiMethod;
+        for Method in Fixture.TestMethods do
+        begin
+          if not FFilter.Matches(Fixture.FixtureClass.UnitName, Fixture.FixtureClass.ClassName, 
+             Fixture.Name, Method.Name, GetCategories(Method), IsExplicit(Method), FSelectedTests) then
+          begin
+            var Info: TTestInfo;
+            // Initialize record
+            Info.TestName := Method.Name;
+            Info.DisplayName := Method.Name;
+            Info.FixtureName := Fixture.Name;
+            Info.UnitName := Fixture.FixtureClass.UnitName;
+            Info.ClassName := Fixture.FixtureClass.ClassName;
+            Info.Result := trSkipped;
+            Info.ErrorMessage := 'Not in selection';
+            Info.Duration := TTimeSpan.Zero;
+            Info.CodeAddress := nil;
+            Info.Categories := [];
+            Skips.Add(Info);
+          end;
+        end;
+      end;
+      if Skips.Count > 0 then
+      begin
+        Log.Info('Pre-reporting %d skipped tests to IDE', [Skips.Count]);
+        NotifyTestsComplete(Skips.ToArray);
+      end;
+    finally
+      Skips.Free;
+    end;
+  end;
+
   Log.Info('Run Started (Filtered)');
   if FVerbosity > ovSilent then
   begin
@@ -1290,12 +1334,10 @@ begin
   // Start Scope for Fixture
   Scope := Log.Logger.BeginScope('Fixture {Fixture}', [Fixture.Name]);
   try
-    // Log.Info('Starting Fixture: %s (%d tests)', [Fixture.Name, Fixture.TestMethods.Count]);
-  
     NotifyFixtureStart(Fixture.Name, Fixture.TestMethods.Count);
     if Assigned(FOnFixtureStart) then
       FOnFixtureStart(Fixture.Name, Fixture.TestMethods.Count);
-  
+
     if FVerbosity > ovSilent then
     begin
       SafeWriteLn;
@@ -1304,7 +1346,20 @@ begin
         SafeWrite('  ' + Fixture.Description);
       SafeWriteLn;
     end;
-  
+
+    // Handle Discovery Mode: skip instantiation and execution
+    if FDiscoveryMode then
+    begin
+      for Method in Fixture.TestMethods do
+      begin
+        TestCases := GetTestCases(Method);
+        DisplayNames := GetTestCaseDisplayNames(Method);
+        for I := 0 to High(TestCases) do
+          ExecuteTest(Fixture, Method, nil, TestCases[I], DisplayNames[I]);
+      end;
+      Exit;
+    end;
+
     // Create fixture instance
     Instance := Fixture.FixtureClass.Create;
     try
@@ -1322,18 +1377,16 @@ begin
           end;
         end;
       end;
-  
+
       // Execute each test method
       for Method in Fixture.TestMethods do
       begin
-        // Get test cases
         TestCases := GetTestCases(Method);
         DisplayNames := GetTestCaseDisplayNames(Method);
-  
         for I := 0 to High(TestCases) do
           ExecuteTest(Fixture, Method, Instance, TestCases[I], DisplayNames[I]);
       end;
-  
+
       // AfterAll (class-level cleanup)
       if Assigned(Fixture.AfterAllMethod) then
       begin
@@ -1350,12 +1403,11 @@ begin
     finally
       Instance.Free;
     end;
-  
-    // Log.Info('Completed Fixture: %s', [Fixture.Name]);
+
     NotifyFixtureComplete(Fixture.Name);
     if Assigned(FOnFixtureComplete) then
       FOnFixtureComplete(Fixture.Name);
-      
+
   finally
     Scope.Dispose;
   end;
@@ -1393,166 +1445,157 @@ begin
   // Logging Instrumentation
   Scope := Log.Logger.BeginScope('Test {Test}', [Info.DisplayName]);
   try
+    // Check if test matches filter
+    if not FFilter.Matches(Fixture.FixtureClass.UnitName, Fixture.FixtureClass.ClassName, Fixture.Name, Method.Name, Categories, IsExplicit(Method), FSelectedTests) then
+    begin
+      { In TestInsight mode, we already reported these in a batch at the start, 
+        so we don't need to report them again one-by-one which is slow. }
+      if (not FIsTestInsightActive) and (FVerbosity > ovSilent) then
+      begin
+        Info.Result := trSkipped;
+        Info.ErrorMessage := 'Not in selection';
+        NotifyTestComplete(Info);
+      end;
+      Exit;
+    end;
 
-  // Check filters
-  if not FFilter.Matches(Info.UnitName, Info.ClassName, Fixture.Name, Method.Name, Categories, IsExplicit(Method), FSelectedTests) then
-  begin
-    // If we have a specific selection from IDE, we MUST notify skipped tests
-    // so the IDE doesn't remove them from its tree view.
-    if (Length(FSelectedTests) > 0) and FIsTestInsightActive then
+    FSummary.TotalTests := FSummary.TotalTests + 1;
+
+    // Check ignore
+    IgnoreReason := GetIgnoreReason(Method);
+    if IgnoreReason <> '' then
     begin
       Info.Result := trSkipped;
-      Info.ErrorMessage := 'Not in selection';
+      Info.ErrorMessage := IgnoreReason;
+      FSummary.Skipped := FSummary.Skipped + 1;
+      PrintResultChar(trSkipped);
+      PrintTestResult(Info);
       NotifyTestComplete(Info);
+      if Assigned(FOnTestComplete) then
+        FOnTestComplete(Info);
+      Exit;
     end;
-    Exit;
-  end;
 
-  Inc(FSummary.TotalTests);
-  
-  // Check ignore
-  IgnoreReason := GetIgnoreReason(Method);
-  if IgnoreReason <> '' then
-  begin
-    Info.Result := trSkipped;
-    Info.ErrorMessage := IgnoreReason;
-    Inc(FSummary.Skipped);
-    PrintResultChar(trSkipped);
-    PrintTestResult(Info);
-    NotifyTestComplete(Info);
-    if Assigned(FOnTestComplete) then
-      FOnTestComplete(Info);
-    Exit;
-  end;
+    // Handle Discovery Mode
+    if FDiscoveryMode then
+    begin
+      Info.Result := trSkipped;
+      Info.ErrorMessage := 'Discovery Mode';
+      FSummary.Skipped := FSummary.Skipped + 1;
 
-  // Handle Discovery Mode (for TestInsight and other IDE tools)
-  if FDiscoveryMode then
-  begin
-    Info.Result := trSkipped;
-    Info.ErrorMessage := 'Discovery Mode';
-    Inc(FSummary.Skipped);
-    
+      NotifyTestStart(Info.UnitName, Info.ClassName, Info.DisplayName);
+      if Assigned(FOnTestStart) then
+        FOnTestStart(Info.UnitName, Info.ClassName, Info.DisplayName);
+
+      NotifyTestComplete(Info);
+      if Assigned(FOnTestComplete) then
+        FOnTestComplete(Info);
+      Exit;
+    end;
+
     NotifyTestStart(Info.UnitName, Info.ClassName, Info.DisplayName);
     if Assigned(FOnTestStart) then
       FOnTestStart(Info.UnitName, Info.ClassName, Info.DisplayName);
-      
-    NotifyTestComplete(Info);
-    if Assigned(FOnTestComplete) then
-      FOnTestComplete(Info);
-    Exit;
-  end;
 
-  NotifyTestStart(Info.UnitName, Info.ClassName, Info.DisplayName);
-  if Assigned(FOnTestStart) then
-    FOnTestStart(Info.UnitName, Info.ClassName, Info.DisplayName);
-    
-  // Log.Info('Started Test: %s.%s', [Fixture.Name, Info.DisplayName]);
-
-  // Check platform
-  if not ShouldRunOnPlatform(Method) then
-  begin
-    Info.Result := trSkipped;
-    Info.ErrorMessage := 'Platform not supported';
-    Inc(FSummary.Skipped);
-    PrintResultChar(trSkipped);
-    PrintTestResult(Info);
-    NotifyTestComplete(Info);
-    if Assigned(FOnTestComplete) then
-      FOnTestComplete(Info);
-    Exit;
-  end;
-
-  // Repeat count
-  RepeatCount := GetRepeatCount(Method);
-
-  for I := 1 to RepeatCount do
-  begin
-    Stopwatch := TStopwatch.StartNew;
-
-    try
-      // Setup
-      if Assigned(Fixture.SetupMethod) then
-        Fixture.SetupMethod.Invoke(Instance, []);
-
-      try
-        // Check if method needs ITestContext injection
-        Params := Method.GetParameters;
-        NeedsContext := False;
-        for P := 0 to High(Params) do
-        begin
-          if (Params[P].ParamType <> nil) and 
-             (Params[P].ParamType.TypeKind = tkInterface) and
-             (Params[P].ParamType.Name = 'ITestContext') then
-          begin
-            NeedsContext := True;
-            Break;
-          end;
-        end;
-        
-        // Build invoke arguments
-        if NeedsContext then
-        begin
-          TestContext := TTestContext.Create(Fixture.Name, Info.DisplayName);
-          // Combine TestContext with TestCaseValues
-          SetLength(InvokeArgs, Length(TestCaseValues) + 1);
-          InvokeArgs[0] := TValue.From<ITestContext>(TestContext);
-          for P := 0 to High(TestCaseValues) do
-            InvokeArgs[P + 1] := TestCaseValues[P];
-          Method.Invoke(Instance, InvokeArgs);
-        end
-        else if Length(TestCaseValues) > 0 then
-          Method.Invoke(Instance, TestCaseValues)
-        else
-          Method.Invoke(Instance, []);
-
-        Info.Result := trPassed;
-        // Note: Don't increment Passed here yet - wait until after TearDown
-
-        // Check MaxTime warning
-        MaxTime := GetMaxTime(Method);
-        if (MaxTime > 0) and (Stopwatch.ElapsedMilliseconds > MaxTime) then
-        begin
-          Info.ErrorMessage := Format('Test passed but exceeded MaxTime (%dms > %dms)',
-            [Stopwatch.ElapsedMilliseconds, MaxTime]);
-          Log.Warn('Test exceeded MaxTime: %s', [Info.ErrorMessage]);
-        end;
-      finally
-        // TearDown
-        if Assigned(Fixture.TearDownMethod) then
-          Fixture.TearDownMethod.Invoke(Instance, []);
-      end;
-      
-      // Only increment Passed after TearDown completes successfully
-      if Info.Result = trPassed then
-        Inc(FSummary.Passed);
-    except
-      on E: Exception do
-      begin
-        Info.Result := trFailed;
-        Info.ExceptionName := E.ClassName;
-        Info.ErrorMessage := E.Message;
-        // Try to get stack trace if available
-        Info.StackTrace := E.StackTrace;
-        Inc(FSummary.Failed);
-        // Log.Error('Failed Test: %s. Error: %s', [Info.DisplayName, E.Message]);
-      end;
+    // Check platform
+    if not ShouldRunOnPlatform(Method) then
+    begin
+      Info.Result := trSkipped;
+      Info.ErrorMessage := 'Platform not supported';
+      FSummary.Skipped := FSummary.Skipped + 1;
+      PrintResultChar(trSkipped);
+      PrintTestResult(Info);
+      NotifyTestComplete(Info);
+      if Assigned(FOnTestComplete) then
+        FOnTestComplete(Info);
+      Exit;
     end;
 
-    Stopwatch.Stop;
-    Info.Duration := Stopwatch.Elapsed;
+    // Repeat count
+    RepeatCount := GetRepeatCount(Method);
 
-    PrintResultChar(Info.Result);
-    PrintTestResult(Info);
+    for I := 1 to RepeatCount do
+    begin
+      Stopwatch := TStopwatch.StartNew;
+      try
+        // Setup
+        if Assigned(Fixture.SetupMethod) then
+          Fixture.SetupMethod.Invoke(Instance, []);
 
-    // Store result for report generation
-    if FTestResults = nil then
-      FTestResults := TCollections.CreateList<TTestInfo>;
-    FTestResults.Add(Info);
+        try
+          // Check if method needs ITestContext injection
+          Params := Method.GetParameters;
+          NeedsContext := False;
+          for P := 0 to High(Params) do
+          begin
+            if (Params[P].ParamType <> nil) and
+               (Params[P].ParamType.TypeKind = tkInterface) and
+               (Params[P].ParamType.Name = 'ITestContext') then
+            begin
+              NeedsContext := True;
+              Break;
+            end;
+          end;
 
-    NotifyTestComplete(Info);
-    if Assigned(FOnTestComplete) then
-      FOnTestComplete(Info);
-  end;
+          // Build invoke arguments
+          if NeedsContext then
+          begin
+            TestContext := TTestContext.Create(Fixture.Name, Info.DisplayName);
+            SetLength(InvokeArgs, Length(TestCaseValues) + 1);
+            InvokeArgs[0] := TValue.From<ITestContext>(TestContext);
+            for P := 0 to High(TestCaseValues) do
+              InvokeArgs[P + 1] := TestCaseValues[P];
+            Method.Invoke(Instance, InvokeArgs);
+          end
+          else if Length(TestCaseValues) > 0 then
+            Method.Invoke(Instance, TestCaseValues)
+          else
+            Method.Invoke(Instance, []);
+
+          Info.Result := trPassed;
+
+          // Check MaxTime warning
+          MaxTime := GetMaxTime(Method);
+          if (MaxTime > 0) and (Stopwatch.ElapsedMilliseconds > MaxTime) then
+          begin
+            Info.ErrorMessage := Format('Test passed but exceeded MaxTime (%dms > %dms)',
+              [Stopwatch.ElapsedMilliseconds, MaxTime]);
+            Log.Warn('Test exceeded MaxTime: %s', [Info.ErrorMessage]);
+          end;
+        finally
+          // TearDown
+          if Assigned(Fixture.TearDownMethod) then
+            Fixture.TearDownMethod.Invoke(Instance, []);
+        end;
+
+        if Info.Result = trPassed then
+          FSummary.Passed := FSummary.Passed + 1;
+      except
+        on E: Exception do
+        begin
+          Info.Result := trFailed;
+          Info.ExceptionName := E.ClassName;
+          Info.ErrorMessage := E.Message;
+          Info.StackTrace := E.StackTrace;
+          FSummary.Failed := FSummary.Failed + 1;
+        end;
+      end;
+
+      Stopwatch.Stop;
+      Info.Duration := Stopwatch.Elapsed;
+
+      PrintResultChar(Info.Result);
+      PrintTestResult(Info);
+
+      // Store result for report generation
+      if FTestResults = nil then
+        FTestResults := TCollections.CreateList<TTestInfo>;
+      FTestResults.Add(Info);
+
+      NotifyTestComplete(Info);
+      if Assigned(FOnTestComplete) then
+        FOnTestComplete(Info);
+    end;
   finally
     Scope.Dispose;
   end;
@@ -1660,12 +1703,12 @@ begin
   SafeWrite('  ' + ICON_FAIL + '  Failed:    '); TTestConsole.WriteFail(IntToStr(FSummary.Failed)); SafeWriteLn;
   SafeWrite('  ' + ICON_WARN + '   Skipped:   '); TTestConsole.WriteSkip(IntToStr(FSummary.Skipped)); SafeWriteLn;
   SafeWriteLn;
-  
+
   if FSummary.TotalDuration.TotalSeconds < 1 then
     SafeWriteLn(Format('  ' + ICON_TIMER + '   Duration:  %dms', [Round(FSummary.TotalDuration.TotalMilliseconds)]))
   else
     SafeWriteLn(Format('  ' + ICON_TIMER + '   Duration:  %.3fs', [FSummary.TotalDuration.TotalSeconds]));
-  
+
   SafeWrite('  ' + ICON_PASS_RT + '  Pass Rate: ');
   if PassPercent = 100 then
     TTestConsole.WritePass(Format('%.1f%%', [PassPercent]))
@@ -1684,6 +1727,25 @@ begin
     TTestConsole.WriteFail(Format('%d test(s) failed!', [FSummary.Failed]));
   end;
   SafeWriteLn;
+end;
+
+class function TTestRunner.GetActiveTestCount: Integer;
+var
+  Fixture: TTestFixtureInfo;
+  Method: TRttiMethod;
+begin
+  Result := 0;
+  if FFixtures = nil then Exit;
+
+  for Fixture in FFixtures do
+  begin
+    for Method in Fixture.TestMethods do
+    begin
+      if FFilter.Matches(Fixture.FixtureClass.UnitName, Fixture.FixtureClass.ClassName, 
+         Fixture.Name, Method.Name, GetCategories(Method), IsExplicit(Method), FSelectedTests) then
+        Inc(Result);
+    end;
+  end;
 end;
 
 class function TTestRunner.Summary: TTestSummary;
@@ -1726,13 +1788,13 @@ begin
   begin
     FFixtures := nil;
   end;
-  
+
   // Free test results list
   if FTestResults <> nil then
   begin
     FTestResults := nil;
   end;
-  
+
   FListeners := nil;
   FContext := Default(TRttiContext);
   FDiscoveryMode := False;
@@ -1746,7 +1808,7 @@ var
 begin
   if FFixtures = nil then
     FFixtures := TCollections.CreateObjectList<TTestFixtureInfo>(True);
-    
+
   // Check if already registered
   for Fixture in FFixtures do
     if Fixture.FixtureClass = AClass then
@@ -1754,15 +1816,15 @@ begin
 
   FContext := TRttiContext.Create;
   RttiType := FContext.GetType(AClass);
-  
+
   if RttiType = nil then
   begin
     Exit;
   end;
-    
+
   Fixture := TTestFixtureInfo.Create(RttiType);
   DiscoverTestMethods(Fixture);
-  
+
   if Fixture.TestMethods.Count > 0 then
   begin
     FFixtures.Add(Fixture);
@@ -1817,9 +1879,9 @@ begin
       end;
       Reporter.EndSuite;
     end;
-    
+
     Reporter.SaveToFile(FileName);
-    
+
     if FVerbosity > ovSilent then
       SafeWriteLn('📄 JUnit report saved: ' + FileName);
   finally
@@ -1852,9 +1914,9 @@ begin
       end;
       Reporter.EndSuite;
     end;
-    
+
     Reporter.SaveToFile(FileName);
-    
+
     if FVerbosity > ovSilent then
       SafeWriteLn('📄 JSON report saved: ' + FileName);
   finally
@@ -1886,9 +1948,9 @@ begin
       end;
       Reporter.EndSuite;
     end;
-    
+
     Reporter.SaveToFile(FileName);
-    
+
     if FVerbosity > ovSilent then
       SafeWriteLn('📄 xUnit report saved: ' + FileName);
   finally
@@ -1911,7 +1973,7 @@ begin
   Reporter := TTRXReporter.Create;
   try
     Reporter.BeginRun('Dext Test Run');
-    
+
     for Fixture in FFixtures do
     begin
       Reporter.BeginSuite(Fixture.Name);
@@ -1922,9 +1984,9 @@ begin
       end;
       Reporter.EndSuite;
     end;
-    
+
     Reporter.SaveToFile(FileName);
-    
+
     if FVerbosity > ovSilent then
       SafeWriteLn('📄 TRX report saved: ' + FileName);
   finally
@@ -1955,9 +2017,9 @@ begin
           Reporter.AddTestCase(TestInfo);
       end;
     end;
-    
+
     Reporter.SaveToFile(FileName);
-    
+
     if FVerbosity > ovSilent then
       SafeWriteLn('📄 SonarQube report saved: ' + FileName);
   finally
@@ -1980,7 +2042,7 @@ begin
   Reporter := THTMLReporter.Create;
   try
     Reporter.SetTitle('Dext Test Report');
-    
+
     for Fixture in FFixtures do
     begin
       Reporter.BeginSuite(Fixture.Name);
@@ -1991,9 +2053,9 @@ begin
       end;
       Reporter.EndSuite;
     end;
-    
+
     Reporter.SaveToFile(FileName);
-    
+
     if FVerbosity > ovSilent then
       SafeWriteLn('📄  HTML report saved: ' + FileName);
   finally
@@ -2076,61 +2138,71 @@ end;
 
 class procedure TTestRunner.NotifyRunStart(TotalTests: Integer);
 var
-  L: ITestListener;
+  Listener: ITestListener;
 begin
   if FListeners <> nil then
-    for L in FListeners do L.OnRunStart(TotalTests);
+    for Listener in FListeners do Listener.OnRunStart(TotalTests);
 end;
 
 class procedure TTestRunner.NotifyRunComplete(const Summary: TTestSummary);
 var
-  L: ITestListener;
+  Listener: ITestListener;
 begin
   if FListeners <> nil then
-    for L in FListeners do L.OnRunComplete(Summary);
+    for Listener in FListeners do Listener.OnRunComplete(Summary);
 end;
 
 class procedure TTestRunner.NotifyFixtureStart(const FixtureName: string; TestCount: Integer);
 var
-  L: ITestListener;
+  Listener: ITestListener;
 begin
   if FListeners <> nil then
-    for L in FListeners do L.OnFixtureStart(FixtureName, TestCount);
+    for Listener in FListeners do Listener.OnFixtureStart(FixtureName, TestCount);
 end;
 
 class procedure TTestRunner.NotifyFixtureComplete(const FixtureName: string);
 var
-  L: ITestListener;
+  Listener: ITestListener;
 begin
   if FListeners <> nil then
-    for L in FListeners do L.OnFixtureComplete(FixtureName);
+    for Listener in FListeners do Listener.OnFixtureComplete(FixtureName);
 end;
 
 class procedure TTestRunner.NotifyTestStart(const UnitName, Fixture, Test: string);
 var
-  L: ITestListener;
+  Listener: ITestListener;
 begin
   if FListeners <> nil then
-    for L in FListeners do L.OnTestStart(UnitName, Fixture, Test);
+    for Listener in FListeners do Listener.OnTestStart(UnitName, Fixture, Test);
 end;
 
 class procedure TTestRunner.NotifyTestComplete(const Info: TTestInfo);
 var
-  L: ITestListener;
+  Listener: ITestListener;
 begin
-
+  if Assigned(FOnTestComplete) then FOnTestComplete(Info);
   if FListeners <> nil then
-    for L in FListeners do L.OnTestComplete(Info);
+    for Listener in FListeners do
+      Listener.OnTestComplete(Info);
 end;
 
-class procedure TTestRunner.SetDiscoveryMode(AValue: Boolean);
+class procedure TTestRunner.NotifyTestsComplete(const TestInfos: TArray<TTestInfo>);
+var
+  Listener: ITestListener;
 begin
-  FDiscoveryMode := AValue;
+  if FListeners <> nil then
+    for Listener in FListeners do
+      Listener.OnTestsComplete(TestInfos);
 end;
 
-class procedure TTestRunner.SetSelectedTests(const ATests: TArray<string>);
+class procedure TTestRunner.SetDiscoveryMode(Value: Boolean);
 begin
-  FSelectedTests := ATests;
+  FDiscoveryMode := Value;
+end;
+
+class procedure TTestRunner.SetSelectedTests(const Tests: TArray<string>);
+begin
+  FSelectedTests := Tests;
 end;
 
 class function TTestRunner.IsDiscoveryMode: Boolean;
@@ -2151,21 +2223,21 @@ var
 begin
   Result := [];
   if FFixtures = nil then Exit;
-  
+
   Count := 0;
   for Fixture in FFixtures do
     Inc(Count, Fixture.TestMethods.Count);
-    
+
   SetLength(Result, Count);
   Count := 0;
-  
+
   for Fixture in FFixtures do
   begin
     for Method in Fixture.TestMethods do
     begin
       // Full path: Unit.Class.Method
-      Result[Count] := Fixture.FixtureClass.UnitName + '.' + 
-                       Fixture.FixtureClass.ClassName + '.' + 
+      Result[Count] := Fixture.FixtureClass.UnitName + '.' +
+                       Fixture.FixtureClass.ClassName + '.' +
                        Method.Name;
       Inc(Count);
     end;
@@ -2177,9 +2249,9 @@ begin
   Result := FIsTestInsightActive;
 end;
 
-class procedure TTestRunner.SetTestInsightActive(AValue: Boolean);
+class procedure TTestRunner.SetTestInsightActive(Value: Boolean);
 begin
-  FIsTestInsightActive := AValue;
+  FIsTestInsightActive := Value;
 end;
 
 initialization

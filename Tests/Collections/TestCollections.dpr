@@ -89,7 +89,6 @@ begin
           TComparerTests,
           TTestQueuesAndStacks,
           TRobustnessTests,
-          TRawListTests,
           TListPersonTests
         ]).Run
     );

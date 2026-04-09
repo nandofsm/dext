@@ -30,6 +30,7 @@ interface
 uses
 {$IFDEF MSWINDOWS}
   WinApi.Windows,
+  WinApi.TlHelp32,
 {$ENDIF}
   Dext.Core.Writers;
 
@@ -39,6 +40,22 @@ function ConsolePause: Boolean;
 procedure DebugLog(const AMessage: string);
 /// <summary>Sets the console output character set (UTF-8 by default).</summary>
 procedure SetConsoleCharSet(CharSet: Cardinal = 65001);
+
+/// <summary>
+///   Attaches the application to the console of the parent process (CMD/Powershell)
+///   or allocates a new console if none is available.
+/// </summary>
+procedure SafeAttachConsole;
+
+/// <summary>Writes a message to a diagnostic log file for framework debugging.</summary>
+procedure DiagnosticLog(const AMessage: string);
+/// <summary>Returns the name of the parent process (e.g. 'bds.exe', 'cmd.exe').</summary>
+function GetParentProcessName: string;
+
+/// <summary>Hides the console window immediately.</summary>
+procedure HideConsole;
+/// <summary>Hides the console window only if it was automatically created for this process.</summary>
+procedure HideConsoleIfAutocreated;
 
 /// <summary>
 ///   Checks if console output is available. Returns False for GUI applications
@@ -60,10 +77,14 @@ procedure SafeWrite(const AMessage: string);
 /// </summary>
 procedure InitializeDextWriter(ADextWriter:IDextWriter);
 
+var
+  DefaultConsoleCharset: Cardinal = 65001;
+
 implementation
 
 uses
-  System.SysUtils;
+  System.SysUtils,
+  System.SyncObjs;
 
 var
   ConsoleAvailable: Boolean = False;
@@ -89,22 +110,70 @@ begin
   Result := ConsoleAvailable;
 end;
 
+var
+  ConsoleLock: TCriticalSection;
+
+procedure InternalWriteToConsole(const Message: string);
+{$IFDEF MSWINDOWS}
+var
+  Handle: THandle;
+  Written: DWORD;
+  Mode: DWORD;
+  Utf8: TBytes;
+{$ENDIF}
+begin
+  if Message = '' then Exit;
+  
+  ConsoleLock.Enter;
+  try
+    {$IFDEF MSWINDOWS}
+    Handle := GetStdHandle(STD_OUTPUT_HANDLE);
+    if (Handle <> 0) and (Handle <> INVALID_HANDLE_VALUE) then
+    begin
+      // Check if it's a real console or a redirected pipe/file
+      if GetConsoleMode(Handle, Mode) then
+      begin
+        // It's a real console - Use Unicode Native Writing (handles emojis perfectly)
+        WriteConsoleW(Handle, PWideChar(Message), Length(Message), Written, nil);
+      end
+      else
+      begin
+        // It's a pipe/file - Use Binary UTF-8 Writing
+        Utf8 := TEncoding.UTF8.GetBytes(Message);
+        if Length(Utf8) > 0 then
+          WriteFile(Handle, Utf8[0], Length(Utf8), Written, nil);
+      end;
+    end;
+    {$ELSE}
+    Write(Message);
+    {$ENDIF}
+  finally
+    ConsoleLock.Leave;
+  end;
+end;
+
 procedure SafeWriteLn(const AMessage: string);
 begin
-  if Assigned(CurrentDextWriter) then
-    CurrentDextWriter.SafeWriteln(aMessage);
+  if IsConsoleAvailable then
+    InternalWriteToConsole(AMessage + sLineBreak)
+  else if Assigned(CurrentDextWriter) then
+    CurrentDextWriter.SafeWriteln(AMessage);
 end;
 
 procedure SafeWriteLn;
 begin
-  if Assigned(CurrentDextWriter) then
+  if IsConsoleAvailable then
+    InternalWriteToConsole(sLineBreak)
+  else if Assigned(CurrentDextWriter) then
     CurrentDextWriter.SafeWriteln('');
 end;
 
 procedure SafeWrite(const AMessage: string);
 begin
-  if Assigned(CurrentDextWriter) then
-    CurrentDextWriter.SafeWrite(aMessage);
+  if IsConsoleAvailable then
+    InternalWriteToConsole(AMessage)
+  else if Assigned(CurrentDextWriter) then
+    CurrentDextWriter.SafeWrite(AMessage);
 end;
 
 function ConsolePause: Boolean;
@@ -115,7 +184,7 @@ begin
     {$WARN SYMBOL_PLATFORM OFF}
     if IsConsoleAvailable {$IFDEF MSWINDOWS}and (DebugHook <> 0){$ENDIF} then
     begin
-      System.Write(sLineBreak, 'Press <ENTER> to continue...');
+      SafeWrite(sLineBreak + 'Press <ENTER> to continue...');
       System.ReadLn;
     end;
     {$WARN SYMBOL_PLATFORM ON}
@@ -133,7 +202,138 @@ end;
 procedure SetConsoleCharSet(CharSet: Cardinal);
 begin
   {$IFDEF MSWINDOWS}
-  SetConsoleOutputCP(65001);
+  // Setup both Output and Input to specified Charset (UTF-8 = 65001)
+  SetConsoleOutputCP(CharSet);
+  SetConsoleCP(CharSet);
+  
+  // Enable Virtual Terminal Processing (for emojis and colors in modern terminals)
+  var Handle := GetStdHandle(STD_OUTPUT_HANDLE);
+  var Mode: DWORD;
+  if (Handle <> 0) and (Handle <> INVALID_HANDLE_VALUE) then
+  begin
+    if GetConsoleMode(Handle, Mode) then
+      SetConsoleMode(Handle, Mode or $0004); // ENABLE_VIRTUAL_TERMINAL_PROCESSING
+  end;
+  {$ENDIF}
+end;
+
+procedure SafeAttachConsole;
+begin
+  {$IFDEF MSWINDOWS}
+  if not IsConsoleAvailable then
+  begin
+    DiagnosticLog('SafeAttachConsole: Console not available, attempting attach/alloc. Parent: ' + GetParentProcessName);
+    // ATTACH_PARENT_PROCESS = -1
+    // If we can't attach to parent, we MUST allocate a new one (important for Explorer/F9)
+    if AttachConsole(DWORD(-1)) or (AllocConsole) then
+    begin
+       // 1. Tell Delphi RTL we are in console mode now
+       System.IsConsole := True;
+
+      ConsoleChecked := False; // Force re-check
+      ConsoleAvailable := True; 
+      
+      SetConsoleCharSet(DefaultConsoleCharset);
+      
+      // If we are overriding the writer, only do it if it was TNullWriter or TConsoleWriter
+      if (CurrentDextWriter is TNullWriter) then
+         InitializeDextWriter(nil); 
+         
+      DiagnosticLog('SafeAttachConsole: SUCCESS. Handles rebound and CharSet set.');
+    end
+    else
+      DiagnosticLog('SafeAttachConsole: FAILED to attach or allocate.');
+  end;
+  {$ENDIF}
+end;
+
+procedure DiagnosticLog(const AMessage: string);
+begin
+  try
+    var LogFile := ChangeFileExt(ParamStr(0), '.diag.log');
+    var F: TextFile;
+    AssignFile(F, LogFile);
+    if FileExists(LogFile) then
+      Append(F)
+    else
+      Rewrite(F);
+    try
+      Writeln(F, FormatDateTime('yyyy-mm-dd hh:nn:ss.zzz', Now) + ' [' + GetParentProcessName + '] ' + AMessage);
+    finally
+      CloseFile(F);
+    end;
+  except
+    // Silent fail for diagnostics
+  end;
+end;
+
+function GetParentProcessName: string;
+{$IFDEF MSWINDOWS}
+var
+  Handle: THandle;
+  ProcessEntry: TProcessEntry32;
+  ParentID: DWORD;
+  MyID: DWORD;
+begin
+  Result := 'unknown';
+  MyID := GetCurrentProcessId;
+  ParentID := 0;
+  
+  Handle := CreateToolhelp32Snapshot(TH32CS_SNAPPROCESS, 0);
+  if Handle <> INVALID_HANDLE_VALUE then
+  begin
+    try
+      ProcessEntry.dwSize := SizeOf(TProcessEntry32);
+      if Process32First(Handle, ProcessEntry) then
+      begin
+        repeat
+          if ProcessEntry.th32ProcessID = MyID then
+          begin
+            ParentID := ProcessEntry.th32ParentProcessID;
+            Break;
+          end;
+        until not Process32Next(Handle, ProcessEntry);
+      end;
+      
+      if ParentID <> 0 then
+      begin
+        if Process32First(Handle, ProcessEntry) then
+        begin
+          repeat
+            if ProcessEntry.th32ProcessID = ParentID then
+            begin
+              Result := LowerCase(ProcessEntry.szExeFile);
+              Break;
+            end;
+          until not Process32Next(Handle, ProcessEntry);
+        end;
+      end;
+    finally
+      CloseHandle(Handle);
+    end;
+  end;
+end;
+{$ELSE}
+begin
+  Result := 'non-windows';
+end;
+{$ENDIF}
+
+procedure HideConsole;
+begin
+  {$IFDEF MSWINDOWS}
+  var ConsoleWnd := GetConsoleWindow;
+  if ConsoleWnd <> 0 then
+    ShowWindow(ConsoleWnd, SW_HIDE);
+  {$ENDIF}
+end;
+
+procedure HideConsoleIfAutocreated;
+begin
+  {$IFDEF MSWINDOWS}
+  var ConsoleProcessList: array[0..1] of DWORD;
+  if GetConsoleProcessList(@ConsoleProcessList[0], 2) = 1 then
+    HideConsole;
   {$ENDIF}
 end;
 
@@ -154,7 +354,12 @@ begin
 end;
 
 initialization
+  ConsoleLock := TCriticalSection.Create;
+  SetConsoleCharSet(DefaultConsoleCharset);
   InitializeDextWriter(Nil);
+
+finalization
+  ConsoleLock.Free;
 
 end.
 

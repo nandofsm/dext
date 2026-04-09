@@ -32,6 +32,7 @@ type
     procedure OnFixtureComplete(const FixtureName: string);
     procedure OnTestStart(const UnitName, Fixture, Test: string);
     procedure OnTestComplete(const Info: TTestInfo);
+    procedure OnTestsComplete(const InfoArray: TArray<TTestInfo>);
   end;
 
 implementation
@@ -137,6 +138,14 @@ begin
    else
      CacheLog(Format('{"event": "TestComplete", "fixture": "%s", "test": "%s", "status": "%s", "duration": %d}', 
        [Info.FixtureName, Info.TestName, Status, Round(Info.Duration.TotalMilliseconds)]));
+end;
+
+procedure TTelemetryTestListener.OnTestsComplete(const InfoArray: TArray<TTestInfo>);
+var
+  Info: TTestInfo;
+begin
+  for Info in InfoArray do
+    OnTestComplete(Info);
 end;
 
 end.

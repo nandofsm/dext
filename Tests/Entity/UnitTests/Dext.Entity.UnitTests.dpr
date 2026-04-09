@@ -28,6 +28,9 @@ uses
   Dext.Entity.ReportedIssues.Tests in 'Dext.Entity.ReportedIssues.Tests.pas';
 
 begin
+  {$IFDEF TESTINSIGHT}
+  HideConsoleIfAutocreated;
+  {$ENDIF}
   SetConsoleCharSet();
   try
     SafeWriteLn;
@@ -37,7 +40,9 @@ begin
 
     RunTests(ConfigureTests
       .VeryVerbose
-      //.UseTestInsight
+      {$IFDEF TESTINSIGHT}
+      .UseTestInsight
+      {$ENDIF}
       .RegisterFixtures([
         TCalculatedFieldsTests,
         TDataSetSmartTypesTests,

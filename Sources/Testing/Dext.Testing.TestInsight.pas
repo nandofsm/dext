@@ -35,6 +35,8 @@ interface
 uses
   System.SysUtils,
   Dext.Testing.Runner,
+  System.SyncObjs,
+  System.Generics.Collections,
   TestInsight.Client;
 
 type
@@ -44,6 +46,8 @@ type
   TTestInsightListener = class(TInterfacedObject, ITestListener)
   private
     FClient: ITestInsightClient;
+    FFinishedEvent: TEvent;
+    FEnabled: Boolean;
     function TryPost(const AResult: TTestInsightResult): Boolean;
 
   public
@@ -56,8 +60,13 @@ type
     procedure OnFixtureComplete(const FixtureName: string);
     procedure OnTestStart(const UnitName, Fixture, Test: string);
     procedure OnTestComplete(const Info: TTestInfo);
+    procedure OnTestsComplete(const InfoArray: TArray<TTestInfo>);
     
     function GetSelectedTests: TArray<string>;
+    function GetOptions: TTestInsightOptions;
+    function WaitForCompletion(Timeout: Cardinal): TWaitResult;
+    property Enabled: Boolean read FEnabled;
+    destructor Destroy; override;
   end;
 
 implementation
@@ -65,17 +74,64 @@ implementation
 uses
   Dext.Utils;
 
-{ TTestInsightListener }
-
 constructor TTestInsightListener.Create(const ABaseUrl: string);
 begin
   inherited Create;
-  TTestRunner.SetTestInsightActive(True);
   
+  // 1. Process Precedence Check (Optimization: Don't even try network if not in IDE)
+  var ParentProcess := GetParentProcessName;
+  var IsManualActivation := FindCmdLineSwitch('X', ['-', '/'], True) or 
+                           FindCmdLineSwitch('TestInsight', ['-', '/'], True);
+                           
+  if (not IsManualActivation) and (ParentProcess <> 'bds.exe') then
+  begin
+     DiagnosticLog('TTestInsightListener: Suppression! Parent is ' + ParentProcess + '. Hardware handshake skipped.');
+     FEnabled := False;
+     FFinishedEvent := TEvent.Create(nil, True, False, ''); // Needs to exist for WaitForCompletion even if disabled
+     Exit;
+  end;
+
+  // Set the global flag EARLY so the runner knows we are in TestInsight mode
+  TTestRunner.SetTestInsightActive(True);
+
+  // 2. Network Handshake (only if we are likely in the IDE)
   if ABaseUrl = '' then
     FClient := TTestInsightRestClient.Create('http://localhost:8102/')
   else
     FClient := TTestInsightRestClient.Create(ABaseUrl);
+
+  FEnabled := (FClient <> nil) and (not FClient.HasError);
+  
+  if FEnabled then
+  begin
+    try
+       DiagnosticLog('TTestInsightListener: Parent is ' + ParentProcess + '. Attempting IDE handshake...');
+       FClient.Options; 
+       FEnabled := True;
+       TTestRunner.SetTestInsightActive(True);
+       DiagnosticLog('TTestInsightListener: Handshake SUCCESS.');
+    except
+       on E: Exception do
+       begin
+         FEnabled := False;
+         DiagnosticLog('TTestInsightListener: Handshake FAILED: ' + E.Message);
+         TTestRunner.SetTestInsightActive(False);
+       end;
+    end;
+  end;
+
+  FFinishedEvent := TEvent.Create(nil, True, False, '');
+  
+  if FEnabled then
+  begin
+    // Handshake will happen on OnRunStart
+  end;
+end;
+
+destructor TTestInsightListener.Destroy;
+begin
+  FFinishedEvent.Free;
+  inherited;
 end;
 
 function TTestInsightListener.TryPost(const AResult: TTestInsightResult): Boolean;
@@ -92,15 +148,20 @@ end;
 
 procedure TTestInsightListener.OnRunStart(TotalTests: Integer);
 begin
-  // No reporting needed here for current plugin versions
+  if FEnabled then
+    FClient.StartedTesting(TotalTests);
 end;
 
 procedure TTestInsightListener.OnRunComplete(const Summary: TTestSummary);
 begin
   try
-    FClient.FinishedTesting;
-  except
-    on E: Exception do;
+    if FEnabled then
+    begin
+      FClient.FinishedTesting;
+    end;
+  finally
+    if FFinishedEvent <> nil then
+      FFinishedEvent.SetEvent;
   end;
 end;
 
@@ -119,9 +180,16 @@ var
   TestResult: TTestInsightResult;
   LPath: string;
 begin
-  { Path MUST match UnitName.ClassName for the IDE to find the node }
+  { Silence during Discovery Mode to avoid overwhelming the IDE }
+  if TTestRunner.IsDiscoveryMode then
+    Exit;
+
+  if not FEnabled then
+    Exit;
+
   LPath := UnitName + '.' + Fixture;
   
+  { Send "Running" status so the IDE can show the progress bar and highlight the active test }
   TestResult := TTestInsightResult.Create(TResultType.Running, Test, Fixture);
   TestResult.ClassName := Fixture;
   TestResult.UnitName := UnitName;
@@ -137,16 +205,23 @@ var
   TestResult: TTestInsightResult;
   LPath: string;
 begin
+  // Removed suppression to ensure TotalTests count matches reported results
+  // if (Info.Result = trSkipped) and (Info.ErrorMessage = 'Not in selection') then
+  //   Exit;
+
   case Info.Result of
     trPassed:  ResultType := TResultType.Passed;
     trFailed:  ResultType := TResultType.Failed;
     trError:   ResultType := TResultType.Error;
     trSkipped: ResultType := TResultType.Skipped;
+    trTimeout: ResultType := TResultType.Error;
   else
     ResultType := TResultType.Error;
   end;
 
-  LPath := Info.UnitName + '.' + Info.ClassName;
+  LPath := Info.UnitName + '.' + Info.FixtureName;
+
+  DiagnosticLog(Format('TTestInsightListener.OnTestComplete: %s | Result: %d | Path: %s', [Info.DisplayName, Ord(Info.Result), LPath]));
 
   TestResult := TTestInsightResult.Create(ResultType, Info.DisplayName, Info.ClassName);
   TestResult.Duration := Trunc(Info.Duration.TotalMilliseconds);
@@ -158,7 +233,7 @@ begin
   { Attempt to get line numbers if a provider (JCL/MadExcept) is available }
   GetExtendedDetails(Info.CodeAddress, TestResult);
   
-  if Info.Result in [trFailed, trError] then
+  if Info.Result in [trFailed, trError, trTimeout] then
   begin
     TestResult.ExceptionMessage := Info.ErrorMessage;
     TestResult.Status := Info.StackTrace;
@@ -169,16 +244,66 @@ begin
     TestResult.Status := Info.ErrorMessage;
   end;
 
-  TryPost(TestResult);
+  if FEnabled then
+  begin
+    TryPost(TestResult);
+  end;
+end;
+
+procedure TTestInsightListener.OnTestsComplete(const InfoArray: TArray<TTestInfo>);
+var
+  Results: TList<TTestInsightResult>;
+  Info: TTestInfo;
+begin
+  if (not FEnabled) or (Length(InfoArray) = 0) then Exit;
+  
+  Results := TList<TTestInsightResult>.Create;
+  try
+    for Info in InfoArray do
+    begin
+       var TestResult := TTestInsightResult.Create(TResultType.Skipped, Info.DisplayName, Info.ClassName);
+       TestResult.ClassName := Info.ClassName;
+       TestResult.UnitName := Info.UnitName;
+       TestResult.Path := Info.UnitName + '.' + Info.FixtureName;
+       Results.Add(TestResult);
+    end;
+    
+    DiagnosticLog(Format('TTestInsightListener.OnTestsComplete: Sending batch of %d results.', [Results.Count]));
+    FClient.PostResults(Results.ToArray, False);
+  finally
+    Results.Free;
+  end;
 end;
 
 function TTestInsightListener.GetSelectedTests: TArray<string>;
 begin
+  Result := [];
+  if not FEnabled then Exit;
+  
   try
     Result := FClient.GetTests;
   except
     on E: Exception do Result := [];
   end;
+end;
+
+function TTestInsightListener.GetOptions: TTestInsightOptions;
+begin
+  if FEnabled then
+    Result := FClient.Options
+  else
+  begin
+    Result.ExecuteTests := True;
+    Result.ShowProgress := True;
+  end;
+end;
+
+function TTestInsightListener.WaitForCompletion(Timeout: Cardinal): TWaitResult;
+begin
+  if (not FEnabled) or (FFinishedEvent = nil) then
+    Exit(wrSignaled);
+    
+  Result := FFinishedEvent.WaitFor(Timeout);
 end;
 
 end.

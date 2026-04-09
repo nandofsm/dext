@@ -7,18 +7,18 @@ uses
 
 type
   IDextWriter = interface
-    procedure SafeWriteLn(const aMessage:String);
-    procedure SafeWrite(const aMessage:String);
+    ['{99A70BF2-FF09-4501-B91D-3D02C9A9B835}']
+    procedure SafeWriteLn(const Text: string);
+    procedure SafeWrite(const Text: string);
   end;
 
-type
   /// <Summary>
   ///  Use to ignore all SafeWrites
   /// </Summary>
-  TNullWriter = class(TInterfacedObject,IDextWriter)
+  TNullWriter = class(TInterfacedObject, IDextWriter)
   private
-    procedure SafeWriteLn(const aMessage:String);
-    procedure SafeWrite(const aMessage:String);
+    procedure SafeWriteLn(const Text: string);
+    procedure SafeWrite(const Text: string);
   end;
 
   /// <Summary>
@@ -27,8 +27,8 @@ type
   /// </Summary>
   TConsoleWriter = class(TInterfacedObject,IDextWriter)
   private
-    procedure SafeWriteLn(const aMessage:String);
-    procedure SafeWrite(const aMessage:String);
+    procedure SafeWriteLn(const Text:string);
+    procedure SafeWrite(const Text:string);
   end;
 
   {$IFDEF MSWINDOWS}
@@ -37,11 +37,11 @@ type
   ///  There will generally be a delay, so partial writes are held in memory
   ///  until the next SafeWriteln.
   /// </Summary>
-  TWindowsDebugWriter = class(TInterfacedObject,IDextWriter)
+  TWindowsDebugWriter = class(TInterfacedObject, IDextWriter)
   private
-    fPartial : string;
-    procedure SafeWriteLn(const aMessage:String);
-    procedure SafeWrite(const aMessage:String);
+    FPartial : string;
+    procedure SafeWriteLn(const Text: string);
+    procedure SafeWrite(const Text: string);
   public
     constructor Create;
   end;
@@ -53,17 +53,17 @@ type
   ///  TStringsWriter.Create(Memo1.Lines); Just be sure to call
   ///  InitializeDextWriter(nil) or InitializeDextWriter(TStringsWriter.Create(Nil))
   ///  when destroying the form to avoid an Access Violation if SafeWrite is called
-  ///  after the destruction of the fStrings
+  ///  after the destruction of the FStrings
   /// </Summary>
-  TStringsWriter = class(TInterfacedObject,IDextWriter)
+  TStringsWriter = class(TInterfacedObject, IDextWriter)
   private
-    fStrings : TStrings;
-    fPartial : String;
-    procedure _UpdateStrings(const aMessage:String;Newline:Boolean);
-    procedure SafeWriteLn(const aMessage:String);
-    procedure SafeWrite(const aMessage:String);
+    FStrings : TStrings;
+    FPartial : string;
+    procedure _UpdateStrings(const Text: string; Newline: Boolean);
+    procedure SafeWriteLn(const Text: string);
+    procedure SafeWrite(const Text: string);
   public
-    constructor Create(aStrings:TStrings);
+    constructor Create(Strings:TStrings);
   end;
 
 implementation
@@ -76,31 +76,31 @@ uses
 
 { TNullWriter }
 
-procedure TNullWriter.SafeWrite(const aMessage: String);
+procedure TNullWriter.SafeWrite(const Text: string);
 begin
   // do nothing but eat the message
 end;
 
-procedure TNullWriter.SafeWriteLn(const aMessage: String);
+procedure TNullWriter.SafeWriteLn(const Text: string);
 begin
   // do nothing but eat the message
 end;
 
 { TConsoleWriter }
 
-procedure TConsoleWriter.SafeWrite(const aMessage: String);
+procedure TConsoleWriter.SafeWrite(const Text: string);
 begin
   try
-    Write(aMessage);
+    Write(Text);
   except
     // Silently ignore I/O errors
   end;
 end;
 
-procedure TConsoleWriter.SafeWriteLn(const aMessage: String);
+procedure TConsoleWriter.SafeWriteLn(const Text: string);
 begin
   try
-    WriteLn(aMessage);
+    WriteLn(Text);
   except
     // Silently ignore I/O errors
   end;
@@ -112,25 +112,25 @@ end;
 constructor TWindowsDebugWriter.Create;
 begin
   Inherited create;
-  fPartial := '';
+  FPartial := '';
 end;
 
-procedure TWindowsDebugWriter.SafeWrite(const aMessage: String);
+procedure TWindowsDebugWriter.SafeWrite(const Text: string);
 begin
   TMonitor.enter(Self);
   try
-    fPartial := fPartial + aMessage;
+    FPartial := FPartial + Text;
   finally
     TMonitor.Exit(Self);
   end;
 end;
 
-procedure TWindowsDebugWriter.SafeWriteLn(const aMessage: String);
+procedure TWindowsDebugWriter.SafeWriteLn(const Text: string);
 begin
   TMonitor.Enter(Self);
   try
-    OutputDebugString(PWideChar(fPartial + aMessage));
-    fPartial := '';
+    OutputDebugString(PWideChar(FPartial + Text));
+    FPartial := '';
   finally
     TMonitor.Exit(Self);
   end;
@@ -139,43 +139,42 @@ end;
 
 { TStringsWriter }
 
-constructor TStringsWriter.Create(aStrings: TStrings);
+constructor TStringsWriter.Create(Strings: TStrings);
 begin
   Inherited Create;
-  fStrings := aStrings;
-  fStrings.Options := fStrings.Options - [ soTrailingLineBreak ];
-  fPartial := '';
+  FStrings := Strings;
+  FStrings.Options := FStrings.Options - [ soTrailingLineBreak ];
+  FPartial := '';
 end;
 
-procedure TStringsWriter.SafeWrite(const aMessage: String);
+procedure TStringsWriter.SafeWrite(const Text: string);
 begin
-  if assigned(fStrings) then
-    _UpdateStrings(aMessage,False);
+  if Assigned(FStrings) then
+    _UpdateStrings(Text,False);
 end;
 
-procedure TStringsWriter.SafeWriteLn(const aMessage: String);
+procedure TStringsWriter.SafeWriteLn(const Text: string);
 begin
-  if assigned(fStrings) then
-    _UpdateStrings(aMessage,True);
-  fPartial := '';
+  if Assigned(FStrings) then
+    _UpdateStrings(Text,True);
+  FPartial := '';
 end;
 
-procedure TStringsWriter._UpdateStrings(const aMessage: String;
-  Newline: Boolean);
+procedure TStringsWriter._UpdateStrings(const Text: string; Newline: Boolean);
 begin
-  TMonitor.Enter(fStrings);
+  TMonitor.Enter(FStrings);
   try
-    fStrings.BeginUpdate;
-    fPartial := fPartial + aMessage;
-    if fStrings.Count = 0 then
-      fStrings.Text := fPartial
+    FStrings.BeginUpdate;
+    FPartial := FPartial + Text;
+    if FStrings.Count = 0 then
+      FStrings.Text := FPartial
     else
-      fStrings.Strings[fStrings.Count -1] := fPartial;
+      FStrings.Strings[FStrings.Count -1] := FPartial;
     if NewLine then
-      fStrings.add('');
+      FStrings.add('');
   finally
-    fStrings.EndUpdate;
-    TMonitor.Exit(fStrings);
+    FStrings.EndUpdate;
+    TMonitor.Exit(FStrings);
   end;
 end;
 

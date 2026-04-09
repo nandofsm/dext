@@ -1,4 +1,4 @@
-﻿{***************************************************************************}
+{***************************************************************************}
 {           Dext Framework                                                  }
 {           Copyright (C) 2025 Cesar Romero & Dext Contributors             }
 {***************************************************************************}
@@ -45,6 +45,13 @@ type
 
 implementation
 
+uses
+  {$IFDEF MSWINDOWS}
+  Winapi.Windows,
+  {$ENDIF}
+  System.StrUtils,
+  Dext.Utils;
+
 { TConsoleSink }
 
 procedure TConsoleSink.Emit(const Entry: TLogEntry);
@@ -67,9 +74,9 @@ begin
   // Format with TraceId: [HH:MM:SS INF] [TraceId] Message
   
   if not Entry.TraceId.IsEmpty then
-    WriteLn(Format('[%s %s] [%s] %s', [FormatDateTime('HH:nn:ss.zzz', Entry.TimeStamp), Lvl, Entry.TraceId.ToString, Entry.FormattedMessage]))
+    SafeWriteLn(Format('[%s %s] [%s] %s', [FormatDateTime('HH:nn:ss.zzz', Entry.TimeStamp), Lvl, Entry.TraceId.ToString, Entry.FormattedMessage]))
   else
-    WriteLn(Format('[%s %s] %s', [FormatDateTime('HH:nn:ss.zzz', Entry.TimeStamp), Lvl, Entry.FormattedMessage]));
+    SafeWriteLn(Format('[%s %s] %s', [FormatDateTime('HH:nn:ss.zzz', Entry.TimeStamp), Lvl, Entry.FormattedMessage]));
 end;
 
 procedure TConsoleSink.Flush;

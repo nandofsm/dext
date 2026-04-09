@@ -31,8 +31,9 @@ unit Dext.Testing.Host;
 interface
 
 uses
-  System.SysUtils,
   System.Classes,
+  System.SyncObjs,
+  System.SysUtils,
   Dext.Testing.Fluent,
   Dext.Testing.Runner;
 
@@ -41,7 +42,7 @@ type
   TTestHost = class
   public
     /// <summary>Executes the test suite with a specific configuration.</summary>
-    class procedure Execute(const AConfig: TTestConfigurator); overload;
+    class procedure Execute(const Config: TTestConfigurator); overload;
     /// <summary>Executes the tests using the detected default settings.</summary>
     class procedure Execute; overload;
   end;
@@ -53,7 +54,6 @@ implementation
 
 uses
   {$IFDEF MSWINDOWS}
-  Vcl.Forms,
   Winapi.Windows,
   {$ENDIF}
   System.IOUtils,
@@ -71,8 +71,6 @@ begin
   TTestHost.Execute;
 end;
 
-
-
 { TTestHost }
 
 class procedure TTestHost.Execute;
@@ -80,106 +78,119 @@ begin
   Execute(TTest.Configure);
 end;
 
-class procedure TTestHost.Execute(const AConfig: TTestConfigurator);
+class procedure TTestHost.Execute(const Config: TTestConfigurator);
 var
   IsUI: Boolean;
-  Config: TTestConfigurator;
-  i: Integer;
+  Index: Integer;
   LogFile: string;
   LogStrings: TStringList;
   IsLogEnabled: Boolean;
+  ParentProcess: string;
 begin
-  SetConsoleCharSet;
+  ParentProcess := GetParentProcessName;
   
+  // 1. Detect parameters first
+  IsLogEnabled := False;
+  LogFile := '';
+  IsUI := False;
+  
+  for Index := 1 to ParamCount do
+  begin
+    var P := ParamStr(Index);
+    // Detect Log
+    if (CompareText(P, '/log') = 0) or (CompareText(P, '-log') = 0) then
+    begin
+      IsLogEnabled := True;
+      LogFile := ChangeFileExt(ParamStr(0), '.log');
+    end;
+    // Detect TestInsight
+    if (CompareText(P, '/X') = 0) or (CompareText(P, '-X') = 0) or 
+       (CompareText(P, '/TestInsight') = 0) then
+    begin
+      TTestRunner.SetTestInsightActive(True);
+      IsUI := True;
+    end;
+  end;
+
+  // 2. Decide if we need UI or Console and Setup Environment
+  {$IFDEF MSWINDOWS}
+  // Auto-detect UI if configured and running inside IDE
+  if (not IsUI) and Config.IsTestInsightActive and (ParentProcess = 'bds.exe') then
+  begin
+    IsUI := True;
+    TTestRunner.SetTestInsightActive(True);
+  end;
+
+  if not IsUI then
+    SafeAttachConsole;
+  {$ENDIF}
+
+  // 3. Setup Logging if requested
   LogStrings := TStringList.Create;
   try
-    IsLogEnabled := False;
-    LogFile := '';
-    
-    // Detect parameters
-    for i := 1 to ParamCount do
-    begin
-      var P := ParamStr(i);
-      if (CompareText(P, '/log') = 0) or (CompareText(P, '-log') = 0) then
-      begin
-        IsLogEnabled := True;
-        LogFile := ChangeFileExt(ParamStr(0), '.log');
-      end;
-    end;
-
     if IsLogEnabled then
     begin
-      // Force Dext to write to our string list for persistence in background
       InitializeDextWriter(TStringsWriter.Create(LogStrings));
       SafeWriteLn('--- DEXT TEST HOST LOG STARTED: ' + DateTimeToStr(Now) + ' ---');
       SafeWriteLn('CmdLine: ' + GetCommandLine);
     end;
 
-    Config := AConfig;
-    IsUI := False;
+    DiagnosticLog('Execute: Start. Parent=' + ParentProcess);
     
-    // Detect TestInsight from command line
-    for i := 1 to ParamCount do
-    begin
-      var P := ParamStr(i);
-      if (CompareText(P, '/X') = 0) or (CompareText(P, '-X') = 0) or 
-         (CompareText(P, '/TestInsight') = 0) then
-      begin
-        TTestRunner.SetTestInsightActive(True);
-        IsUI := True;
-        Break;
-      end;
-    end;
-
-    if not IsUI then
-      IsUI := Config.IsTestInsightActive;
-
     {$IFDEF MSWINDOWS}
     if IsUI then
     begin
-      if not Assigned(Application) then
-        Application.Initialize;
-        
-      var Listener := TTestInsightListener.Create;
+      DiagnosticLog('Execute: Testing UI/TestInsight Mode. IsUI=' + BoolToStr(IsUI, True));
+      
+      var ListenerObj := TTestInsightListener.Create;
+      var Listener: ITestListener := ListenerObj; 
       TTestRunner.RegisterListener(Listener);
       
-      var Selected := Listener.GetSelectedTests;
-      if (Length(Selected) = 0) and TTestRunner.IsTestInsightActive then
+      if not ListenerObj.Enabled then
       begin
-        // If no selection from IDE, it is a "Run All" command.
-        // We auto-select all tests to avoid IDE tree collapse.
-        var FixtureClasses := Config.GetFixtureClasses;
-        if Length(FixtureClasses) > 0 then
-          TTestRunner.RegisterFixture(FixtureClasses)
+        DiagnosticLog('Execute: TestInsight Listener NOT enabled. Falling back to console.');
+        SafeAttachConsole;
+        SafeWriteLn('Dext Test Host - Console Fallback Mode');
+        Config.Run;
+      end
+      else
+      begin
+        DiagnosticLog('Execute: TestInsight Active.');
+        var InsightOptions := ListenerObj.GetOptions;
+        if not InsightOptions.ExecuteTests then
+        begin
+          TTestRunner.SetDiscoveryMode(True);
+          Config.Run;
+        end
         else
-          TTestRunner.Discover;
-          
-        Selected := TTestRunner.GetAllTestPaths;
-      end;
+        begin
+          var Selected := ListenerObj.GetSelectedTests;
+          if (Length(Selected) > 0) then
+          begin
+            TTestRunner.SetSelectedTests(Selected);
+            Config.Run;
+          end
+          else if TTestRunner.IsTestInsightActive then
+            TTestRunner.RunAll
+          else
+            Config.Run;
+        end;
 
-      if Length(Selected) > 0 then
-      begin
-        Config.FilterBySelection(Selected);
-      end;
-
-      Config.Run;
-      
-      var WaitCycles := 10;
-      if TTestRunner.IsDiscoveryMode then
-        WaitCycles := 60; // 3 seconds for discovery
-        
-      for i := 1 to WaitCycles do
-      begin
-        Application.ProcessMessages;
-        Sleep(50);
+        // Wait for completion
+        var StartTime := GetTickCount;
+        while (ListenerObj.WaitForCompletion(100) = wrTimeout) and (GetTickCount - StartTime < 30000) do
+          Sleep(10); 
       end;
     end
     else
     {$ENDIF}
     begin
+      DiagnosticLog('Execute: Native Console Mode.');
+      SafeWriteLn('Dext Test Host - Console Mode');
       Config.Run;
     end;
     
+    // Set exit code based on failure
     if TTestRunner.Summary.Failed > 0 then
       ExitCode := 1
     else
@@ -189,17 +200,19 @@ begin
     begin
       SafeWriteLn('--- DEXT TEST HOST LOG FINISHED (Summary: Fixtures=' + 
         TTestRunner.FixtureCount.ToString + ', Tests=' + TTestRunner.TestCount.ToString + ') ---');
-
       try
         LogStrings.SaveToFile(LogFile, TEncoding.UTF8);
       except
-        // ignore
       end;
     end;
   finally
-    LogStrings.Free;
-    // Restore default writer to prevent AV on exit if LogStrings is gone
+    // Pause if not CI/No-Wait
+    if IsConsoleAvailable and not FindCmdLineSwitch('no-wait', ['-', '\'], True) then
+      ConsolePause;
+    
+    // Crucial: Set writer to Nil before freeing the memory it points to!
     InitializeDextWriter(Nil);
+    LogStrings.Free;
   end;
 end;
 
