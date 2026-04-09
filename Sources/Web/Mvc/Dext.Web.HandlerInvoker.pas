@@ -1,4 +1,4 @@
-{***************************************************************************}
+﻿{***************************************************************************}
 {                                                                           }
 {           Dext Framework                                                  }
 {                                                                           }
@@ -491,7 +491,7 @@ begin
     end;
   end;
 
-  // ? VALIDATION: Validate all record parameters
+  // VALIDATION: Validate all record parameters
   for I := 0 to High(Args) do
   begin
     if not Validate(Args[I]) then Exit(False);
@@ -500,21 +500,21 @@ begin
   try
     ResultValue := AMethod.Invoke(AInstance, Args);
 
-    // ? LIDAR COM PROCEDURES (SEM RETORNO)
+    // LIDAR COM PROCEDURES (SEM RETORNO)
     if ResultValue.IsEmpty then
     begin
       // Não faz nada - o controller já setou a resposta via Ctx.Response
     end
     else
     begin
-      // ? VERIFICAR SE RETORNOU IResult (APENAS SE NÃO ESTIVER VAZIO)
+      // VERIFICAR SE RETORNOU IResult (APENAS SE NÃO ESTIVER VAZIO)
       if ResultValue.TryAsType<IResult>(ResIntf) then
       begin
         ResIntf.Execute(FContext);
       end
       else
       begin
-        // ? AUTO-SERIALIZATION
+        // AUTO-SERIALIZATION
         FContext.Response.Json(TDextJson.Serialize(ResultValue));
       end;
     end;

@@ -25,11 +25,11 @@ uses
 
 procedure RefreshProviderMetadata(AProvider: TEntityDataProvider);
 var
-  Parser: TEntityMetadataParser;
-  ParsedList: IList<TEntityClassMetadata>;
-  ParsedCollection: ICollection;
   FileName, Content: string;
   MD: TEntityClassMetadata;
+  ParsedCollection: ICollection;
+  ParsedList: IList<TEntityClassMetadata>;
+  Parser: TEntityMetadataParser;
 begin
   if AProvider = nil then
     Exit;
@@ -45,22 +45,13 @@ begin
         Content := GOnGetSourceContent(FileName);
 
       ParsedList := Parser.ParseUnit(FileName, Content);
-      try
-        for MD in ParsedList do
-        begin
-          AProvider.AddOrSetMetadata(MD);
-          for var I := 0 to MD.Members.Count - 1 do
-          begin
-            var Member := MD.Members[I];
-            // TODO ???
-          end;
-        end;
-
-        if Supports(ParsedList, ICollection, ParsedCollection) then
-          ParsedCollection.OwnsObjects := False;
-      finally
-        // ParsedList cleaned by interface
+      for MD in ParsedList do
+      begin
+        AProvider.AddOrSetMetadata(MD);
       end;
+
+      if Supports(ParsedList, ICollection, ParsedCollection) then
+        ParsedCollection.OwnsObjects := False;
     end;
   finally
     Parser.Free;
