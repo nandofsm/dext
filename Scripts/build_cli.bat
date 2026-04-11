@@ -1,8 +1,8 @@
 @echo off
-setlocal
+setlocal enabledelayedexpansion
 
-echo Setting up Delphi environment...
-call "C:\Program Files (x86)\Embarcadero\Studio\37.0\bin\rsvars.bat"
+REM Common environment setup
+call "%~dp0set_env.bat"
 
 echo.
 echo ==========================================
@@ -10,21 +10,27 @@ echo Building Dext CLI Tool
 echo ==========================================
 echo.
 
-set OUTPUT_PATH=%~dp0..\Output
-set SOURCE_PATH=%~dp0..\Sources
+set "PROJ_FILE=%DEXT%\Apps\CLI\DextTool.dproj"
 
-if not exist "%OUTPUT_PATH%" mkdir "%OUTPUT_PATH%"
-
-dcc32 "%~dp0..\Apps\CLI\DextTool.dpr" -B -E"%OUTPUT_PATH%" -N"%OUTPUT_PATH%" -I"%SOURCE_PATH%" -U"%SOURCE_PATH%;%SOURCE_PATH%\Core;%SOURCE_PATH%\Core\Base;%SOURCE_PATH%\Data;%SOURCE_PATH%\Hosting\CLI;%SOURCE_PATH%\Hosting\CLI\Commands;%SOURCE_PATH%\Core\Json;%SOURCE_PATH%\Hubs;%SOURCE_PATH%\Web;%SOURCE_PATH%\Web\Mvc;%SOURCE_PATH%\Web\Middleware;%SOURCE_PATH%\Web\Indy" -NS"System;System.Generics;Data;Data.Win;Winapi"
+echo Building: %PROJ_FILE%
+msbuild "%PROJ_FILE%" /t:Build /p:Configuration=%BUILD_CONFIG% /p:Platform=%PLATFORM% ^
+    /p:DCC_DcuOutput="%OUTPUT_PATH%" ^
+    /p:DCC_ExeOutput="%OUTPUT_PATH%" ^
+    /p:DCC_UnitSearchPath="%SEARCH_PATH%" ^
+    /v:minimal /nologo
 
 if %ERRORLEVEL% NEQ 0 goto Error
 
-rem Rename to desired executable name
-if exist "%OUTPUT_PATH%\DextTool.exe" move /Y "%OUTPUT_PATH%\DextTool.exe" "%OUTPUT_PATH%\dext.exe"
+REM Rename to desired executable name if it was built
+if exist "%OUTPUT_PATH%\DextTool.exe" (
+    echo Renaming DextTool.exe to dext.exe...
+    move /Y "%OUTPUT_PATH%\DextTool.exe" "%OUTPUT_PATH%\dext.exe"
+)
 
 echo.
 echo ==========================================
 echo CLI Build Completed Successfully!
+echo Output: %OUTPUT_PATH%\dext.exe
 echo ==========================================
 if not "%1"=="--no-wait" pause
 exit /b 0

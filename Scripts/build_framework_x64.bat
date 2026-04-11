@@ -1,99 +1,74 @@
 @echo off
-setlocal
+setlocal enabledelayedexpansion
 
-echo Setting up Delphi environment...
-call "C:\Program Files (x86)\Embarcadero\Studio\37.0\bin\rsvars.bat"
+REM Determine Configuration (Debug/Release) from first argument
+set "B_CONFIG=%~1"
+if /i "%B_CONFIG%"=="--no-wait" set "B_CONFIG=Debug"
+if "%B_CONFIG%"=="" set "B_CONFIG=Debug"
+
+REM Common environment setup
+call "%~dp0set_env.bat" Win64 %B_CONFIG%
 
 echo.
 echo ==========================================
-echo Building Dext Framework Packages (x64)
+echo Building Dext Framework Packages (Win64)
 echo ==========================================
 echo.
 
-REM Build configuration
-set BUILD_CONFIG=Debug
-set PLATFORM=Win64
-
-REM Extract ProductVersion from BDS (e.g., 37.0)
-for %%i in ("%BDS%") do set PRODUCT_VERSION=%%~nxi
-
-REM Force BDSCOMMONDIR to Public Documents to match IDE default behavior
-REM (rsvars.bat often incorrectly points to current user's documents)
-set "BDSCOMMONDIR=%PUBLIC%\Documents\Embarcadero\Studio\%PRODUCT_VERSION%"
-
-REM Output paths matching .dproj configuration: $(dext)\Output\$(ProductVersion)_$(Platform)_$(Config)
-set DEXT=%~dp0..
-set OUTPUT_PATH=%DEXT%\Output\%PRODUCT_VERSION%_%PLATFORM%_%BUILD_CONFIG%
-
-REM Create output directory if it doesn't exist
-if not exist "%DEXT%\Output" mkdir "%DEXT%\Output"
-if not exist "%OUTPUT_PATH%" mkdir "%OUTPUT_PATH%"
-
-echo Output directory: %OUTPUT_PATH%
-echo Platform: %PLATFORM%
-echo.
-
-cd "%~dp0..\Sources\Dashboard"
+REM 1. Build Dashboard Resources (No changes needed for x64 here, usually same files)
+if not exist "%DEXT%\Sources\Dashboard" goto :skip_dashboard
+cd /d "%DEXT%\Sources\Dashboard"
 echo Building Dashboard Resources...
 powershell -NoProfile -ExecutionPolicy Bypass -File "build-resources.ps1" -OutputPath "%OUTPUT_PATH%"
-if %ERRORLEVEL% NEQ 0 goto Error
+if !ERRORLEVEL! NEQ 0 goto :Error
 
-cd "%~dp0..\Sources"
+:skip_dashboard
 
-echo Building Dext.Core...
-msbuild "Dext.Core.dproj" /t:Clean;Build /p:Configuration=%BUILD_CONFIG% /p:Platform=%PLATFORM% /p:DCC_DcuOutput="%OUTPUT_PATH%" /p:DCC_UnitSearchPath="%OUTPUT_PATH%" /v:minimal
-if %ERRORLEVEL% NEQ 0 goto Error
-
+REM 2. Discover and Build Packages in Sources
 echo.
-echo Building Dext.EF.Core...
-msbuild "Dext.EF.Core.dproj" /t:Clean;Build /p:Configuration=%BUILD_CONFIG% /p:Platform=%PLATFORM% /p:DCC_DcuOutput="%OUTPUT_PATH%" /p:DCC_UnitSearchPath="%OUTPUT_PATH%" /v:minimal
-if %ERRORLEVEL% NEQ 0 goto Error
+echo Discovering and building packages in Sources...
+cd /d "%DEXT%\Sources"
 
-echo.
-echo Building Dext.Web.Core...
-msbuild "Dext.Web.Core.dproj" /t:Clean;Build /p:Configuration=%BUILD_CONFIG% /p:Platform=%PLATFORM% /p:DCC_DcuOutput="%OUTPUT_PATH%" /p:DCC_UnitSearchPath="%OUTPUT_PATH%" /v:minimal
-if %ERRORLEVEL% NEQ 0 goto Error
+REM We use the groupproj to ensure correct dependency order
+if not exist "DextFramework.groupproj" goto :discovery_mode
 
-echo.
-echo Building Dext.Web.Hubs...
-msbuild "Dext.Web.Hubs.dproj" /t:Clean;Build /p:Configuration=%BUILD_CONFIG% /p:Platform=%PLATFORM% /p:DCC_DcuOutput="%OUTPUT_PATH%" /p:DCC_UnitSearchPath="%OUTPUT_PATH%" /v:minimal
-if %ERRORLEVEL% NEQ 0 goto Error
+echo [BUILD] Using DextFramework.groupproj for reliable dependency ordering...
+msbuild "DextFramework.groupproj" /t:Build /p:Configuration=%BUILD_CONFIG% /p:Platform=%PLATFORM% ^
+    /p:DCC_DcuOutput="%OUTPUT_PATH%" ^
+    /p:DCC_BplOutput="%COMMON_BPL_OUTPUT%" ^
+    /p:DCC_DcpOutput="%COMMON_DCP_OUTPUT%" ^
+    /p:DCC_UnitSearchPath="%SEARCH_PATH%" ^
+    /v:minimal /nologo
+if !ERRORLEVEL! NEQ 0 goto :Error
+goto :Finalize
 
-echo.
-echo Building Dext.Hosting...
-msbuild "Dext.Hosting.dproj" /t:Clean;Build /p:Configuration=%BUILD_CONFIG% /p:Platform=%PLATFORM% /p:DCC_DcuOutput="%OUTPUT_PATH%" /p:DCC_UnitSearchPath="%OUTPUT_PATH%" /v:minimal
-if %ERRORLEVEL% NEQ 0 goto Error
+:discovery_mode
+REM Fallback to discovery if groupproj is missing
+for %%f in (*.dproj) do (
+    echo [BUILD] Package: %%f
+    msbuild "%%f" /t:Build /p:Configuration=%BUILD_CONFIG% /p:Platform=%PLATFORM% ^
+        /p:DCC_DcuOutput="%OUTPUT_PATH%" ^
+        /p:DCC_BplOutput="%COMMON_BPL_OUTPUT%" ^
+        /p:DCC_DcpOutput="%COMMON_DCP_OUTPUT%" ^
+        /p:DCC_UnitSearchPath="%SEARCH_PATH%" ^
+        /v:minimal /nologo
+    if !ERRORLEVEL! NEQ 0 goto :Error
+)
 
-echo.
-echo Building Dext.Testing...
-msbuild "Dext.Testing.dproj" /t:Clean;Build /p:Configuration=%BUILD_CONFIG% /p:Platform=%PLATFORM% /p:DCC_DcuOutput="%OUTPUT_PATH%" /p:DCC_UnitSearchPath="%OUTPUT_PATH%" /v:minimal
-if %ERRORLEVEL% NEQ 0 goto Error
-
-echo.
-echo Building Dext.UI...
-msbuild "Dext.UI.dproj" /t:Clean;Build /p:Configuration=%BUILD_CONFIG% /p:Platform=%PLATFORM% /p:DCC_DcuOutput="%OUTPUT_PATH%" /p:DCC_UnitSearchPath="%OUTPUT_PATH%" /v:minimal
-if %ERRORLEVEL% NEQ 0 goto Error
-
-echo.
-echo Building Dext.Net...
-msbuild "Dext.Net.dproj" /t:Clean;Build /p:Configuration=%BUILD_CONFIG% /p:Platform=%PLATFORM% /p:DCC_DcuOutput="%OUTPUT_PATH%" /p:DCC_UnitSearchPath="%OUTPUT_PATH%" /v:minimal
-if %ERRORLEVEL% NEQ 0 goto Error
-
+:Finalize
 echo.
 echo ==========================================
-echo Build Completed Successfully! (x64)
+echo Build Completed Successfully (Win64)!
 echo Output: %OUTPUT_PATH%
+echo BPLs:   %COMMON_BPL_OUTPUT%
 echo ==========================================
 if not "%1"=="--no-wait" pause
-cd ..
 exit /b 0
 
 :Error
 echo.
 echo ==========================================
-echo BUILD FAILED!
+echo BUILD FAILED (Win64)!
 echo ==========================================
 if not "%1"=="--no-wait" pause
-cd ..
 exit /b 1
-
