@@ -159,7 +159,6 @@ uses
   Dext.Web.Results,
   Dext.Utils,
   Dext.Core.Reflection,
-  Dext.DI.Extensions,
   Dext.Types.UUID;
 
 
@@ -770,7 +769,7 @@ begin
     DbCtx := GetDbContext(Context);
     
     // Resolve Strong-Typed ID using metadata and Model Binder (optional service)
-    Binder := TServiceProviderExtensions.GetService<IModelBinder>(Context.Services);
+    Binder := TDextServices.GetService<IModelBinder>(Context.Services);
     PKValue := TEntityIdResolver.Resolve(TEntityMap(DbCtx.GetMapping(TypeInfo(T))), IdStr, Binder);
 
     Entity := DbCtx.Entities<T>.Find(PKValue);
@@ -887,7 +886,7 @@ begin
     DbCtx := GetDbContext(Context);
 
     // Resolve Strong-Typed ID using metadata and Model Binder (optional service)
-    var Binder := TServiceProviderExtensions.GetService<IModelBinder>(Context.Services);
+    var Binder := TDextServices.GetService<IModelBinder>(Context.Services);
     PKValue := TEntityIdResolver.Resolve(TEntityMap(DbCtx.GetMapping(TypeInfo(T))), IdStr, Binder);
     Entity := DbCtx.Entities<T>.Find(PKValue);
     
@@ -952,7 +951,7 @@ begin
     DbCtx := GetDbContext(Context);
 
     // Resolve Strong-Typed ID using metadata and Model Binder (optional service)
-    var Binder := TServiceProviderExtensions.GetService<IModelBinder>(Context.Services);
+    var Binder := TDextServices.GetService<IModelBinder>(Context.Services);
     PKValue := TEntityIdResolver.Resolve(TEntityMap(DbCtx.GetMapping(TypeInfo(T))), IdStr, Binder);
     Entity := DbCtx.Entities<T>.Find(PKValue);
     

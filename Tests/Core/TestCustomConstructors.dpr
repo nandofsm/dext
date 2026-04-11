@@ -1,4 +1,4 @@
-﻿program TestCustomConstructors;
+program TestCustomConstructors;
 
 {$APPTYPE CONSOLE}
 
@@ -128,11 +128,11 @@ end;
 procedure TDICustomConstructorsTests.Setup;
 begin
   FServices := TDextServiceCollection.Create;
-  TServiceCollectionExtensions.AddSingleton<ILogger, TConsoleLogger>(FServices);
-  TServiceCollectionExtensions.AddSingleton<IConfig, TAppConfig>(FServices);
-  
-  FServices.AddScoped(TServiceType.FromClass(TMyService), TMyService);
-  FServices.AddScoped(TServiceType.FromClass(TFieldInjectedService), TFieldInjectedService);
+  TDextServices.Create(FServices)
+    .AddSingleton<ILogger, TConsoleLogger>
+    .AddSingleton<IConfig, TAppConfig>
+    .AddScoped<TMyService>
+    .AddScoped<TFieldInjectedService>;
   
   FProvider := FServices.BuildServiceProvider;
 end;

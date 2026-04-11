@@ -1,4 +1,4 @@
-﻿unit Dext.Entity.Pooling.Test;
+unit Dext.Entity.Pooling.Test;
 
 interface
 
@@ -13,7 +13,6 @@ uses
   Dext.Entity.Dialects,
   Dext.DI.Core,
   Dext.DI.Interfaces,
-  Dext.DI.Extensions,
   Dext.Entity,
   Dext.Entity.Setup,
   Dext.Entity.Drivers.Interfaces,

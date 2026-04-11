@@ -65,7 +65,9 @@ contains
   Dext.Web.Controllers in 'Web\Mvc\Dext.Web.Controllers.pas',
   Dext.Web.ControllerScanner in 'Web\Mvc\Dext.Web.ControllerScanner.pas',
   Dext.Web.ModelBinding in 'Web\Mvc\Dext.Web.ModelBinding.pas',
+{$WARN UNIT_DEPRECATED OFF}
   Dext.Web.ModelBinding.Extensions in 'Web\Mvc\Dext.Web.ModelBinding.Extensions.pas',
+{$WARN UNIT_DEPRECATED ON}
   Dext.Web.HandlerInvoker in 'Web\Mvc\Dext.Web.HandlerInvoker.pas',
   Dext.Web.Routing.Attributes in 'Web\Mvc\Dext.Web.Routing.Attributes.pas',
   Dext.WebHost in 'Web\Dext.WebHost.pas',

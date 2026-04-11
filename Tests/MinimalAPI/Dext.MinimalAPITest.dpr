@@ -10,7 +10,6 @@ uses
   Dext.Caching,
   Dext.Web.ApplicationBuilder.Extensions,
   Dext.Web.HandlerInvoker,
-  Dext.DI.Extensions,
   Dext.DI.Interfaces,
   Dext.DI.Middleware,
   Dext.Web.Interfaces,
@@ -125,8 +124,8 @@ begin
         WriteLn('Registering services...');
 
         // ILoggerFactory is registered by AddLogging below with instance registration
-        TServiceCollectionExtensions.AddSingleton<IUserService, TUserService>(Services);
-        TServiceCollectionExtensions.AddScoped<IRequestContext, TRequestContext>(Services);
+        TDextServices.Create(Services).AddSingleton<IUserService, TUserService>;
+        TDextServices.Create(Services).AddScoped<IRequestContext, TRequestContext>;
 
         // Add Logging
         TServiceCollectionLoggingExtensions.AddLogging(Services,

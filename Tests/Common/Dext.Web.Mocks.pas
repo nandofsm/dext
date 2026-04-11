@@ -1,6 +1,8 @@
 // Dext.Web.Mocks.pas
 unit Dext.Web.Mocks;
 
+
+
 interface
 
 uses
@@ -20,6 +22,7 @@ type
   { Retrocompatibility aliases, kept as pure factories around Mock<T> }
   TMockHttpRequest = class
   public
+    class function CreateInternal(const AQueryString: string; ABody: TStream): IHttpRequest; static;
     class function Create(const AQueryString: string): IHttpRequest; static;
   end;
 
@@ -37,14 +40,14 @@ type
   public
     class function CreateHttpContextWithHeaders(const AQueryString: string; const AHeaders: IStringDictionary): IHttpContext; overload;
     class function CreateHttpContextWithHeaders(const AQueryString: string; const AHeaders: IDictionary<string, string>): IHttpContext; overload;
-    
-    class function CreateHttpContextWithServices(const AQueryString: string; const AServices: IServiceProvider): IHttpContext;
-    
+    class function CreateHttpContextWithServices(const AQueryString: string; const AServices: IServiceProvider): IHttpContext; static;
     class function CreateHttpContext(const AQueryString: string): IHttpContext; static;
-    
-    // Kept for backward compatibility, translates IDictionary to TRouteValueDictionary internally
     class function CreateHttpContextWithRoute(const AQueryString: string; const ARouteParams: IDictionary<string, string>): IHttpContext; static;
+    class function CreateHttpContextWithBody(const AQueryString: string; ABody: TStream): IHttpContext; static;
   end;
+
+var
+  SharedEmptyStream: TMemoryStream;
 
 implementation
 
@@ -55,7 +58,7 @@ var
   ParamList: TStringList;
   Key, Value, QueryPart: string;
 begin
-  ADict := TCollections.CreateStringDictionary;
+  ADict := TCollections.CreateStringDictionary(True); // Case-insensitive
   if AQueryString = '' then Exit;
 
   QueryPart := AQueryString;
@@ -87,19 +90,24 @@ end;
 
 { TMockHttpRequest }
 
-class function TMockHttpRequest.Create(const AQueryString: string): IHttpRequest;
+class function TMockHttpRequest.CreateInternal(const AQueryString: string; ABody: TStream): IHttpRequest;
 var
   MockReq: Mock<IHttpRequest>;
   QueryParams: IStringDictionary;
   EmptyHeaders: IStringDictionary;
   EmptyCookies: IStringDictionary;
   EmptyRoute: TRouteValueDictionary;
+  BodyToUse: TStream;
 begin
   MockReq := Mock<IHttpRequest>.Create;
+  
+  BodyToUse := ABody;
+  if BodyToUse = nil then
+    BodyToUse := SharedEmptyStream;
 
   ParseQueryStringInto(AQueryString, QueryParams);
-  EmptyHeaders := TCollections.CreateStringDictionary;
-  EmptyCookies := TCollections.CreateStringDictionary;
+  EmptyHeaders := TCollections.CreateStringDictionary(True);
+  EmptyCookies := TCollections.CreateStringDictionary(True);
   EmptyRoute.Clear; 
 
   MockReq.Setup.Returns(TValue.From<IStringDictionary>(QueryParams)).When.GetQuery;
@@ -111,8 +119,14 @@ begin
   MockReq.Setup.Returns(TValue.From<string>('GET')).When.GetMethod;
   MockReq.Setup.Returns(TValue.From<string>('/api/test')).When.GetPath;
   MockReq.Setup.Returns(TValue.From<string>('127.0.0.1')).When.GetRemoteIpAddress;
+  MockReq.Setup.Returns(TValue.From<TStream>(BodyToUse)).When.GetBody;
 
   Result := MockReq.Instance;
+end;
+
+class function TMockHttpRequest.Create(const AQueryString: string): IHttpRequest;
+begin
+  Result := CreateInternal(AQueryString, nil);
 end;
 
 { TMockHttpResponse }
@@ -176,7 +190,7 @@ begin
   MockReq := Mock<IHttpRequest>.Create;
   
   ParseQueryStringInto(AQueryString, QueryParams);
-  EmptyCookies := TCollections.CreateStringDictionary;
+  EmptyCookies := TCollections.CreateStringDictionary(True);
   EmptyRoute.Clear;
 
   MockReq.Setup.Returns(TValue.From<IStringDictionary>(QueryParams)).When.GetQuery;
@@ -187,6 +201,7 @@ begin
   MockReq.Setup.Returns(TValue.From<string>('GET')).When.GetMethod;
   MockReq.Setup.Returns(TValue.From<string>('/api/test')).When.GetPath;
   MockReq.Setup.Returns(TValue.From<string>('127.0.0.1')).When.GetRemoteIpAddress;
+  MockReq.Setup.Returns(TValue.From<TStream>(SharedEmptyStream)).When.GetBody;
 
   Result := TMockHttpContext.Create(MockReq.Instance, TMockHttpResponse.Create, nil);
 end;
@@ -197,7 +212,7 @@ var
   NewHeaders: IStringDictionary;
   Pair: TPair<string, string>;
 begin
-  NewHeaders := TCollections.CreateStringDictionary;
+  NewHeaders := TCollections.CreateStringDictionary(True);
   for Pair in AHeaders do
     NewHeaders.AddOrSetValue(Pair.Key, Pair.Value);
   Result := CreateHttpContextWithHeaders(AQueryString, NewHeaders);
@@ -216,8 +231,8 @@ begin
   MockReq := Mock<IHttpRequest>.Create;
   
   ParseQueryStringInto(AQueryString, QueryParams);
-  EmptyHeaders := TCollections.CreateStringDictionary;
-  EmptyCookies := TCollections.CreateStringDictionary;
+  EmptyHeaders := TCollections.CreateStringDictionary(True);
+  EmptyCookies := TCollections.CreateStringDictionary(True);
   
   RouteValDict.Clear;
   for Pair in ARouteParams do
@@ -231,8 +246,20 @@ begin
   MockReq.Setup.Returns(TValue.From<string>('GET')).When.GetMethod;
   MockReq.Setup.Returns(TValue.From<string>('/api/test')).When.GetPath;
   MockReq.Setup.Returns(TValue.From<string>('127.0.0.1')).When.GetRemoteIpAddress;
+  MockReq.Setup.Returns(TValue.From<TStream>(SharedEmptyStream)).When.GetBody;
 
   Result := TMockHttpContext.Create(MockReq.Instance, TMockHttpResponse.Create, nil);
 end;
+
+class function TMockFactory.CreateHttpContextWithBody(const AQueryString: string; ABody: TStream): IHttpContext;
+begin
+  Result := TMockHttpContext.Create(TMockHttpRequest.CreateInternal(AQueryString, ABody), TMockHttpResponse.Create, nil);
+end;
+
+initialization
+  SharedEmptyStream := TMemoryStream.Create;
+
+finalization
+  SharedEmptyStream.Free;
 
 end.

@@ -1,4 +1,4 @@
-﻿program Dext.RouteParamsTest;
+program Dext.RouteParamsTest;
 
 {$APPTYPE CONSOLE}
 
@@ -7,7 +7,6 @@ uses
   System.SysUtils,
   Dext.Utils,
   Dext.DI.Interfaces,
-  Dext.DI.Extensions,
   Dext.Web.Interfaces,
   Dext.WebHost,
   Dext.Web.ApplicationBuilder.Extensions,

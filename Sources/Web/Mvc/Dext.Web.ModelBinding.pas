@@ -1196,88 +1196,93 @@ begin
 end;
 
 function TModelBinder.ConvertStringToType(const AValue: string; AType: PTypeInfo): TValue;
+var
+  Dt: TDateTime;
+  G: TGUID;
+  DecodedValue: string;
 begin
+  if AValue = '' then
+  begin
+    TValue.Make(nil, AType, Result);
+    Exit;
+  end;
+
+  // Auto URL Decode for query/header values
+  DecodedValue := TNetEncoding.URL.Decode(AValue);
+
   try
     case AType.Kind of
-      tkInteger: Result := TValue.From<Integer>(StrToIntDef(AValue, 0));
-      tkInt64: Result := TValue.From<Int64>(StrToInt64Def(AValue, 0));
-
+      tkInteger, tkInt64: Result := TValue.FromOrdinal(AType, StrToInt64Def(DecodedValue, 0));
       tkFloat:
         begin
-          var Dt: TDateTime;
           if (AType = TypeInfo(TDateTime)) or (AType = TypeInfo(TDate)) or (AType = TypeInfo(TTime)) then
           begin
-            if TryParseCommonDate(AValue, Dt) then
-              Result := TValue.From<TDateTime>(Dt)
+            if TryParseCommonDate(DecodedValue, Dt) then
+              TValue.Make(@Dt, AType, Result)
             else
-              Result := TValue.From<TDateTime>(0);
+              TValue.Make(nil, AType, Result);
           end
           else
           begin
             var F: Double;
-            if TryStrToFloat(AValue, F, TFormatSettings.Invariant) then
+            if TryStrToFloat(DecodedValue, F, TFormatSettings.Invariant) then
               Result := TValue.From<Double>(F)
-            else if TryParseCommonDate(AValue, Dt) then
+            else if TryParseCommonDate(DecodedValue, Dt) then
               Result := TValue.From<TDateTime>(Dt)
             else
               Result := TValue.From<Double>(0);
           end;
         end;
-      tkString, tkLString, tkWString, tkUString: Result := TValue.From<string>(AValue);
+      tkString, tkLString, tkWString, tkUString: Result := TValue.From<string>(DecodedValue);
       tkEnumeration:
         begin
           if AType = TypeInfo(Boolean) then
           begin
-            var B := SameText(AValue, 'true') or SameText(AValue, '1') or SameText(AValue, 'on');
+            var S := DecodedValue.Trim.ToLower;
+            var B := (S = 'true') or (S = '1') or (S = 'on') or (S = 'yes');
             Result := TValue.From<Boolean>(B);
           end
           else
-            Result := TValue.FromOrdinal(AType, StrToIntDef(AValue, 0));
+            Result := TValue.FromOrdinal(AType, StrToIntDef(DecodedValue, 0));
         end;
       tkRecord:
         begin
-          // TGUID support
           if AType = TypeInfo(TGUID) then
           begin
-            var GuidStr := AValue.Trim;
+            var GuidStr := DecodedValue.Trim;
             if GuidStr = '' then
-            begin
-              Result := TValue.From<TGUID>(TGUID.Empty);
-              Exit;
-            end;
-
-            if GuidStr.StartsWith('{') and GuidStr.EndsWith('}') then
-              Result := TValue.From<TGUID>(StringToGUID(GuidStr))
-            else if GuidStr.Length = 36 then
-              Result := TValue.From<TGUID>(StringToGUID('{' + GuidStr + '}'))
+              Result := TValue.From<TGUID>(TGUID.Empty)
             else
-              Result := TValue.From<TGUID>(StringToGUID(GuidStr));
+            begin
+              if not GuidStr.StartsWith('{') then
+                GuidStr := '{' + GuidStr + '}';
+              try
+                G := StringToGUID(GuidStr);
+                TValue.Make(@G, AType, Result);
+              except
+                Result := TValue.From<TGUID>(TGUID.Empty);
+              end;
+            end;
           end
-          // TUUID support (RFC 9562 compliant)
           else if AType = TypeInfo(TUUID) then
           begin
-            var GuidStr := AValue.Trim;
+            var GuidStr := DecodedValue.Trim;
             if GuidStr = '' then
+              Result := TValue.From<TUUID>(TUUID.Null)
+            else
             begin
-              Result := TValue.From<TUUID>(TUUID.Null);
-              Exit;
+              var U := TUUID.FromString(GuidStr);
+              TValue.Make(@U, TypeInfo(TUUID), Result);
             end;
-
-            // TUUID.FromString handles all formats (with/without braces, hyphens)
-            var U := TUUID.FromString(GuidStr);
-            TValue.Make(@U, TypeInfo(TUUID), Result);
           end
           else
-            raise EBindingException.Create('Cannot convert string to Record (except TGUID and TUUID)');
+            TValue.Make(nil, AType, Result);
         end;
       else
-        // Default for unknown types
         TValue.Make(nil, AType, Result);
     end;
   except
-    on E: Exception do
-      // Return default on error
-      TValue.Make(nil, AType, Result);
+    TValue.Make(nil, AType, Result);
   end;
 end;
 

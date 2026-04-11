@@ -25,10 +25,10 @@ uses
   Dext.Collections,
   Dext.Collections.Dict,
   System.SysUtils,
+  System.Rtti,
   IdURI,
   Dext.Web.ModelBinding,
   Dext.DI.Core,
-  Dext.DI.Extensions,
   Dext.DI.Interfaces,
   Dext.Web.Interfaces,
   Dext.Web.Mocks;
@@ -476,27 +476,29 @@ procedure TestBindServicesComprehensive;
 var
   MockContext: IHttpContext;
   Binder: IModelBinder;
-  Services: IServiceCollection;
+  Services: TDextServices;
+  ServiceProvider: IServiceProvider;
+  ServiceTest: TServiceTest;
+  Value: TValue;
 begin
   Writeln('=== TESTE BINDSERVICES COMPREENSIVO ===');
 
   try
     // Configurar DI Container
-    Services := TDextServiceCollection.Create;
-    TServiceCollectionExtensions.AddSingleton<IUserService, TUserService>(Services);
-    TServiceCollectionExtensions.AddSingleton<ILogger, TLogger>(Services);
-    TServiceCollectionExtensions.AddSingleton<TDatabaseService>(Services);
+    Services := TDextServices.New;
+    Services.AddSingleton<IUserService, TUserService>;
+    Services.AddSingleton<ILogger, TLogger>;
+    Services.AddSingleton<TDatabaseService>;
     // IInterface não está registrado - testar resiliência
 
-    var ServiceProvider := Services.BuildServiceProvider;
+    ServiceProvider := Services.BuildServiceProvider;
 
     Binder := TModelBinder.Create;
 
     // Criar contexto com service provider
     MockContext := TMockFactory.CreateHttpContextWithServices('', ServiceProvider);
 
-    var ServiceTest: TServiceTest;
-    var Value := Binder.BindServices(TypeInfo(TServiceTest), MockContext);
+    Value := Binder.BindServices(TypeInfo(TServiceTest), MockContext);
     ServiceTest := Value.AsType<TServiceTest>;
 
     // Verificar injeções
@@ -541,7 +543,6 @@ begin
 
     MockContext := nil;
     Binder := nil;
-    Services := nil;
   except
     on E: Exception do
       Writeln('❌ ERRO BindServices: ', E.ClassName, ' - ', E.Message);
@@ -560,6 +561,8 @@ type
 var
   MockContext: IHttpContext;
   Binder: IModelBinder;
+  Value: TValue;
+  Test: TDateTest;
 begin
   Writeln('=== TESTE BINDQUERY DATETYPES ===');
   try
@@ -570,8 +573,8 @@ begin
     // Using explicit date strings to avoid locale issues in test construction, but typical ISO is safe
     MockContext := TMockFactory.CreateHttpContext('dateval=2025-12-25&timeval=14:30:00&userdatetime=2025-12-25T14:30:00&invaliddate=not-a-date');
 
-    var Value := Binder.BindQuery(TypeInfo(TDateTest), MockContext);
-    var Test := Value.AsType<TDateTest>;
+    Value := Binder.BindQuery(TypeInfo(TDateTest), MockContext);
+    Test := Value.AsType<TDateTest>;
 
     Writeln('  DateVal: ', DateToStr(Test.DateVal), ' (Expected: 25/12/2025)');
     Writeln('  TimeVal: ', TimeToStr(Test.TimeVal), ' (Expected: 14:30:00)');
@@ -614,40 +617,46 @@ var
   Binder: IModelBinder;
   Json: string;
   Bytes: TBytes;
-  Stream: TStream;
+  BodyStream: TMemoryStream;
+  Value: TValue;
+  Test: TSimpleBody;
 begin
   Writeln('=== TESTE BINDBODY ZERO ALLOC ===');
+  BodyStream := TMemoryStream.Create;
   try
-    Binder := TModelBinder.Create;
+    try
+      Binder := TModelBinder.Create;
 
-    // Prepare JSON Body
-    Json := '{"Id": 200, "Name": "ZeroAlloc Item", "Active": true, "Cost": 99.99}';
-    Bytes := TEncoding.UTF8.GetBytes(Json);
+      // Prepare JSON Body
+      Json := '{"Id": 200, "Name": "ZeroAlloc Item", "Active": true, "Cost": 99.99}';
+      Bytes := TEncoding.UTF8.GetBytes(Json);
 
-    MockContext := TMockFactory.CreateHttpContext('');
-    Stream := MockContext.Request.Body;
-    Stream.WriteBuffer(Bytes[0], Length(Bytes));
-    Stream.Position := 0;
+      MockContext := TMockFactory.CreateHttpContextWithBody('', BodyStream);
+      BodyStream.WriteBuffer(Bytes[0], Length(Bytes));
+      BodyStream.Position := 0;
 
-    Writeln('✅ TESTE 1: Bind Body from Stream (Bytes)');
-    
-    var Value := Binder.BindBody(TypeInfo(TSimpleBody), MockContext);
-    var Test := Value.AsType<TSimpleBody>;
+      Writeln('✅ TESTE 1: Bind Body from Stream (Bytes)');
+      
+      Value := Binder.BindBody(TypeInfo(TSimpleBody), MockContext);
+      Test := Value.AsType<TSimpleBody>;
 
-    Writeln('  Id: ', Test.Id, ' (Expected: 200)');
-    Writeln('  Name: ', Test.Name, ' (Expected: ZeroAlloc Item)');
-    if (Test.Active) then Writeln('  Active: True') else Writeln('  Active: False');
-    Writeln('  Cost: ', FloatToStr(Test.Cost), ' (Expected: 99.99)');
-    
-    if (Test.Id = 200) and (Test.Name = 'ZeroAlloc Item') and (Test.Active) then
-      Writeln('  -> Validated!')
-    else
-      Writeln('  ❌ Validation FAILED');
+      Writeln('  Id: ', Test.Id, ' (Expected: 200)');
+      Writeln('  Name: ', Test.Name, ' (Expected: ZeroAlloc Item)');
+      if (Test.Active) then Writeln('  Active: True') else Writeln('  Active: False');
+      Writeln('  Cost: ', FloatToStr(Test.Cost), ' (Expected: 99.99)');
+      
+      if (Test.Id = 200) and (Test.Name = 'ZeroAlloc Item') and (Test.Active) then
+        Writeln('  -> Validated!')
+      else
+        Writeln('  ❌ Validation FAILED');
 
-    Writeln('=== SUCESSO BINDBODY ZERO ALLOC! ===');
-  except
-    on E: Exception do
-      Writeln('❌ ERRO BindBodyZeroAlloc: ', E.ClassName, ' - ', E.Message);
+      Writeln('=== SUCESSO BINDBODY ZERO ALLOC! ===');
+    except
+      on E: Exception do
+        Writeln('❌ ERRO BindBodyZeroAlloc: ', E.ClassName, ' - ', E.Message);
+    end;
+  finally
+    BodyStream.Free;
   end;
 end;
 

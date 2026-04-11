@@ -12,7 +12,6 @@ uses
   Dext.Json,
   Dext.Json.Types,
   Dext.DI.Core,
-  Dext.DI.Extensions,
   Dext.DI.Interfaces,
   Dext.Web.Core,
   Dext.Web.Interfaces,
@@ -1193,7 +1192,7 @@ end;
 
 procedure TestCompleteIntegration;
 type
-  TUser = record
+  TCompleteUser = record
     Id: Integer;
     Name: string;
     Email: string;
@@ -1215,8 +1214,8 @@ begin
     App := TApplicationBuilder.Create(nil);
 
     // 2. ✅ PADRÃO MODERNO: TApplicationBuilderExtensions com Model Binding automático
-    TApplicationBuilderExtensions.MapPost<TUser>(App, '/users',
-      procedure(User: TUser)
+    TApplicationBuilderExtensions.MapPost<TCompleteUser>(App, '/users',
+      procedure(User: TCompleteUser)
       begin
         Writeln('✅ User criado via binding automático:');
         Writeln('   ID: ', User.Id);
@@ -1352,7 +1351,7 @@ end;
 
 procedure TestConciseIntegration;
 type
-  TUser = record
+  TConciseUser = record
     Id: Integer;
     Name: string;
     Email: string;
@@ -1366,15 +1365,15 @@ begin
   App := TApplicationBuilder.Create(nil);
   try
     // ✅ PADRÃO MODERNO: TApplicationBuilderExtensions
-    TApplicationBuilderExtensions.MapPost<TUser>(App, '/crm/users',
-      procedure(User: TUser)
+    TApplicationBuilderExtensions.MapPost<TConciseUser>(App, '/crm/users',
+      procedure(User: TConciseUser)
       begin
         Writeln('User: ', User.Name);
       end
     );
 
-    TApplicationBuilderExtensions.MapPost<TUser>(App, '/v2/crm/users',
-      procedure(User: TUser)
+    TApplicationBuilderExtensions.MapPost<TConciseUser>(App, '/v2/crm/users',
+      procedure(User: TConciseUser)
       begin
         Writeln('V2 User: ', User.Name);
       end

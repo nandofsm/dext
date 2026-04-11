@@ -243,12 +243,10 @@ begin
   Accumulator := TEventHandlerAccumulator.Create;
 
   // Pre-created singleton — DI container owns and frees the accumulator.
-  Unwrap.AddSingleton(TServiceType.FromClass(TEventHandlerAccumulator), Accumulator);
+  AddSingletonInstance<TEventHandlerAccumulator>(Accumulator);
 
   // IEventHandlerRegistry: populated lazily on first resolution.
-  Unwrap.AddSingleton(
-    TServiceType.FromInterface(TypeInfo(IEventHandlerRegistry)),
-    TEventHandlerRegistry,
+  Collection.AddSingleton(TServiceType.FromInterface(IEventHandlerRegistry), TEventHandlerRegistry,
     function(AProvider: IServiceProvider): TObject
     var
       Acc: TEventHandlerAccumulator;
@@ -256,9 +254,7 @@ begin
       HEntry: THandlerRegistration;
       BEntry: TEventBehaviorRegistration;
     begin
-      Acc := AProvider.GetService(TServiceType.FromClass(TEventHandlerAccumulator))
-        as TEventHandlerAccumulator;
-
+      Acc := TDextServices.GetServiceObject<TEventHandlerAccumulator>(AProvider);
       Registry := TEventHandlerRegistry.Create;
 
       for HEntry in Acc.Handlers do
@@ -281,31 +277,25 @@ begin
   // IEventBus: Singleton or Scoped, determined by ACreateScope flag.
   if ACreateScope then
     // Singleton bus
-    Unwrap.AddSingleton(
-      TServiceType.FromInterface(TypeInfo(IEventBus)),
-      TEventBus,
-      function(AProvider: IServiceProvider): TObject
+    Collection.AddSingleton(TServiceType.FromInterface(IEventBus), TEventBus,
+      function(P: IServiceProvider): TObject
       var
         Registry: IEventHandlerRegistry;
       begin
-        Registry :=
-          TServiceProviderExtensions.GetRequiredService<IEventHandlerRegistry>(AProvider);
-        Result := TEventBus.Create(AProvider, Registry, True);
+        Registry := TDextServices.GetRequiredService<IEventHandlerRegistry>(P);
+        Result := TEventBus.Create(P, Registry, True);
       end
     )
   else
     // Scoped bus: factory receives the request-scoped provider; FCreateScope=False
     // tells the bus to use it directly instead of creating another child scope.
-    Unwrap.AddScoped(
-      TServiceType.FromInterface(TypeInfo(IEventBus)),
-      TEventBus,
-      function(AProvider: IServiceProvider): TObject
+    Collection.AddScoped(TServiceType.FromInterface(IEventBus), TEventBus,
+      function(P: IServiceProvider): TObject
       var
         Registry: IEventHandlerRegistry;
       begin
-        Registry :=
-          TServiceProviderExtensions.GetRequiredService<IEventHandlerRegistry>(AProvider);
-        Result := TEventBus.Create(AProvider, Registry, False);
+        Registry := TDextServices.GetRequiredService<IEventHandlerRegistry>(P);
+        Result := TEventBus.Create(P, Registry, False);
       end
     );
 
@@ -350,7 +340,7 @@ begin
     end;
 
   if not AlreadyRegistered then
-    Unwrap.AddTransient(TServiceType.FromClass(THandler), THandler, nil);
+    Collection.AddTransient(TServiceType.FromClass(THandler), THandler, nil);
 
   Result := Self;
 end;
@@ -364,7 +354,7 @@ begin
   Entry.EventType    := nil; // nil = global
   Entry.BehaviorClass := TBehavior;
   Acc.Behaviors.Add(Entry);
-  Unwrap.AddTransient(TServiceType.FromClass(TBehavior), TBehavior, nil);
+  Collection.AddTransient(TServiceType.FromClass(TBehavior), TBehavior, nil);
   Result := Self;
 end;
 
@@ -377,20 +367,20 @@ begin
   Entry.EventType    := TypeInfo(TEvent);
   Entry.BehaviorClass := TBehavior;
   Acc.Behaviors.Add(Entry);
-  Unwrap.AddTransient(TServiceType.FromClass(TBehavior), TBehavior, nil);
+  Collection.AddTransient(TServiceType.FromClass(TBehavior), TBehavior, nil);
   Result := Self;
 end;
 
 function TEventBusDIExtensions.AddEventPublisher<T>: TDextServices;
 begin
-  Unwrap.AddTransient(
+  Collection.AddTransient(
     TServiceType.FromInterface(TypeInfo(IEventPublisher<T>)),
     TEventPublisher<T>,
     function(P: IServiceProvider): TObject
     var
       Bus: IEventBus;
     begin
-      Bus := TServiceProviderExtensions.GetRequiredService<IEventBus>(P);
+      Bus := TDextServices.GetRequiredService<IEventBus>(P);
       Result := TEventPublisher<T>.Create(Bus);
     end
   );
@@ -398,23 +388,15 @@ begin
 end;
 
 function TEventBusDIExtensions.AddEventBusLifecycle: TDextServices;
-var
-  LifecycleClass: TClass;
 begin
-  LifecycleClass := TEventBusLifecycleService;
-
-  Unwrap.AddSingleton(
-    TServiceType.FromClass(TEventBusLifecycleService),
-    TEventBusLifecycleService,
+  Collection.AddSingleton(TServiceType.FromClass(TEventBusLifecycleService), TEventBusLifecycleService,
     function(P: IServiceProvider): TObject
     begin
       Result := TActivator.CreateInstance(P, TEventBusLifecycleService);
     end
   );
 
-  Unwrap.AddSingleton(
-    TServiceType.FromInterface(TypeInfo(IHostedServiceManager)),
-    THostedServiceManager,
+  Collection.AddSingleton(TServiceType.FromInterface(IHostedServiceManager), THostedServiceManager,
     function(P: IServiceProvider): TObject
     var
       Manager: THostedServiceManager;
@@ -422,7 +404,7 @@ begin
       HostedSvc: IHostedService;
     begin
       Manager := THostedServiceManager.Create;
-      ServiceObj := P.GetService(TServiceType.FromClass(LifecycleClass));
+      ServiceObj := TDextServices.GetRequiredServiceObject<TEventBusLifecycleService>(P);
       if Supports(ServiceObj, IHostedService, HostedSvc) then
         Manager.RegisterService(HostedSvc);
       Result := Manager;
@@ -434,6 +416,7 @@ end;
 
 function TEventBusDIExtensions.AddBackgroundServices: TBackgroundServiceBuilder;
 begin
+  // Call the base implementation from Dext.Hosting.BackgroundService
   Result := TDextServiceCollectionExtensions.AddBackgroundServices(Self.Collection);
 end;
 
@@ -443,18 +426,12 @@ function THostingEventsExtensions.AddLifecycleEvents: TBackgroundServiceBuilder;
 begin
   // Register the bridge with an explicit factory to avoid Activator 
   // doing implicit interface resolution that causes ARC conflicts
-  Self.FServices.AddSingleton(
-    TServiceType.FromClass(THostingLifecycleEventBridge),
-    THostingLifecycleEventBridge,
-    function(Provider: IServiceProvider): TObject
+  FServices.AddSingleton(TServiceType.FromClass(THostingLifecycleEventBridge), THostingLifecycleEventBridge,
+    function(P: IServiceProvider): TObject
     var
       Bus: IEventBus;
-      Intf: IInterface;
     begin
-      Intf := Provider.GetServiceAsInterface(
-        TServiceType.FromInterface(TypeInfo(IEventBus)));
-      if Assigned(Intf) then
-        Supports(Intf, IEventBus, Bus);
+      Bus := TDextServices.GetService<IEventBus>(P);
       Result := THostingLifecycleEventBridge.Create(Bus);
     end
   );

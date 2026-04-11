@@ -1,12 +1,11 @@
-﻿program Dext.DITest;
+program Dext.DITest;
 
 uses
   Dext.MM,
   Dext.Utils,
   System.SysUtils,
   Dext.DI.Interfaces,
-  Dext.DI.Core,
-  Dext.DI.Extensions;
+  Dext.DI.Core;
 
 {$APPTYPE CONSOLE}
 
@@ -53,39 +52,30 @@ end;
 
 function TDataService.GetData: string;
 begin
-  FLogger.Log('Getting data...'); /// ERRO AQUI FLogger = nil
+  FLogger.Log('Getting data...');
   Result := 'Hello from DataService!';
 end;
 
 var
-  Services: IServiceCollection;
   Provider: IServiceProvider;
   Logger: ILogger;
   DataService: IDataService;
 begin
   try
-    // Configurar serviços
-    Services := TDextServiceCollection.Create;
+    // Configurar serviços usando TDextServices (API fluente)
+    Provider := TDextServices.New()
+      .AddSingleton<ILogger, TConsoleLogger>()
+      .AddTransient<IDataService, TDataService>(
+        function(P: IServiceProvider): TObject
+        begin
+          Result := TDataService.Create(TDextServices.GetService<ILogger>(P));
+        end
+      )
+      .BuildServiceProvider();
 
-    // Registrar serviços usando helpers genéricos - agora com interfaces!
-    TServiceCollectionExtensions.AddSingleton<ILogger, TConsoleLogger>(Services);
-    // TServiceCollectionExtensions.AddTransient<IDataService, TDataService>(Services);
-    // Registrar IDataService com factory para injetar ILogger
-    TServiceCollectionExtensions.AddTransient<IDataService, TDataService>(
-      Services,
-      function(Provider: IServiceProvider): TObject
-      begin
-        var LoggerInstance := TServiceProviderExtensions.GetService<ILogger>(Provider);
-        Result := TDataService.Create(LoggerInstance);
-      end
-    );
-
-    // Construir provider
-    Provider := Services.BuildServiceProvider;
-
-    // Resolver serviços
-    Logger := TServiceProviderExtensions.GetService<ILogger>(Provider);
-    DataService := TServiceProviderExtensions.GetService<IDataService>(Provider);
+    // Resolver serviços usando métodos estáticos do TDextServices
+    Logger := TDextServices.GetService<ILogger>(Provider);
+    DataService := TDextServices.GetService<IDataService>(Provider);
 
     // Usar serviços
     if Assigned(Logger) then
@@ -95,11 +85,11 @@ begin
       Writeln('Data: ', DataService.GetData);
 
     // Testar singleton - mesma instância
-    var Logger2: ILogger := TServiceProviderExtensions.GetService<ILogger>(Provider);
+    var Logger2: ILogger := TDextServices.GetService<ILogger>(Provider);
     if Logger = Logger2 then
-      Writeln('? Singleton working - same instance')
+      Writeln('✔ Singleton working - same instance')
     else
-      Writeln('? Singleton broken - different instances');
+      Writeln('✘ Singleton broken - different instances');
 
   except
     on E: Exception do

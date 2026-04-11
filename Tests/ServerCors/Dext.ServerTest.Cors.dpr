@@ -1,12 +1,12 @@
-﻿program Dext.ServerTest.Cors;
+program Dext.ServerTest.Cors;
 
 uses
   Dext.MM,
   System.SysUtils,
+  Winapi.Windows,
   System.Rtti,
   Dext.Utils,
   Dext.DI.Interfaces,
-  Dext.DI.Extensions,
   Dext.Web.Interfaces,
   Dext.WebHost,
   Dext.Web.Middleware,
@@ -55,6 +55,7 @@ begin
 end;
 
 begin
+  SetConsoleOutputCP(CP_UTF8);
   try
     TestDextJson;
     TestDextJsonRecords;
@@ -98,9 +99,10 @@ begin
     var Host := TDextWebHost.CreateDefaultBuilder
       .ConfigureServices(procedure(Services: IServiceCollection)
       begin
-        // Registrar serviços
-        TServiceCollectionExtensions.AddSingleton<ITimeService, TTimeService>(Services);
-        TServiceCollectionExtensions.AddSingleton<ILogger, TConsoleLogger>(Services);
+        // Registrar serviços usando a API fluente
+        TDextServices.Create(Services)
+          .AddSingleton<ITimeService, TTimeService>
+          .AddSingleton<ILogger, TConsoleLogger>;
       end)
       .Configure(procedure(App: IApplicationBuilder)
       begin
@@ -132,7 +134,7 @@ begin
              var
                TimeService: ITimeService;
              begin
-               TimeService := TServiceProviderExtensions.GetService<ITimeService>(Ctx.Services);
+               TimeService := TDextServices.GetService<ITimeService>(Ctx.Services);
                Ctx.Response.Write('Server time: ' + TimeService.GetCurrentTime);
              end)
            .Map('/hello',

@@ -7,7 +7,6 @@ uses
   System.Rtti,
   Dext.DI.Interfaces,
   Dext.DI.Core,
-  Dext.DI.Extensions,
   Dext.Web.Interfaces,
   Dext.Web.Core,
   Dext.Web.Middleware,
@@ -33,7 +32,7 @@ begin
 
     // 1. Setup DI
     Services := TDextServiceCollection.Create;
-    TServiceCollectionExtensions.AddSingleton<ILogger, TConsoleLogger>(Services);
+    TDextServices.Create(Services).AddSingleton<ILogger, TConsoleLogger>;
     ServiceProvider := Services.BuildServiceProvider;
 
     // 2. Create application builder

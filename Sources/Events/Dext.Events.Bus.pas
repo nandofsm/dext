@@ -159,7 +159,7 @@ type
     function IEventBus.Dispatch           = BusDispatch;
     procedure IEventBus.DispatchBackground = BusDispatchBackground;
   private
-    [Weak] FServiceProvider: IServiceProvider;
+    FServiceProvider: Pointer;
     FRegistry: IEventHandlerRegistry;
     FSnapshotCache: IDictionary<Pointer, TDispatchSnapshot>;
     FSnapshotLock: TMultiReadExclusiveWriteSynchronizer;
@@ -355,7 +355,7 @@ constructor TEventBus.Create(const AServiceProvider: IServiceProvider;
   const ARegistry: IEventHandlerRegistry; const ACreateScope: Boolean);
 begin
   inherited Create;
-  FServiceProvider := AServiceProvider;
+  FServiceProvider := Pointer(AServiceProvider);
   FRegistry        := ARegistry;
   FCreateScope     := ACreateScope;
   FSnapshotCache   := TCollections.CreateDictionary<Pointer, TDispatchSnapshot>;
@@ -560,11 +560,11 @@ begin
 
   if FCreateScope then
   begin
-    Scope          := FServiceProvider.CreateScope;
+    Scope          := IServiceProvider(FServiceProvider).CreateScope;
     ScopedProvider := Scope.ServiceProvider;
   end
   else
-    ScopedProvider := FServiceProvider;
+    ScopedProvider := IServiceProvider(FServiceProvider);
 
   Result := DoDispatch(AEventType, AEvent, Snapshot, ScopedProvider);
 end;
@@ -579,13 +579,15 @@ var
 begin
   Snapshot := AcquireSnapshot(AEventType);
 
-  if Length(Snapshot.Handlers) = 0 then
-    Exit;
+  if FCreateScope then
+  begin
+    BackgroundScope := IServiceProvider(FServiceProvider).CreateScope;
+    ScopedProvider  := BackgroundScope.ServiceProvider;
+  end
+  else
+    ScopedProvider := IServiceProvider(FServiceProvider);
 
-  EventCopy       := AEvent;
-  BackgroundScope := FServiceProvider.CreateScope;
-  ScopedProvider  := BackgroundScope.ServiceProvider;
- 
+  EventCopy := AEvent;
   TTask.Run(TProc(
     procedure
     begin

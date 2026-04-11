@@ -42,7 +42,9 @@ uses
   Dext.DI.Attributes,
   Dext.DI.Comparers,
   Dext.DI.Core,
+{$WARN UNIT_DEPRECATED OFF}
   Dext.DI.Extensions,
+{$WARN UNIT_DEPRECATED ON}
   Dext.DI.Interfaces,
   Dext.Hosting.ApplicationLifetime,
   Dext.Hosting.AppState,

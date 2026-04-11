@@ -1,4 +1,4 @@
-﻿unit AutoInclude;
+unit AutoInclude;
 
 interface
 
@@ -24,8 +24,6 @@ uses
   Dext.DI.Attributes,
   Dext.DI.Comparers,
   Dext.DI.Core,
-  Dext.DI.Extensions,
-  Dext.DI.Extensions.utf8,
   Dext.DI.Interfaces,
   Dext.Hosting.ApplicationLifetime,
   Dext.Hosting.AppState,

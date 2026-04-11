@@ -6,7 +6,6 @@ uses
   Dext.MM,
   System.SysUtils,
   Dext.DI.Interfaces,
-  Dext.DI.Extensions,
   Dext.DI.Middleware,
   Dext.Web.Interfaces,
   Dext.WebHost,
@@ -91,10 +90,10 @@ begin
         WriteLn('Registering services...');
         
         // Register RequestContext as SCOPED (one instance per request)
-        TServiceCollectionExtensions.AddScoped<IRequestContext, TRequestContext>(Services);
+        TDextServices.Create(Services).AddScoped<IRequestContext, TRequestContext>;
         
         // Register GreetingService as TRANSIENT (new instance every time, but gets the scoped RequestContext)
-        TServiceCollectionExtensions.AddTransient<IGreetingService, TGreetingService>(Services);
+        TDextServices.Create(Services).AddTransient<IGreetingService, TGreetingService>;
         
         WriteLn('  IRequestContext registered as SCOPED');
         WriteLn('  IGreetingService registered as TRANSIENT');

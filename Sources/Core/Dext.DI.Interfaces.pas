@@ -197,6 +197,12 @@ type
     function AddScoped(const AServiceType: TServiceType; const AImplementationClass: TClass; const AFactory: TFunc<IServiceProvider, TObject> = nil): TDextServices; overload;
 
     function BuildServiceProvider: IServiceProvider;
+
+    // Resolution Extensions (v2)
+    class function GetServiceObject<T: class>(const AProvider: IServiceProvider): T; static;
+    class function GetRequiredServiceObject<T: class>(const AProvider: IServiceProvider): T; static;
+    class function GetService<T: IInterface>(const AProvider: IServiceProvider): T; static;
+    class function GetRequiredService<T: IInterface>(const AProvider: IServiceProvider): T; static;
   end;
 
   TDextDIFactory = class
@@ -498,6 +504,52 @@ begin
     Result := CreateServiceCollectionFunc()
   else
     raise EDextDIException.Create('DI Factory not initialized. Make sure Dext.DI.Core is in your uses.');
+end;
+
+{ TDextServices resolution extensions }
+
+class function TDextServices.GetRequiredService<T>(const AProvider: IServiceProvider): T;
+var
+  Guid: TGUID;
+  LService: IInterface;
+begin
+  Guid := GetTypeData(TypeInfo(T))^.Guid;
+  LService := AProvider.GetServiceAsInterface(TServiceType.FromInterface(Guid));
+  if not Assigned(LService) then
+    raise EDextDIException.Create('Service not registered: ' + string(PTypeInfo(TypeInfo(T))^.Name));
+  if not Supports(LService, Guid, Result) then
+    raise EDextDIException.Create('Service persistent instance does not support interface: ' + string(PTypeInfo(TypeInfo(T))^.Name));
+end;
+
+class function TDextServices.GetRequiredServiceObject<T>(const AProvider: IServiceProvider): T;
+var
+  LObj: TObject;
+begin
+  LObj := AProvider.GetRequiredService(TServiceType.FromClass(T));
+  Result := T(LObj);
+end;
+
+class function TDextServices.GetService<T>(const AProvider: IServiceProvider): T;
+var
+  Guid: TGUID;
+  Intf: IInterface;
+begin
+  Guid := GetTypeData(TypeInfo(T))^.Guid;
+  Intf := AProvider.GetServiceAsInterface(TServiceType.FromInterface(Guid));
+  if Intf = nil then
+    Exit(Default(T));
+  if not Supports(Intf, Guid, Result) then
+    Exit(Default(T));
+end;
+
+class function TDextServices.GetServiceObject<T>(const AProvider: IServiceProvider): T;
+var
+  LObj: TObject;
+begin
+  LObj := AProvider.GetService(TServiceType.FromClass(T));
+  if LObj = nil then
+    Exit(nil);
+  Result := T(LObj);
 end;
 
 end.
