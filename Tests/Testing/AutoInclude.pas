@@ -6,7 +6,6 @@ uses
   Dext.Core.Activator,
   Dext.Threading.CancellationToken,
   Dext.Core.DateUtils,
-  Dext.Core.Extensions,
   Dext.Core.Memory,
   Dext.Core.Span,
   Dext.Core.ValueConverters,

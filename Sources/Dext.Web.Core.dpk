@@ -102,6 +102,7 @@ contains
   Dext.Web.Middleware.Logging in 'Web\Dext.Web.Middleware.Logging.pas',
   Dext.Web.View in 'Web\Dext.Web.View.pas',
   Dext.Web.View.WebStencils in 'Web\Dext.Web.View.WebStencils.pas',
-  Dext.Web.DataApi.Resolver in 'Web\Dext.Web.DataApi.Resolver.pas';
+  Dext.Web.DataApi.Resolver in 'Web\Dext.Web.DataApi.Resolver.pas',
+  Dext.Web.DataApi.Utils in 'Web\Dext.Web.DataApi.Utils.pas';
 
 end.

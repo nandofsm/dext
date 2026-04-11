@@ -299,40 +299,35 @@ begin
   // === SINGLETON CLEANUP (only for root provider) ===
   if FIsRootProvider then
   begin
-    // 1. Free class-based singletons (non-TInterfacedObject)
+    // 1. Clear interface-based singletons (ARC manages)
+    // We do this BEFORE freeing classes because interfaces (like THostedServiceManager)
+    // might hold references to classes (like THostingLifecycleEventBridge).
+    FSingletonInterfaces := nil;
+
+    // 2. Free class-based singletons (non-TInterfacedObject)
     if Assigned(FSingletons) then
     begin
       for var Pair in FSingletons do
-      begin
         Pair.Value.Free;
-      end;
       FSingletons := nil;
     end;
-    
-    // 2. Clear interface-based singletons (ARC manages)
-    FSingletonInterfaces := nil;
   end;
 
   // === SCOPED CLEANUP ===
-  // Scoped providers or root provider clearing temporary scoped items used for resolution?
-  // Actually usually only TServiceScope calls this when it's destroyed.
+  // Scoped items also follow the same logic: Interfaces first
+  FScopedInterfaces := nil;
+  
   if Assigned(FScopedInstances) then
   begin
     for var Pair in FScopedInstances do
-    begin
-       Pair.Value.Free;
-    end;
+      Pair.Value.Free;
     FScopedInstances := nil;
   end;
-  
-  // 2. Clear interface-based scoped instances (ARC)
-  FScopedInterfaces := nil;
 
-  FLock.Free;
-  
   if FOwnsDescriptors then
     FDescriptors := nil;
 
+  FLock.Free;
   inherited Destroy;
 end;
 
@@ -346,12 +341,13 @@ end;
 
 function TDextServiceProvider.FindDescriptor(const AServiceType: TServiceType): TServiceDescriptor;
 var
-  Descriptor: TServiceDescriptor;
+  I: Integer;
 begin
-  for Descriptor in FDescriptors do
+  // Iterate backwards to find the most recent registration (Standard DI behavior)
+  for I := FDescriptors.Count - 1 downto 0 do
   begin
-    if Descriptor.ServiceType = AServiceType then
-      Exit(Descriptor);
+    if FDescriptors[I].ServiceType = AServiceType then
+      Exit(FDescriptors[I]);
   end;
   Result := nil;
 end;
@@ -391,24 +387,34 @@ begin
       begin
         if FIsRootProvider then
         begin
-          // Check both dictionaries for existing instance
-          if FSingletonInterfaces.TryGetValue(Key, Intf) then
-            Result := TObject(Intf)
-          else if FSingletons.TryGetValue(Key, Instance) then
-            Result := Instance
+          // Determine storage based on registration type (Class vs Interface)
+          if Descriptor.IsInterfaceService then
+          begin
+            if FSingletonInterfaces.TryGetValue(Key, Intf) then
+            begin
+               Result := Intf as TObject;
+               Exit;
+            end;
+          end
           else
           begin
-            // Create new instance
-            Instance := CreateInstance(Descriptor);
-            
-            // Store in appropriate dictionary based on type
-            if Instance is TInterfacedObject then
-              FSingletonInterfaces.Add(Key, Instance as TInterfacedObject)
-            else
-              FSingletons.Add(Key, Instance);
-            
-            Result := Instance;
+            if FSingletons.TryGetValue(Key, Instance) then
+              Exit(Instance);
           end;
+
+          // Create new instance
+          Instance := CreateInstance(Descriptor);
+          
+          // Store based on registration type
+          if Descriptor.IsInterfaceService then
+          begin
+            if Supports(Instance, IInterface, Intf) then
+              FSingletonInterfaces.Add(Key, Intf);
+          end
+          else
+            FSingletons.Add(Key, Instance);
+          
+          Result := Instance;
         end
         else
           Result := FParentProvider.GetService(AServiceType);
@@ -416,11 +422,30 @@ begin
 
       TServiceLifetime.Scoped:
       begin
-        if not FScopedInstances.TryGetValue(Key, Instance) then
+        // Similar check for Scoped
+        if Descriptor.IsInterfaceService then
         begin
-          Instance := CreateInstance(Descriptor);
-          FScopedInstances.Add(Key, Instance);
+          if FScopedInterfaces.TryGetValue(Key, Intf) then
+          begin
+            Result := Intf as TObject;
+            Exit;
+          end;
+        end
+        else
+        begin
+          if FScopedInstances.TryGetValue(Key, Instance) then
+            Exit(Instance);
         end;
+
+        // Create new instance
+        Instance := CreateInstance(Descriptor);
+        if Descriptor.IsInterfaceService then
+        begin
+          if Supports(Instance, IInterface, Intf) then
+            FScopedInterfaces.Add(Key, Intf);
+        end
+        else
+          FScopedInstances.Add(Key, Instance);
         Result := Instance;
       end;
 

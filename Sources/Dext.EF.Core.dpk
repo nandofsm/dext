@@ -35,9 +35,10 @@ requires
   FireDAC,
   FireDACCommon,
   FireDACCommonDriver,
-  Dext.Core,
   FireDACSqliteDriver,
-  FireDACPgDriver;
+  FireDACPgDriver,
+  Dext.AST,
+  Dext.Core;
 
 contains
   Dext.Entity.Context in 'Data\Dext.Entity.Context.pas',

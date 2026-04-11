@@ -41,6 +41,7 @@ contains
   Dext.Events.Extensions in 'Events\Dext.Events.Extensions.pas',
   Dext.Events.Lifecycle in 'Events\Dext.Events.Lifecycle.pas',
   Dext.Events in 'Events\Dext.Events.pas',
-  Dext.Events.Testing in 'Events\Dext.Events.Testing.pas';
+  Dext.Events.Testing in 'Events\Dext.Events.Testing.pas',
+  Dext.Hosting.Events.Bridge in 'Events\Dext.Hosting.Events.Bridge.pas';
 
 end.

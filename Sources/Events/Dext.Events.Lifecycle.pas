@@ -1,4 +1,4 @@
-{***************************************************************************}
+﻿{***************************************************************************}
 {                                                                           }
 {           Dext Framework                                                  }
 {                                                                           }
@@ -65,32 +65,10 @@ uses
   Dext.Threading.CancellationToken,
   Dext.Hosting.ApplicationLifetime,
   Dext.Hosting.BackgroundService,
+  Dext.Hosting.Events,
   Dext.Events.Interfaces;
 
 type
-  // ---------------------------------------------------------------------------
-  // Lifecycle event records
-  // ---------------------------------------------------------------------------
-
-  /// <summary>
-  ///   Published after the application host has fully started and is ready to
-  ///   accept requests. Handlers may initialise caches, warm-up pools, etc.
-  /// </summary>
-  TApplicationStartedEvent = record end;
-
-  /// <summary>
-  ///   Published when the application host begins a graceful shutdown.
-  ///   Requests may still be in flight. Handlers should start releasing
-  ///   resources but avoid blocking for long periods.
-  /// </summary>
-  TApplicationStoppingEvent = record end;
-
-  /// <summary>
-  ///   Published after all hosted services have stopped and the application is
-  ///   about to exit. Use for final clean-up work.
-  /// </summary>
-  TApplicationStoppedEvent = record end;
-
   // ---------------------------------------------------------------------------
   // Background service that bridges IHostApplicationLifetime → IEventBus
   // ---------------------------------------------------------------------------

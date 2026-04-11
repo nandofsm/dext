@@ -141,8 +141,8 @@ begin
       Exit;
 
     RootNode := TDextJson.Provider.Parse(JsonContent);
-    
-    FData.Clear;
+
+    ClearData;
     ProcessNode('', RootNode);
   except
     on E: Exception do

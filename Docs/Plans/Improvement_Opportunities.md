@@ -101,20 +101,23 @@
 - A.1 **Web RTTI Pool**: ✅ Concluído
 - A.2 **Activator Context Cache**: ✅ Concluído
 - A.3 **Span SIMD**: ✅ Concluído
+- A.4 **Config Key Hashing**: ✅ Concluído
 - A.5 **Limpeza de Partições**: ✅ Concluído
-- B.1 **MIME Extensível**: 🟡 Implementado
-- B.3 **Otimização JWT**: 🟡 Implementado
-- C.1 **Multipart/Form-Data**: 🟡 Implementado
-- E.1 **Configuration Watchers**: 🟡 Implementado
-- E.2 **Validation in Config**: 🟡 Implementado
-- G.3 **HTML Reporter Templates**: ✅ Concluído
+- B.1 **MIME Extensível**: ✅ Concluído
+- B.2 **DataApi Metadata**: ✅ Concluído
+- B.3 **Otimização JWT**: ✅ Concluído
+- C.1 **Multipart/Form-Data**: ✅ Concluído
 - C.2 **Unificação de Escapes**: ✅ Concluído
 - D.2 **Lazy Loading Interceptors**: ✅ Concluído
 - D.3 **Metadata Parser (AST)**: ✅ Concluído
+- E.1 **Configuration Watchers**: ✅ Concluído
+- E.2 **Validation in Config**: ✅ Concluído
+- F.1 **Eventos de Estado**: ✅ Concluído
+- G.1 **Soft Assertions Thread-Safety**: ✅ Concluído
+- G.3 **HTML Reporter Templates**: ✅ Concluído
 - H.1 **Filtro de Entidades**: ✅ Concluído
 - H.2 **SQL Tab no Preview**: ✅ Concluído
 - H.3 **Visualização de Tipos**: ✅ Concluído
-- G.1 **Soft Assertions Thread-Safety**: ✅ Concluído
 
 ---
 
@@ -127,7 +130,7 @@ Melhorias na fundação de baixo nível que impactam **todos os módulos** do fr
 | A.1 | **Web RTTI Pool** | `Dext.Web.ModelBinding` / `Dext.Web.Core` | Compartilhar `TRttiContext` entre `ModelBinder` e `HandlerInvoker` para eliminar o overhead de criação de pool RTTI por requisição. |
 | A.2 | **Activator Context Cache** | `Dext.Core.Activator` | Permitir compartilhamento de `TRttiContext` via `ThreadLocal` ou parâmetro opcional para evitar recriação massiva em loops de desserialização JSON. |
 | A.3 | **Span SIMD** | `Dext.Core.Span` | Implementar `TByteSpan.Equals` usando instruções SIMD (SSE/AVX) para comparação de buffers de alta densidade no motor Web e JSON. |
-| A.4 | **Config Key Hashing** | `Dext.Configuration.Core` | Otimizar busca em `TConfigurationRoot` utilizando hashes de strings para chaves compostas em árvores profundas. |
+| A.4 | **Config Key Hashing** | `Dext.Configuration.Core` | ✅ Concluído. Otimizar busca em `TConfigurationRoot` utilizando hashes (UInt64) para chaves compostas em árvores profundas. |
 | A.5 | **Limpeza de Partições** | `Dext.RateLimiting.Limiters` | Otimizar `Cleanup` para evitar iteração total no dicionário em servidores de altíssimo tráfego. Migrar para background thread ou bucket expiry. |
 
 ---
@@ -136,9 +139,9 @@ Melhorias na fundação de baixo nível que impactam **todos os módulos** do fr
 
 | # | Melhoria | Unit Afetada | Descrição |
 | :---: | :--- | :--- | :--- |
-| B.1 | **MIME Extensível** | `Dext.Web.StaticFiles` | Transformar o mapeamento de MIME types em provedor extensível ou carregável de arquivo externo, em vez de hardcoded. |
-| B.2 | **DataApi Metadata** | `Dext.Web.DataApi` | Centralizar lógica de pluralização e descoberta de nomes de tags Swagger em unit de utilitários de metadados para evitar repetição de código RTTI. |
-| B.3 | **Otimização JWT** | `Dext.Auth.JWT` | Refatorar `Base64UrlEncode` para realizar troca de caracteres em um único passo, evitando múltiplas alocações de string via `Replace`. |
+| B.1 | **MIME Extensível** | `Dext.Web.StaticFiles` | ✅ Concluído. Provedor de MIME types extensível via arquivo externo ou registro dinâmico. |
+| B.2 | **DataApi Metadata** | `Dext.Web.DataApi` | ✅ Concluído. Centralizar lógica de pluralização e descoberta de nomes via `TDataApiNaming` na unit de utilitários. |
+| B.3 | **Otimização JWT** | `Dext.Auth.JWT` | ✅ Concluído. Refatorada codificação Base64 para evitar alocações duplicadas de string. |
 
 ---
 
@@ -146,7 +149,7 @@ Melhorias na fundação de baixo nível que impactam **todos os módulos** do fr
 
 | # | Melhoria | Unit Afetada | Descrição |
 | :---: | :--- | :--- | :--- |
-| C.1 | **Multipart/Form-Data** | `Dext.Net.RestRequest` | Facilitar envio de arquivos e campos de formulário via métodos dedicados no builder (`AddFile`, `AddFormField`). |
+| C.1 | **Multipart/Form-Data** | `Dext.Net.RestRequest` | ✅ Concluído. Facilitar envio de arquivos e campos de formulário via métodos dedicados no builder (`AddFile`, `AddFormField`). |
 | C.2 | **Unificação de Escapes** | `Dext.Text.Escaping` | Centralizar funções `EscapeXml` e `EscapeJson` em unit única para evitar duplicação entre reporters, serializers e RestClient. | ✅ Concluído |
 
 ---
@@ -165,8 +168,8 @@ Melhorias na fundação de baixo nível que impactam **todos os módulos** do fr
 
 | # | Melhoria | Unit Afetada | Descrição |
 | :---: | :--- | :--- | :--- |
-| E.1 | **Configuration Watchers** | `Dext.Configuration.Core` | Implementar `ReloadOnChange` utilizando `TFileSystemWatcher` para atualização automática da configuração ao detectar mudanças no disco. |
-| E.2 | **Validation in Config** | `Dext.Configuration.Core` / `Dext.Options` | Permitir registro de Validadores para seções de configuração, impedindo o `Build` se valores obrigatórios estiverem ausentes ou inválidos. |
+| E.1 | **Configuration Watchers** | `Dext.Configuration.Core` | ✅ Concluído. Implementar `ReloadOnChange` utilizando `TFileSystemWatcher` para atualização automática da configuração ao detectar mudanças no disco. |
+| E.2 | **Validation in Config** | `Dext.Configuration.Core` / `Dext.Options` | ✅ Concluído. Permitir registro de Validadores para seções de configuração, impedindo o `Build` se valores obrigatórios estiverem ausentes ou inválidos. |
 
 ---
 
@@ -174,7 +177,7 @@ Melhorias na fundação de baixo nível que impactam **todos os módulos** do fr
 
 | # | Melhoria | Unit Afetada | Descrição |
 | :---: | :--- | :--- | :--- |
-| F.1 | **Eventos de Estado** | `Dext.Hosting.AppState` | Disparar notificações via `TMessageManager` em cada mudança de estado (`asMigrating`, `asRunning`) para monitoramento desacoplado. |
+| F.1 | **Eventos de Estado** | `Dext.Hosting` | ✅ Concluído. Disparar notificações via `Dext.Events` em cada mudança de estado (`Started`, `Stopping`, `Stopped`) no `THostedServiceManager`. |
 
 ---
 
@@ -224,8 +227,16 @@ Melhorias na fundação de baixo nível que impactam **todos os módulos** do fr
 ### Pós-1.0 — Sprint 3 (Refinamento)
 
 - ORM: Lazy Loading e AST Parser (D.2, D.3) ✅ Concluído
-- ~~Testing: Snapshots e Templates (G.2, G.3)~~ ✅
-- Design-Time: SQL Tab e SearchBox (H.1, H.2) ✅ Concluído
+- Testing: Snapshots e Templates (G.2, G.3) ✅ Concluído
+- Design-Time: SQL Tab e SearchBox (H.1, H.2, H.3) ✅ Concluído
+
+### Pós-1.0 — Sprint 4 (Sustentação & Lifecycle)
+
+- Core: Config Key Hashing (A.4) ✅ Concluído
+- Web: DataApi Metadata (B.2) ✅ Concluído
+- Web: JWT Optimization (B.3) ✅ Concluído
+- Hosting: Lifecycle Events (F.1) ✅ Concluído
+- Testing: Fix Runner Duration & Logs ✅ Concluído
 
 ---
 
@@ -239,7 +250,6 @@ Melhorias na fundação de baixo nível que impactam **todos os módulos** do fr
 | T.2 | **Memory Leak Guard (`TActivator` Cache)** | ✅ | Loop massivo para instanciar contextos no RTTI Pool constatando o retorno seguro de instâncias sem vazar memória. |
 | T.3 | **Validação JWT & Multipart (Amarelos)** | ✅ | Asserts baseados em dados variados para garantir que `B.3` (JWT) e `C.1` (Multipart) estão sólidos em tráfego real. |
 | T.4 | **Configuration Pipeline (`E.1` e `E.2`)** | ✅ | Testar validações obrigatórias de Options e hot-reload via `FileSystemWatcher`. |
-
 
 ---
 

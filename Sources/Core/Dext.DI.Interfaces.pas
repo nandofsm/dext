@@ -1,4 +1,4 @@
-﻿{***************************************************************************}
+{***************************************************************************}
 {                                                                           }
 {           Dext Framework                                                  }
 {                                                                           }
@@ -165,6 +165,7 @@ type
     class function New: TDextServices; static;
     function Unwrap: IServiceCollection;
     procedure AddRange(const AOther: TDextServices);
+    property Collection: IServiceCollection read FServices;
 
     // Generic Overloads for Interface + Implementation pairs
     function AddSingleton<TService: IInterface; TImplementation: class>: TDextServices; overload;

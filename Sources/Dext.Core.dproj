@@ -114,7 +114,6 @@ $(PreBuildEvent)]]></PreBuildEvent>
         <DCCReference Include="Core\Base\Dext.Utils.pas"/>
         <DCCReference Include="Core\Base\Dext.Types.Nullable.pas"/>
         <DCCReference Include="Core\Base\Dext.Types.Lazy.pas"/>
-        <DCCReference Include="Core\Base\Dext.Core.Extensions.pas"/>
         <DCCReference Include="Core\Json\Dext.Json.Driver.DextJsonDataObjects.pas"/>
         <DCCReference Include="Core\Json\Dext.Json.Driver.SystemJson.pas"/>
         <DCCReference Include="Core\Json\DextJsonDataObjects.pas"/>
@@ -157,6 +156,7 @@ $(PreBuildEvent)]]></PreBuildEvent>
         <DCCReference Include="Core\Dext.MultiTenancy.pas"/>
         <DCCReference Include="Core\Dext.Hosting.AppState.pas"/>
         <DCCReference Include="Core\Dext.Hosting.BackgroundService.pas"/>
+        <DCCReference Include="Core\Dext.Hosting.Events.pas"/>
         <DCCReference Include="Core\Dext.Hosting.ApplicationLifetime.pas"/>
         <DCCReference Include="Core\Dext.MM.pas"/>
         <DCCReference Include="Core\Base\Dext.Core.Span.pas"/>

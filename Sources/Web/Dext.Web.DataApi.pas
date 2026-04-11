@@ -30,6 +30,7 @@ uses
   Dext.Core.ValueConverters,
   Dext.OpenAPI.Extensions,
   Dext.Web.DataApi.Resolver,
+  Dext.Web.DataApi.Utils,
   Dext.Web.ModelBinding;
 
 type
@@ -386,35 +387,15 @@ end;
 
 procedure TDataApiHandler<T>.RegisterRoutes(const ABuilder: IApplicationBuilder);
 var
-  CleanPath, EntityName, EntityTag: string;
-  RttiCtx: TRttiContext;
-  RttiType: TRttiType;
+  CleanPath, EntityTag: string;
 begin
   CleanPath := FPath.TrimRight(['/']);
   
-  // Get entity name for Swagger tag (e.g., "TCustomer" -> "Customers")
-  RttiCtx := TRttiContext.Create;
-  try
-    RttiType := RttiCtx.GetType(TypeInfo(T));
-    if RttiType <> nil then
-      EntityName := RttiType.Name
-    else
-      EntityName := 'Entity';
-  finally
-    RttiCtx.Free;
-  end;
+  // B.2: Centralized naming logic
+  EntityTag := TDataApiNaming.GetEntityTag(TypeInfo(T));
   
-  // Remove 'T' prefix if present and pluralize
-  if EntityName.StartsWith('T') then
-    EntityTag := EntityName.Substring(1)
-  else
-    EntityTag := EntityName;
-  if not EntityTag.EndsWith('s') then
-    EntityTag := EntityTag + 's';
-  
-  // Use custom tag if provided
-  if FOptions.SwaggerTag <> '' then
-    EntityTag := FOptions.SwaggerTag;
+  if FOptions.SwaggerDescription = '' then
+    FOptions.SwaggerDescription := TDataApiNaming.GetEntityDescription(TypeInfo(T));
 
   // GET List
   if amGetList in FOptions.AllowedMethods then

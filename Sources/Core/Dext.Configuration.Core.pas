@@ -33,6 +33,7 @@ uses
   System.SyncObjs,
   Dext.Collections,
   Dext.Collections.Dict,
+  Dext.Collections.RawDict,
   Dext.Collections.Comparers,
   Dext.Collections.Algorithms,
   Dext.Configuration.Interfaces;
@@ -46,6 +47,7 @@ type
   TConfigurationProvider = class(TInterfacedObject, IConfigurationProvider)
   protected
     FData: IDictionary<string, string>;
+    procedure ClearData;
   public
     constructor Create;
     destructor Destroy; override;
@@ -87,7 +89,7 @@ type
     FReloadOnChange: Boolean;
     FReloadIntervalMs: Integer;
     FReloadThread: TThread;
-    FKeyCache: IDictionary<string, string>;
+    FKeyCache: IDictionary<Cardinal, string>;
     FCacheDirty: Boolean;
     
     function GetConfiguration(const Key: string): string;
@@ -239,10 +241,15 @@ type
 
 { TConfigurationProvider }
 
+procedure TConfigurationProvider.ClearData;
+begin
+  if Assigned(FData) then
+    FData.Clear;
+end;
+
 constructor TConfigurationProvider.Create;
 begin
   inherited;
-  FData := TCollections.CreateDictionaryIgnoreCase<string, string>;
 end;
 
 destructor TConfigurationProvider.Destroy;
@@ -253,11 +260,18 @@ end;
 
 function TConfigurationProvider.TryGet(const Key: string; out Value: string): Boolean;
 begin
+  if FData = nil then
+  begin
+    Value := '';
+    Exit(False);
+  end;
   Result := FData.TryGetValue(Key, Value);
 end;
 
 procedure TConfigurationProvider.Set_(const Key, Value: string);
 begin
+  if FData = nil then
+    FData := TCollections.CreateDictionaryIgnoreCase<string, string>;
   FData.AddOrSetValue(Key, Value);
 end;
 
@@ -285,18 +299,21 @@ begin
       
     Len := Length(Prefix);
     
-    for var Pair in FData do
+    if FData <> nil then
     begin
-      Key := Pair.Key;
-      if (Len = 0) or (Key.StartsWith(Prefix, True)) then
+      for var Pair in FData do
       begin
-        Segment := Key.Substring(Len);
-        var DelimiterIndex := Segment.IndexOf(TConfigurationPath.KeyDelimiter);
-        if DelimiterIndex >= 0 then
-          Segment := Segment.Substring(0, DelimiterIndex);
-          
-        if not Results.Contains(Segment) then
-          Results.Add(Segment);
+        Key := Pair.Key;
+        if (Len = 0) or (Key.StartsWith(Prefix, True)) then
+        begin
+          Segment := Key.Substring(Len);
+          var DelimiterIndex := Segment.IndexOf(TConfigurationPath.KeyDelimiter);
+          if DelimiterIndex >= 0 then
+            Segment := Segment.Substring(0, DelimiterIndex);
+            
+          if not Results.Contains(Segment) then
+            Results.Add(Segment);
+        end;
       end;
     end;
     
@@ -416,7 +433,7 @@ begin
   FReloadIntervalMs := AReloadIntervalMs;
   if FReloadIntervalMs <= 0 then
     FReloadIntervalMs := 1000;
-  FKeyCache := TCollections.CreateDictionaryIgnoreCase<string, string>;
+  FKeyCache := TCollections.CreateDictionary<Cardinal, string>;
   FCacheDirty := True;
 
   FProviders := TCollections.CreateList<IConfigurationProvider>;
@@ -464,7 +481,7 @@ begin
     for var Key in Keys do
     begin
       if Provider.TryGet(Key, Value) then
-        FKeyCache.AddOrSetValue(Key, Value);
+        FKeyCache.AddOrSetValue(StringRawHashIgnoreCase(@Key, 0), Value);
     end;
   end;
   FCacheDirty := False;
@@ -476,8 +493,9 @@ var
 begin
   FLock.Enter;
   try
-    // Try cache first (O(1) lookup)
-    if (not FCacheDirty) and FKeyCache.TryGetValue(Key, Value) then
+    // Try cache first (O(1) lookup with hash)
+    var KeyHash := StringRawHashIgnoreCase(@Key, 0);
+    if (not FCacheDirty) and FKeyCache.TryGetValue(KeyHash, Value) then
       Exit(Value);
 
     // Cache miss or dirty - fall back to provider scan
@@ -807,11 +825,7 @@ end;
 constructor TMemoryConfigurationProvider.Create(Data: IDictionary<string, string>);
 begin
   inherited Create;
-  if Data <> nil then
-  begin
-    for var Pair in Data do
-      FData.Add(Pair.Key, Pair.Value);
-  end;
+  FData := Data;
 end;
 
 procedure TMemoryConfigurationProvider.Load;

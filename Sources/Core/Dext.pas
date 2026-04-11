@@ -68,7 +68,6 @@ uses
   Dext.Yaml,
   Dext.Core.Activator,
   Dext.Threading.CancellationToken,
-  Dext.Core.Extensions,
   Dext.Core.Memory,
   Dext.Core.Span,
   Dext.Core.ValueConverters,
@@ -140,9 +139,6 @@ type
   ICancellationToken = Dext.Threading.CancellationToken.ICancellationToken;
   TCancellationToken = Dext.Threading.CancellationToken.TCancellationToken;
   TCancellationTokenSource = Dext.Threading.CancellationToken.TCancellationTokenSource;
-
-  // Dext.Core.Extensions
-  TDextServiceCollectionExtensions = Dext.Core.Extensions.TDextServiceCollectionExtensions;
 
   // Dext.Core.Memory
   IDeferred = Dext.Core.Memory.IDeferred;

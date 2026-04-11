@@ -124,6 +124,7 @@
         <DCCReference Include="Events\Dext.Events.Lifecycle.pas"/>
         <DCCReference Include="Events\Dext.Events.pas"/>
         <DCCReference Include="Events\Dext.Events.Testing.pas"/>
+        <DCCReference Include="Events\Dext.Hosting.Events.Bridge.pas"/>
         <BuildConfiguration Include="Base">
             <Key>Base</Key>
         </BuildConfiguration>

@@ -66,7 +66,6 @@ type
   ///   Handlers are resolved via DI on each publish, allowing dependency injection.
   /// </summary>
   IEventHandler<T> = interface(IEventHandler)
-    ['{B2F85D39-4E0A-5C6B-9D1F-3E7A2B8C4D0F}']
     procedure Handle(const AEvent: T);
   end;
 

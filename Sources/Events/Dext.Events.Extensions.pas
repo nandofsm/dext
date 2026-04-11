@@ -35,7 +35,8 @@ uses
   Dext.DI.Interfaces,
   Dext.Core.Activator,
   Dext.Events.Interfaces,
-  Dext.Events.Bus;
+  Dext.Events.Bus,
+  Dext.Hosting.BackgroundService;
 
 type
   // --- Internal registration records (required by generic methods below) ------
@@ -167,17 +168,31 @@ type
     ///   avoid registering a second IHostedServiceManager.
     /// </summary>
     function AddEventBusLifecycle: TDextServices;
-
+    /// <summary>
+    ///  Starts the Background Service builder chain.
+    /// </summary>
+    function AddBackgroundServices: TBackgroundServiceBuilder;
   private
     function FindAccumulator: TEventHandlerAccumulator;
     function RegisterEventBus(const ACreateScope: Boolean): TDextServices;
   end;
 
+  /// <summary>
+  ///   Bridge extensions for TBackgroundServiceBuilder.
+  /// </summary>
+  THostingEventsExtensions = record helper for TBackgroundServiceBuilder
+  public
+    /// <summary>
+    ///   Enables Host lifecycle events mapping to Event Bus.
+    /// </summary>
+    function AddLifecycleEvents: TBackgroundServiceBuilder;
+  end;
+
 implementation
 
 uses
-  Dext.Hosting.BackgroundService, // IHostedServiceManager, THostedServiceManager, IHostedService
-  Dext.Events.Lifecycle;          // TEventBusLifecycleService
+  Dext.Events.Lifecycle,          // TEventBusLifecycleService
+  Dext.Hosting.Events.Bridge;
 
 { TEventHandlerAccumulator }
 
@@ -198,7 +213,10 @@ begin
   Result :=
     function(P: IServiceProvider): TObject
     begin
-      Result := TActivator.CreateInstance(P, AClass);
+      // Try to resolve from DI first (respects singletons/overrides)
+      Result := P.GetService(TServiceType.FromClass(AClass));
+      if Result = nil then
+        Result := TActivator.CreateInstance(P, AClass);
     end;
 end;
 
@@ -308,12 +326,32 @@ function TEventBusDIExtensions.AddEventHandler<TEvent, THandler>: TDextServices;
 var
   Acc: TEventHandlerAccumulator;
   Entry: THandlerRegistration;
+  Desc: TServiceDescriptor;
+  AlreadyRegistered: Boolean;
+  TargetServiceType: TServiceType;
 begin
   Acc := FindAccumulator;
   Entry.EventType    := TypeInfo(TEvent);
   Entry.HandlerClass := THandler;
   Acc.Handlers.Add(Entry);
-  Unwrap.AddTransient(TServiceType.FromClass(THandler), THandler, nil);
+
+  // Only add a default Transient registration if the handler class is not
+  // already registered in DI (e.g., as a Singleton via AddSingletonInstance).
+  // Without this check, the Transient descriptor added here would shadow the
+  // existing Singleton (FindDescriptor iterates backwards), causing the EventBus
+  // to create a new instance instead of using the pre-registered one.
+  AlreadyRegistered := False;
+  TargetServiceType := TServiceType.FromClass(THandler);
+  for Desc in Unwrap.GetDescriptors do
+    if Desc.ServiceType = TargetServiceType then
+    begin
+      AlreadyRegistered := True;
+      Break;
+    end;
+
+  if not AlreadyRegistered then
+    Unwrap.AddTransient(TServiceType.FromClass(THandler), THandler, nil);
+
   Result := Self;
 end;
 
@@ -392,6 +430,37 @@ begin
   );
 
   Result := Self;
+end;
+
+function TEventBusDIExtensions.AddBackgroundServices: TBackgroundServiceBuilder;
+begin
+  Result := TDextServiceCollectionExtensions.AddBackgroundServices(Self.Collection);
+end;
+
+{ THostingEventsExtensions }
+
+function THostingEventsExtensions.AddLifecycleEvents: TBackgroundServiceBuilder;
+begin
+  // Register the bridge with an explicit factory to avoid Activator 
+  // doing implicit interface resolution that causes ARC conflicts
+  Self.FServices.AddSingleton(
+    TServiceType.FromClass(THostingLifecycleEventBridge),
+    THostingLifecycleEventBridge,
+    function(Provider: IServiceProvider): TObject
+    var
+      Bus: IEventBus;
+      Intf: IInterface;
+    begin
+      Intf := Provider.GetServiceAsInterface(
+        TServiceType.FromInterface(TypeInfo(IEventBus)));
+      if Assigned(Intf) then
+        Supports(Intf, IEventBus, Bus);
+      Result := THostingLifecycleEventBridge.Create(Bus);
+    end
+  );
+  
+  // Add to the host's background services list
+  Result := AddHostedService(THostingLifecycleEventBridge);
 end;
 
 end.

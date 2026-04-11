@@ -156,7 +156,7 @@ type
   CombinatorialAttribute = Dext.Testing.Attributes.CombinatorialAttribute;
 
   // Dext.Testing.Console
-  TTestRunner = Dext.Testing.Console.TTestRunner;
+  TTestRunner = Dext.Testing.Runner.TTestRunner;
 
   // Dext.Testing.Dashboard
   TDashboardListener = Dext.Testing.Dashboard.TDashboardListener;

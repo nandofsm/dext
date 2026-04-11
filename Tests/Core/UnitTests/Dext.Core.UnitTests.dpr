@@ -1,4 +1,4 @@
-program Dext.Core.UnitTests;
+﻿program Dext.Core.UnitTests;
 
 {$IFNDEF TESTINSIGHT}
   {$APPTYPE CONSOLE}
@@ -14,7 +14,9 @@ uses
   Dext.Testing,
   Dext.Utils,
   Dext.Json.Refactored.Tests in 'Dext.Json.Refactored.Tests.pas',
-  Dext.Configuration.Features.Tests in 'Dext.Configuration.Features.Tests.pas';
+  Dext.Configuration.Features.Tests in 'Dext.Configuration.Features.Tests.pas',
+  Dext.Configuration.Hashing.Tests in 'Dext.Configuration.Hashing.Tests.pas',
+  Dext.Hosting.Events.Tests in 'Dext.Hosting.Events.Tests.pas';
 
 begin
   {$IFDEF TESTINSIGHT}
@@ -34,7 +36,9 @@ begin
       {$ENDIF}
       .RegisterFixtures([
         TJsonInterfaceListTests,
-        TConfigFeaturesTests
+        TConfigFeaturesTests,
+        TConfigurationHashingTests,
+        THostingEventsTests
       ]));
   except
     on E: Exception do

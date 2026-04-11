@@ -85,7 +85,7 @@ var
   EqIndex: Integer;
   EnvKey: string;
 begin
-  FData.Clear;
+  ClearData;
   Vars := TStringList.Create;
   try
     // Capture environment variables - Platform specific
@@ -166,8 +166,7 @@ begin
         // Replace double underscore with colon
         Key := StringReplace(Key, '__', TConfigurationPath.KeyDelimiter, [rfReplaceAll]);
 
-        // Set value directly in FData dictionary
-        FData.AddOrSetValue(Key, Value);
+        Set_(Key, Value);
       end;
     end;
 

@@ -159,7 +159,7 @@ type
     function IEventBus.Dispatch           = BusDispatch;
     procedure IEventBus.DispatchBackground = BusDispatchBackground;
   private
-    FServiceProvider: IServiceProvider;
+    [Weak] FServiceProvider: IServiceProvider;
     FRegistry: IEventHandlerRegistry;
     FSnapshotCache: IDictionary<Pointer, TDispatchSnapshot>;
     FSnapshotLock: TMultiReadExclusiveWriteSynchronizer;
@@ -406,11 +406,25 @@ begin
         // Cache the TRttiMethod. E2555: generic instantiation might hide 'Handle'
         // in virtual method tables, so we use RTTI to find it by name.
         // We use the same persistent FRttiCtx to ensure objects stay valid.
-        Method := FRttiCtx.GetType(RAWHandlers[I].HandlerClass).GetMethod('Handle');
+        Method := nil;
+        for var LMethod in FRttiCtx.GetType(RAWHandlers[I].HandlerClass).GetMethods do
+        begin
+          if (LMethod.Name = 'Handle') and (Length(LMethod.GetParameters) = 1) then
+          begin
+            // Resilient matching: compare by pointer OR by name to handle duplicate TypeInfo
+            if (LMethod.GetParameters[0].ParamType.Handle = AEventType) or
+               (string(LMethod.GetParameters[0].ParamType.Name) = string(AEventType.Name)) then
+            begin
+              Method := LMethod;
+              Break;
+            end;
+          end;
+        end;
+
         if not Assigned(Method) then
           raise EEventBusException.CreateFmt(
-            'Hander class "%s" does not have a "Handle" method',
-            [RAWHandlers[I].HandlerClass.ClassName]);
+            'Handler class "%s" does not have a "Handle" method matching event "%s"',
+            [RAWHandlers[I].HandlerClass.ClassName, string(AEventType.Name)]);
  
         Result.Handlers[I].Method := Method;
       end;
@@ -466,16 +480,23 @@ begin
       // Safety: pointer mismatch but name match = same record type from different units.
       var LocalEvent: TValue := AEvent;
       var Params := Method.GetParameters;
-      if (Length(Params) = 1) and (Params[0].ParamType <> nil)
-         and (LocalEvent.TypeInfo <> Params[0].ParamType.Handle) then
+      if (Length(Params) = 1) and (Params[0].ParamType <> nil) then
       begin
-        if string(LocalEvent.TypeInfo.Name) <> Params[0].ParamType.Name then
-          raise EEventBusException.CreateFmt(
-            'Handler "%s" expects "%s" but received "%s"',
-            [HandlerObj.ClassName, Params[0].ParamType.Name,
-             string(LocalEvent.TypeInfo.Name)]);
-        TValue.Make(LocalEvent.GetReferenceToRawData,
-                    Params[0].ParamType.Handle, LocalEvent);
+        var TargetType := Params[0].ParamType.Handle;
+        if (LocalEvent.TypeInfo <> TargetType) then
+        begin
+          if string(LocalEvent.TypeInfo.Name) <> Params[0].ParamType.Name then
+            raise EEventBusException.CreateFmt(
+              'Handler "%s" expects "%s" but received "%s"',
+              [HandlerObj.ClassName, Params[0].ParamType.Name,
+               string(LocalEvent.TypeInfo.Name)]);
+
+          // Re-box into the target TypeInfo to satisfy RTTI Invoke strictness.
+          // Directly using the target TypeInfo from the method parameter to ensure absolute compatibility.
+          var LTargetType: PTypeInfo := Method.GetParameters[0].ParamType.Handle;
+          var LData := AEvent.GetReferenceToRawData;
+          TValue.Make(LData, LTargetType, LocalEvent);
+        end;
       end;
  
       if Length(Behaviors) = 0 then
@@ -582,15 +603,13 @@ begin
   // Box to TValue and delegate — keeps the generic method body trivial,
   // avoiding a Delphi 11/12 compiler bug (E2018) with generic methods
   // returning record types on classes with interface method resolution clauses.
-  TValue.Make(@AEvent, TypeInfo(T), V);
+  V := TValue.From<T>(AEvent);
   Result := BusDispatch(TypeInfo(T), V);
 end;
 
 procedure TEventBus.PublishBackground<T>(const AEvent: T);
-var
-  V: TValue;
 begin
-  TValue.Make(@AEvent, TypeInfo(T), V);
+  var V: TValue := TValue.From<T>(AEvent);
   BusDispatchBackground(TypeInfo(T), V);
 end;
 

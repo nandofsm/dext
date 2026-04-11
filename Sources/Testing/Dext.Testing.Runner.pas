@@ -1,4 +1,4 @@
-﻿{***************************************************************************}
+{***************************************************************************}
 {                                                                           }
 {           Dext Framework                                                  }
 {                                                                           }
@@ -1171,6 +1171,7 @@ begin
   // Execute global setup (if defined)
   ExecuteAssemblyInit;
 
+  Stopwatch := TStopwatch.StartNew;
   try
     for Fixture in FFixtures do
       ExecuteFixture(Fixture);
@@ -1222,6 +1223,7 @@ begin
   // Execute global setup (if defined)
   ExecuteAssemblyInit;
 
+  Stopwatch := TStopwatch.StartNew;
   try
     for Fixture in FFixtures do
       ExecuteFixture(Fixture);

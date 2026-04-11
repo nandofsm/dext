@@ -1,4 +1,4 @@
-﻿<Project xmlns="http://schemas.microsoft.com/developer/msbuild/2003">
+<Project xmlns="http://schemas.microsoft.com/developer/msbuild/2003">
     <PropertyGroup>
         <ProjectGuid>{257BA51B-4993-4F54-A190-67E6B947E5DF}</ProjectGuid>
         <MainSource>Dext.Web.Core.dpk</MainSource>
@@ -167,6 +167,7 @@
         <DCCReference Include="Web\Middleware\Dext.Web.Middleware.Compression.pas"/>
         <DCCReference Include="Web\Dext.Auth.Middleware.pas"/>
         <DCCReference Include="Web\Dext.Web.DataApi.pas"/>
+        <DCCReference Include="Web\Dext.Web.DataApi.Utils.pas"/>
         <DCCReference Include="Web\Dext.OpenAPI.Fluent.pas"/>
         <DCCReference Include="Web\Dext.Auth.BasicAuth.pas"/>
         <DCCReference Include="Web\Dext.Web.ResponseHelper.pas"/>
