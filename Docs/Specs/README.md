@@ -13,6 +13,7 @@ ID | Title | Status | Goal
 **S05** | [Advanced Tooling](S05-Advanced-Tooling.md) | 📝 Draft | IDE Wizards, Code-First Parsers, and UI-driven scaffolding.
 **S06** | [Security & Identity](S06-Security-Identity.md) | 📝 Draft | Native OAuth2, OpenID Connect, and JWT policy-based authorization.
 **S07** | [High-Performance Reflection](S07-High-Performance-Reflection.md) | 📝 Draft | Zero-boxing type handlers and fast-path reflection registry.
+**S08** | [Dynamic Ports](S08-Dynamic-Ports.md) | ✅ Finalized | Support for Port 0 (OS picks free port) for Demos and CI.
 
 ---
 

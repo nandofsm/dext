@@ -41,7 +41,7 @@ Framework web modular baseado em pipeline de middlewares e arquitetura Controlle
 - **Pipeline de Middlewares**: Arquitetura baseada em "Chain of Responsibility" suportando middlewares funcionais (delegates) e baseados em classe com injeção de dependência via construtor.
 - **Roteamento Avançado**: Motor de rotas com suporte a parâmetros dinâmicos (ex: `{id}`), restrições de rota e versionamento nativo de API via cabeçalho (`THeaderApiVersionReader`), query string (`TQueryStringApiVersionReader`), path (`TPathApiVersionReader`) e composição de múltiplas estratégias (`TCompositeApiVersionReader`).
 - **Model Binding Inteligente**: Suporte a **Hybrid Binding** e atributos `[FromBody]`, `[FromQuery]`, `[FromRoute]`, `[FromHeader]`, `[FromServices]`. Otimização **Zero-Allocation** com deserialização UTF-8 direta para recordes e classes.
-- **Hosting Foundation**: Abstrações de `IWebHost` e `IWebHostBuilder`. Servidor padrão baseado em **Indy** com suporte a **OpenSSL** e **Taurus SSL**. Inclui suporte a **IHostedService** para tarefas de background.
+- **Hosting Foundation**: Abstrações de `IWebHost` e `IWebHostBuilder`. Suporte a **Portas Dinâmicas (Porta 0)** com atribuição automática pelo SO, garantindo isolamento em testes e demos paralelas. Servidor padrão baseado em **Indy** com suporte a **OpenSSL** e **Taurus SSL**. Inclui suporte a **IHostedService** para tarefas de background.
 - **Auto-Migrations**: Sincronização automática de schema durante o startup do servidor web.
 - **Segurança & Identidade**: Abstração de `IClaimsPrincipal` para suporte a autenticação JWT, Basic Auth e Cookies.
 - **Middleware Pipeline Nativo**: Logger, Compression (GZip/Brotli), Exception Handling (**ProblemDetails**), **DeveloperExceptionPage**, CORS e StartupLock.

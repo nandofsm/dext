@@ -1,4 +1,4 @@
-﻿unit WebFrameworkTests.Tests.Base;
+unit WebFrameworkTests.Tests.Base;
 
 interface
 
@@ -49,7 +49,7 @@ implementation
 constructor TBaseTest.Create;
 begin
   inherited;
-  FPort := 8081; // Default test port
+  FPort := 0; // Dynamic port support (S08)
   FClient := THttpClient.Create;
   Setup;
 end;
@@ -97,6 +97,12 @@ begin
   FServerThread.FreeOnTerminate := False;
   FServerThread.Start;
   
+  // Wait for the thread to reach HostRef.Start and for the server to bind
+  // Since Start is non-blocking but synchronous in activation:
+  TThread.Sleep(50); 
+  if (FHost <> nil) and (FPort = 0) then
+    FPort := FHost.Port;
+
   // Robust wait for server to start
   var Retries := 0;
   var Success := False;

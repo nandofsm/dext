@@ -168,6 +168,7 @@ type
   // -------------------------------------------------------------------------
   TDextWebBrokerServer = class(TInterfacedObject, IWebHost)
   public
+    function GetPort: Integer;
     procedure Run;
     procedure Start;
     procedure Stop;
@@ -618,6 +619,11 @@ begin
 end;
 
 { TDextWebBrokerServer }
+
+function TDextWebBrokerServer.GetPort: Integer;
+begin
+  Result := 0;
+end;
 
 procedure TDextWebBrokerServer.Run;
 begin

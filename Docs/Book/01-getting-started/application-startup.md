@@ -176,6 +176,27 @@ begin
 end;
 ```
 
+## Dynamic Port Assignment
+
+By default, the server listens on a fixed port. However, you can pass `0` to `Run` or `Start` to request an ephemeral (dynamic) port from the OS.
+
+This is extremely useful for:
+- **Parallel Testing**: Run multiple test instances without port collisions.
+- **CI/CD Pipelines**: Automated environments where ports are not pre-allocated.
+- **Random Port Demos**: Quick local demos starting on any available port.
+
+```pascal
+App.Run(0); // OS chooses a random free port
+// or
+App.Start(0);
+```
+
+You can retrieve the assigned port at any time via the `Port` property:
+
+```pascal
+WriteLn('Server is listening on port: ', App.Port);
+```
+
 ## Database Seeding
 
 Seed data in the main `.dpr` **before** `App.Run`:

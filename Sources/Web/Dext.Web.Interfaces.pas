@@ -298,9 +298,11 @@ type
 
   IWebHost = interface
     ['{B3E7D4F1-9C6E-4B8A-8D2C-7F5A1B3E8D9F}']
+    function GetPort: Integer;
     procedure Run;
     procedure Start;
     procedure Stop;
+    property Port: Integer read GetPort;
   end;
 
   IWebHostBuilder = interface
@@ -357,6 +359,7 @@ type
     property Services: TDextServices read GetServices;
     property Builder: TAppBuilder read GetBuilder;
     property Configuration: IConfiguration read GetConfiguration;
+    property Port: Integer read GetPort;
   end;
 
   TWebHost = class

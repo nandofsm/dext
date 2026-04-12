@@ -94,7 +94,9 @@ type
     /// <summary>Defines the default port if not provided in Run/Start.</summary>
     procedure SetDefaultPort(Port: Integer);
 
+    function GetPort: Integer;
     property DefaultPort: Integer read FDefaultPort write FDefaultPort;
+    property Port: Integer read GetPort;
   end;
 
   /// <deprecated>Use TWebApplication instead</deprecated>
@@ -568,6 +570,14 @@ end;
 procedure TWebApplication.SetDefaultPort(Port: Integer);
 begin
   FDefaultPort := Port;
+end;
+
+function TWebApplication.GetPort: Integer;
+begin
+  if FActiveHost <> nil then
+    Result := FActiveHost.Port
+  else
+    Result := FDefaultPort;
 end;
 
 procedure TWebApplication.UseServerFactory(const AFactory: TServerFactory);

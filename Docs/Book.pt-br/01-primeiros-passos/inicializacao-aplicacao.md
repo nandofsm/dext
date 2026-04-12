@@ -176,6 +176,27 @@ begin
 end;
 ```
 
+## Atribuição Dinâmica de Portas
+
+Por padrão, o servidor escuta em uma porta fixa. No entanto, você pode passar `0` para `Run` ou `Start` para solicitar uma porta efêmera (dinâmica) atribuída pelo Sistema Operacional.
+
+Isso é extremamente útil para:
+- **Testes Paralelos**: Execute múltiplas instâncias de teste sem conflitos de porta.
+- **Pipelines CI/CD**: Ambientes automatizados onde portas não são pré-alocadas.
+- **Demos com Porta Aleatória**: Demos locais rápidas iniciando em qualquer porta disponível.
+
+```pascal
+App.Run(0); // O SO escolhe uma porta livre aleatória
+// ou
+App.Start(0);
+```
+
+Você pode recuperar a porta atribuída a qualquer momento através da propriedade `Port`:
+
+```pascal
+WriteLn('O servidor está escutando na porta: ', App.Port);
+```
+
 ## Seed de Dados
 
 Faça o seed dos dados no `.dpr` principal **antes** de `App.Run`:

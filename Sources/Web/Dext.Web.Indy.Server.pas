@@ -54,6 +54,7 @@ type
       const ASSLHandler: IIndySSLHandler = nil);
     destructor Destroy; override;
 
+    function GetPort: Integer;
     procedure Run;
     procedure Start;
     procedure Stop;
@@ -188,6 +189,11 @@ begin
   end;
 end;
 
+function TDextIndyWebServer.GetPort: Integer;
+begin
+  Result := FPort;
+end;
+
 procedure TDextIndyWebServer.Start;
 var
   Protocol: string;
@@ -195,6 +201,10 @@ begin
   if not FHTTPServer.Active then
   begin
     FHTTPServer.Active := True;
+
+    // Capture actual port if dynamic port (0) was requested
+    if (FPort = 0) and (FHTTPServer.Bindings.Count > 0) then
+      FPort := FHTTPServer.Bindings[0].Port;
     
     Protocol := 'http';
     if FSSLEnabled then 

@@ -227,6 +227,7 @@ type
     FServices: IServiceProvider;
     FPort: Integer;
     FRunning: Boolean;
+    function GetPort: Integer;
 
     procedure HandleDCSRequest(ARequest: ICrossHttpRequest;
       AResponse: ICrossHttpResponse; var AHandled: Boolean);
@@ -235,6 +236,7 @@ type
       const AServices: IServiceProvider);
     destructor Destroy; override;
 
+    function GetPort: Integer;
     procedure Run;
     procedure Start;
     procedure Stop;
@@ -751,6 +753,11 @@ begin
   Ctx := nil; // Release scope and scoped services
 end;
 
+function TDextDCSServer.GetPort: Integer;
+begin
+  Result := FPort;
+end;
+
 procedure TDextDCSServer.Start;
 begin
   if FHttpServer.Active then Exit;
@@ -769,6 +776,11 @@ begin
 
   FHttpServer.Start;
   FRunning := True;
+
+  // Capture actual port if dynamic port (0) was requested
+  if (FPort = 0) then
+    FPort := FHttpServer.Port;
+
   SafeWriteLn(Format('Dext/DCS server running on http://localhost:%d', [FPort]));
 end;
 
