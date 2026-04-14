@@ -42,7 +42,8 @@ Framework web modular baseado em pipeline de middlewares e arquitetura Controlle
 - **Roteamento Avançado**: Motor de rotas com suporte a parâmetros dinâmicos (ex: `{id}`), restrições de rota e versionamento nativo de API via cabeçalho (`THeaderApiVersionReader`), query string (`TQueryStringApiVersionReader`), path (`TPathApiVersionReader`) e composição de múltiplas estratégias (`TCompositeApiVersionReader`).
 - **Model Binding Inteligente**: Suporte a **Hybrid Binding** e atributos `[FromBody]`, `[FromQuery]`, `[FromRoute]`, `[FromHeader]`, `[FromServices]`. Otimização **Zero-Allocation** com deserialização UTF-8 direta para recordes e classes.
 - **Hosting Foundation**: Abstrações de `IWebHost` e `IWebHostBuilder`. Suporte a **Portas Dinâmicas (Porta 0)** com atribuição automática pelo SO, garantindo isolamento em testes e demos paralelas. Servidor padrão baseado em **Indy** com suporte a **OpenSSL** e **Taurus SSL**. Inclui suporte a **IHostedService** para tarefas de background.
-- **Auto-Migrations**: Sincronização automática de schema durante o startup do servidor web.
+- **Auto-Migrations (S11)**: Sincronização automática de schema durante o startup do servidor web, com detecção inteligente de renomeação de tabelas e colunas via atributos.
+- **View Engine & WebStencils (S09)**: Motor de templates nativo baseado em AST (estilo Razor), zero-dependência, com suporte a controle de fluxo (`if`, `foreach`) e renderização de alto desempenho para Web e Scaffolding.
 - **Segurança & Identidade**: Abstração de `IClaimsPrincipal` para suporte a autenticação JWT, Basic Auth e Cookies.
 - **Middleware Pipeline Nativo**: Logger, Compression (GZip/Brotli), Exception Handling (**ProblemDetails**), **DeveloperExceptionPage**, CORS e StartupLock.
 - **Rate Limiting**: Políticas de Fixed/Sliding Window, Token Bucket e Concurrency Limiter.
@@ -97,11 +98,21 @@ Infraestrutura de testes integrada para garantia de qualidade.
 
 ---
 
-## 🔍 8. Observabilidade & Telemetria (Sources\Core\Base)
+## 🛠️ 8. Dext CLI & Scaffolding (Tools\Dext.Tool.Scaffolding)
+
+Ferramentas de produtividade para automação de tarefas e geração de código.
+
+- **Dext CLI (S01)**: Motor CLI unificado (`dext.exe`) para gerenciamento de projetos.
+- **Advanced Scaffolding**: Geração de projetos e arquivos baseada em templates inteligentes. Suporte a comandos `dext new` (novos projetos) e `dext add` (controllers, entidades, middlewares).
+- **Template Logic**: Integração direta com o motor **WebStencils** para lógica complexa dentro dos templates de scaffolding.
+
+---
+
+## 🔍 9. Observabilidade & Telemetria (Sources\Core\Base)
 
 Infraestrutura de tracing e monitoramento de baixo acoplamento.
 
-- **TDiagnosticSource**: Publicador de eventos centralizado baseado em payloads JSON, garantindo desacoplamento entre produtores (ORM, Web) e consumidores.
+- **TDiagnosticSource (S03)**: Publicador de eventos centralizado baseado em payloads JSON, garantindo desacoplamento entre produtores (ORM, Web) e consumidores.
 - **Telemetry Bridge**: Integração automática com o sistema de `ILogger`, permitindo visualizar telemetria HTTP e SQL diretamente no console ou arquivos de log.
 - **SQL Capture**: Extração e formatação de instruções SQL nativas do ORM para auditoria em tempo real.
 - **HTTP Life-cycle**: Tracing de latência, códigos de status e rotas do framework web.
