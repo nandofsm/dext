@@ -1,123 +1,123 @@
-﻿<Project xmlns="http://schemas.microsoft.com/developer/msbuild/2003">
+<Project xmlns="http://schemas.microsoft.com/developer/msbuild/2003">
     <PropertyGroup>
         <ProjectGuid>{76495034-FAB8-4228-B590-3A2F45312388}</ProjectGuid>
     </PropertyGroup>
     <ItemGroup>
-        <Projects Include="Core.TestConfig\Core.TestConfig.dproj">
+        <Projects Include="01-Basics\Core.TestConfig\Core.TestConfig.dproj">
             <Dependencies/>
         </Projects>
-        <Projects Include="Core.TestHttpParser\Core.TestHttpParser.dproj">
+        <Projects Include="04-Advanced\Core.TestHttpParser\Core.TestHttpParser.dproj">
             <Dependencies/>
         </Projects>
-        <Projects Include="Core.EventBusDemo\Core.EventBusDemo.dproj">
+        <Projects Include="99-Archived_PoCs\Core.EventBusDemo\Core.EventBusDemo.dproj">
             <Dependencies/>
         </Projects>
-        <Projects Include="Web.EventBusDemo\Web.EventBusDemo.dproj">
+        <Projects Include="99-Archived_PoCs\Web.EventBusDemo\Web.EventBusDemo.dproj">
             <Dependencies/>
         </Projects>
-        <Projects Include="Desktop.MVVM.CustomerCRUD\CustomerCRUD.Tests.dproj">
+        <Projects Include="05-UI\Desktop.MVVM.CustomerCRUD\CustomerCRUD.Tests.dproj">
             <Dependencies/>
         </Projects>
-        <Projects Include="Dext.Examples.ComplexQuerying\Dext.Examples.ComplexQuerying.dproj">
+        <Projects Include="03-Data\Dext.Examples.ComplexQuerying\Dext.Examples.ComplexQuerying.dproj">
             <Dependencies/>
         </Projects>
-        <Projects Include="Dext.Examples.MultiTenancy\Dext.Examples.MultiTenancy.dproj">
+        <Projects Include="03-Data\Dext.Examples.MultiTenancy\Dext.Examples.MultiTenancy.dproj">
             <Dependencies/>
         </Projects>
-        <Projects Include="Desktop.MVU.Counter\DesktopMVUCounter.dproj">
+        <Projects Include="05-UI\Desktop.MVU.Counter\DesktopMVUCounter.dproj">
             <Dependencies/>
         </Projects>
-        <Projects Include="Desktop.MVU.CounterFrame\DesktopMVUCounterFrame.dproj">
+        <Projects Include="05-UI\Desktop.MVU.CounterFrame\DesktopMVUCounterFrame.dproj">
             <Dependencies/>
         </Projects>
-        <Projects Include="Desktop.MVVM.CustomerCRUD\DesktopMVVMCustomerCRUD.dproj">
+        <Projects Include="05-UI\Desktop.MVVM.CustomerCRUD\DesktopMVVMCustomerCRUD.dproj">
             <Dependencies/>
         </Projects>
-        <Projects Include="Orm.EntityDemo\Orm.EntityDemo.dproj">
+        <Projects Include="03-Data\Orm.EntityDemo\Orm.EntityDemo.dproj">
             <Dependencies/>
         </Projects>
-        <Projects Include="Orm.EntityStyles\Orm.EntityStyles.dproj">
+        <Projects Include="03-Data\Orm.EntityStyles\Orm.EntityStyles.dproj">
             <Dependencies/>
         </Projects>
-        <Projects Include="Orm.Specification\Orm.SpecificationDemo.dproj">
+        <Projects Include="03-Data\Orm.Specification\Orm.SpecificationDemo.dproj">
             <Dependencies/>
         </Projects>
-        <Projects Include="Net.RestClient.Demo\RestClientDemo.dproj">
+        <Projects Include="04-Advanced\Net.RestClient.Demo\RestClientDemo.dproj">
             <Dependencies/>
         </Projects>
-        <Projects Include="Web.BasicAuthDemo\Web.BasicAuthDemo.dproj">
+        <Projects Include="02-Web\Web.BasicAuthDemo\Web.BasicAuthDemo.dproj">
             <Dependencies/>
         </Projects>
-        <Projects Include="Web.CachingDemo\Web.CachingDemo.dproj">
+        <Projects Include="02-Web\Web.CachingDemo\Web.CachingDemo.dproj">
             <Dependencies/>
         </Projects>
-        <Projects Include="Web.ControllerExample\Web.ControllerExample.dproj">
+        <Projects Include="02-Web\Web.ControllerExample\Web.ControllerExample.dproj">
             <Dependencies/>
         </Projects>
-        <Projects Include="Web.ControllerExample\Web.ControllerExample.FluentAPI.dproj">
+        <Projects Include="02-Web\Web.ControllerExample\Web.ControllerExample.FluentAPI.dproj">
             <Dependencies/>
         </Projects>
-        <Projects Include="Web.DatabaseAsApi\Web.DatabaseAsApi.dproj">
+        <Projects Include="03-Data\Web.DatabaseAsApi\Web.DatabaseAsApi.dproj">
             <Dependencies/>
         </Projects>
-        <Projects Include="Web.Dext.Starter.Admin\Web.Dext.Starter.Admin.dproj">
+        <Projects Include="99-Archived_PoCs\Web.Dext.Starter.Admin\Web.Dext.Starter.Admin.dproj">
             <Dependencies/>
         </Projects>
-        <Projects Include="Web.DextStore\Web.DextStore.dproj">
+        <Projects Include="99-Archived_PoCs\Web.DextStore\Web.DextStore.dproj">
             <Dependencies/>
         </Projects>
-        <Projects Include="Web.FoodDelivery\Web.DextFood.dproj">
+        <Projects Include="99-Archived_PoCs\Web.FoodDelivery\Web.DextFood.dproj">
             <Dependencies/>
         </Projects>
-        <Projects Include="Web.JwtAuthDemo\Web.JwtAuthDemo.dproj">
+        <Projects Include="02-Web\Web.JwtAuthDemo\Web.JwtAuthDemo.dproj">
             <Dependencies/>
         </Projects>
-        <Projects Include="Web.MinimalAPI\Web.MinimalAPIExample.dproj">
+        <Projects Include="02-Web\Web.MinimalAPI\Web.MinimalAPIExample.dproj">
             <Dependencies/>
         </Projects>
-        <Projects Include="Web.OrderAPI\Web.OrderAPI.dproj">
+        <Projects Include="99-Archived_PoCs\Web.OrderAPI\Web.OrderAPI.dproj">
             <Dependencies/>
         </Projects>
-        <Projects Include="Web.RateLimitDemo\Web.RateLimitDemo.dproj">
+        <Projects Include="02-Web\Web.RateLimitDemo\Web.RateLimitDemo.dproj">
             <Dependencies/>
         </Projects>
-        <Projects Include="Web.SmartPropsDemo\Web.SmartPropsDemo.dproj">
+        <Projects Include="03-Data\Web.SmartPropsDemo\Web.SmartPropsDemo.dproj">
             <Dependencies/>
         </Projects>
-        <Projects Include="Web.SslDemo\Web.SslDemo.dproj">
+        <Projects Include="02-Web\Web.SslDemo\Web.SslDemo.dproj">
             <Dependencies/>
         </Projects>
-        <Projects Include="Web.StreamingDemo\Web.StreamingDemo.dproj">
+        <Projects Include="99-Archived_PoCs\Web.StreamingDemo\Web.StreamingDemo.dproj">
             <Dependencies/>
         </Projects>
-        <Projects Include="Web.SwaggerControllerExample\Web.SwaggerControllerExample.dproj">
+        <Projects Include="02-Web\Web.SwaggerControllerExample\Web.SwaggerControllerExample.dproj">
             <Dependencies/>
         </Projects>
-        <Projects Include="Web.SwaggerExample\Web.SwaggerExample.dproj">
+        <Projects Include="02-Web\Web.SwaggerExample\Web.SwaggerExample.dproj">
             <Dependencies/>
         </Projects>
-        <Projects Include="Web.TaskFlowAPI\Web.TaskFlowAPI.dproj">
+        <Projects Include="99-Archived_PoCs\Web.TaskFlowAPI\Web.TaskFlowAPI.dproj">
             <Dependencies/>
         </Projects>
-        <Projects Include="Web.TUUIDBindingExample\Web.TUUIDBindingExample.dproj">
+        <Projects Include="02-Web\Web.TUUIDBindingExample\Web.TUUIDBindingExample.dproj">
             <Dependencies/>
         </Projects>
-        <Projects Include="Web.UUIDExample\Web.UUIDExample.dproj">
+        <Projects Include="02-Web\Web.UUIDExample\Web.UUIDExample.dproj">
             <Dependencies/>
         </Projects>
-        <Projects Include="WebStencilsDemo\WebStencilsDemo.dproj">
+        <Projects Include="04-Advanced\WebStencilsDemo\WebStencilsDemo.dproj">
             <Dependencies/>
         </Projects>
-        <Projects Include="Web.SalesSystem\Server\Web.SalesSystem.Minimal.dproj">
+        <Projects Include="99-Archived_PoCs\Web.SalesSystem\Server\Web.SalesSystem.Minimal.dproj">
             <Dependencies/>
         </Projects>
-        <Projects Include="Web.SalesSystem\Tests\Web.SalesSystem.Tests.dproj">
+        <Projects Include="99-Archived_PoCs\Web.SalesSystem\Tests\Web.SalesSystem.Tests.dproj">
             <Dependencies/>
         </Projects>
-        <Projects Include="Web.TicketSales\Server\Web.TicketSales.dproj">
+        <Projects Include="99-Archived_PoCs\Web.TicketSales\Server\Web.TicketSales.dproj">
             <Dependencies/>
         </Projects>
-        <Projects Include="Web.TicketSales\Tests\Web.TicketSales.Tests.dproj">
+        <Projects Include="99-Archived_PoCs\Web.TicketSales\Tests\Web.TicketSales.Tests.dproj">
             <Dependencies/>
         </Projects>
     </ItemGroup>
@@ -129,355 +129,355 @@
         </BorlandProject>
     </ProjectExtensions>
     <Target Name="Core_TestConfig">
-        <MSBuild Projects="Core.TestConfig\Core.TestConfig.dproj"/>
+        <MSBuild Projects="01-Basics\Core.TestConfig\Core.TestConfig.dproj"/>
     </Target>
     <Target Name="Core_TestConfig:Clean">
-        <MSBuild Projects="Core.TestConfig\Core.TestConfig.dproj" Targets="Clean"/>
+        <MSBuild Projects="01-Basics\Core.TestConfig\Core.TestConfig.dproj" Targets="Clean"/>
     </Target>
     <Target Name="Core_TestConfig:Make">
-        <MSBuild Projects="Core.TestConfig\Core.TestConfig.dproj" Targets="Make"/>
+        <MSBuild Projects="01-Basics\Core.TestConfig\Core.TestConfig.dproj" Targets="Make"/>
     </Target>
     <Target Name="Core_TestHttpParser">
-        <MSBuild Projects="Core.TestHttpParser\Core.TestHttpParser.dproj"/>
+        <MSBuild Projects="04-Advanced\Core.TestHttpParser\Core.TestHttpParser.dproj"/>
     </Target>
     <Target Name="Core_TestHttpParser:Clean">
-        <MSBuild Projects="Core.TestHttpParser\Core.TestHttpParser.dproj" Targets="Clean"/>
+        <MSBuild Projects="04-Advanced\Core.TestHttpParser\Core.TestHttpParser.dproj" Targets="Clean"/>
     </Target>
     <Target Name="Core_TestHttpParser:Make">
-        <MSBuild Projects="Core.TestHttpParser\Core.TestHttpParser.dproj" Targets="Make"/>
+        <MSBuild Projects="04-Advanced\Core.TestHttpParser\Core.TestHttpParser.dproj" Targets="Make"/>
     </Target>
     <Target Name="CustomerCRUD_Tests">
-        <MSBuild Projects="Desktop.MVVM.CustomerCRUD\CustomerCRUD.Tests.dproj"/>
+        <MSBuild Projects="05-UI\Desktop.MVVM.CustomerCRUD\CustomerCRUD.Tests.dproj"/>
     </Target>
     <Target Name="CustomerCRUD_Tests:Clean">
-        <MSBuild Projects="Desktop.MVVM.CustomerCRUD\CustomerCRUD.Tests.dproj" Targets="Clean"/>
+        <MSBuild Projects="05-UI\Desktop.MVVM.CustomerCRUD\CustomerCRUD.Tests.dproj" Targets="Clean"/>
     </Target>
     <Target Name="CustomerCRUD_Tests:Make">
-        <MSBuild Projects="Desktop.MVVM.CustomerCRUD\CustomerCRUD.Tests.dproj" Targets="Make"/>
+        <MSBuild Projects="05-UI\Desktop.MVVM.CustomerCRUD\CustomerCRUD.Tests.dproj" Targets="Make"/>
     </Target>
     <Target Name="Dext_Examples_ComplexQuerying">
-        <MSBuild Projects="Dext.Examples.ComplexQuerying\Dext.Examples.ComplexQuerying.dproj"/>
+        <MSBuild Projects="03-Data\Dext.Examples.ComplexQuerying\Dext.Examples.ComplexQuerying.dproj"/>
     </Target>
     <Target Name="Dext_Examples_ComplexQuerying:Clean">
-        <MSBuild Projects="Dext.Examples.ComplexQuerying\Dext.Examples.ComplexQuerying.dproj" Targets="Clean"/>
+        <MSBuild Projects="03-Data\Dext.Examples.ComplexQuerying\Dext.Examples.ComplexQuerying.dproj" Targets="Clean"/>
     </Target>
     <Target Name="Dext_Examples_ComplexQuerying:Make">
-        <MSBuild Projects="Dext.Examples.ComplexQuerying\Dext.Examples.ComplexQuerying.dproj" Targets="Make"/>
+        <MSBuild Projects="03-Data\Dext.Examples.ComplexQuerying\Dext.Examples.ComplexQuerying.dproj" Targets="Make"/>
     </Target>
     <Target Name="Dext_Examples_MultiTenancy">
-        <MSBuild Projects="Dext.Examples.MultiTenancy\Dext.Examples.MultiTenancy.dproj"/>
+        <MSBuild Projects="03-Data\Dext.Examples.MultiTenancy\Dext.Examples.MultiTenancy.dproj"/>
     </Target>
     <Target Name="Dext_Examples_MultiTenancy:Clean">
-        <MSBuild Projects="Dext.Examples.MultiTenancy\Dext.Examples.MultiTenancy.dproj" Targets="Clean"/>
+        <MSBuild Projects="03-Data\Dext.Examples.MultiTenancy\Dext.Examples.MultiTenancy.dproj" Targets="Clean"/>
     </Target>
     <Target Name="Dext_Examples_MultiTenancy:Make">
-        <MSBuild Projects="Dext.Examples.MultiTenancy\Dext.Examples.MultiTenancy.dproj" Targets="Make"/>
+        <MSBuild Projects="03-Data\Dext.Examples.MultiTenancy\Dext.Examples.MultiTenancy.dproj" Targets="Make"/>
     </Target>
     <Target Name="DesktopMVUCounter">
-        <MSBuild Projects="Desktop.MVU.Counter\DesktopMVUCounter.dproj"/>
+        <MSBuild Projects="05-UI\Desktop.MVU.Counter\DesktopMVUCounter.dproj"/>
     </Target>
     <Target Name="DesktopMVUCounter:Clean">
-        <MSBuild Projects="Desktop.MVU.Counter\DesktopMVUCounter.dproj" Targets="Clean"/>
+        <MSBuild Projects="05-UI\Desktop.MVU.Counter\DesktopMVUCounter.dproj" Targets="Clean"/>
     </Target>
     <Target Name="DesktopMVUCounter:Make">
-        <MSBuild Projects="Desktop.MVU.Counter\DesktopMVUCounter.dproj" Targets="Make"/>
+        <MSBuild Projects="05-UI\Desktop.MVU.Counter\DesktopMVUCounter.dproj" Targets="Make"/>
     </Target>
     <Target Name="DesktopMVUCounterFrame">
-        <MSBuild Projects="Desktop.MVU.CounterFrame\DesktopMVUCounterFrame.dproj"/>
+        <MSBuild Projects="05-UI\Desktop.MVU.CounterFrame\DesktopMVUCounterFrame.dproj"/>
     </Target>
     <Target Name="DesktopMVUCounterFrame:Clean">
-        <MSBuild Projects="Desktop.MVU.CounterFrame\DesktopMVUCounterFrame.dproj" Targets="Clean"/>
+        <MSBuild Projects="05-UI\Desktop.MVU.CounterFrame\DesktopMVUCounterFrame.dproj" Targets="Clean"/>
     </Target>
     <Target Name="DesktopMVUCounterFrame:Make">
-        <MSBuild Projects="Desktop.MVU.CounterFrame\DesktopMVUCounterFrame.dproj" Targets="Make"/>
+        <MSBuild Projects="05-UI\Desktop.MVU.CounterFrame\DesktopMVUCounterFrame.dproj" Targets="Make"/>
     </Target>
     <Target Name="DesktopMVVMCustomerCRUD">
-        <MSBuild Projects="Desktop.MVVM.CustomerCRUD\DesktopMVVMCustomerCRUD.dproj"/>
+        <MSBuild Projects="05-UI\Desktop.MVVM.CustomerCRUD\DesktopMVVMCustomerCRUD.dproj"/>
     </Target>
     <Target Name="DesktopMVVMCustomerCRUD:Clean">
-        <MSBuild Projects="Desktop.MVVM.CustomerCRUD\DesktopMVVMCustomerCRUD.dproj" Targets="Clean"/>
+        <MSBuild Projects="05-UI\Desktop.MVVM.CustomerCRUD\DesktopMVVMCustomerCRUD.dproj" Targets="Clean"/>
     </Target>
     <Target Name="DesktopMVVMCustomerCRUD:Make">
-        <MSBuild Projects="Desktop.MVVM.CustomerCRUD\DesktopMVVMCustomerCRUD.dproj" Targets="Make"/>
+        <MSBuild Projects="05-UI\Desktop.MVVM.CustomerCRUD\DesktopMVVMCustomerCRUD.dproj" Targets="Make"/>
     </Target>
     <Target Name="Orm_EntityDemo">
-        <MSBuild Projects="Orm.EntityDemo\Orm.EntityDemo.dproj"/>
+        <MSBuild Projects="03-Data\Orm.EntityDemo\Orm.EntityDemo.dproj"/>
     </Target>
     <Target Name="Orm_EntityDemo:Clean">
-        <MSBuild Projects="Orm.EntityDemo\Orm.EntityDemo.dproj" Targets="Clean"/>
+        <MSBuild Projects="03-Data\Orm.EntityDemo\Orm.EntityDemo.dproj" Targets="Clean"/>
     </Target>
     <Target Name="Orm_EntityDemo:Make">
-        <MSBuild Projects="Orm.EntityDemo\Orm.EntityDemo.dproj" Targets="Make"/>
+        <MSBuild Projects="03-Data\Orm.EntityDemo\Orm.EntityDemo.dproj" Targets="Make"/>
     </Target>
     <Target Name="Orm_EntityStyles">
-        <MSBuild Projects="Orm.EntityStyles\Orm.EntityStyles.dproj"/>
+        <MSBuild Projects="03-Data\Orm.EntityStyles\Orm.EntityStyles.dproj"/>
     </Target>
     <Target Name="Orm_EntityStyles:Clean">
-        <MSBuild Projects="Orm.EntityStyles\Orm.EntityStyles.dproj" Targets="Clean"/>
+        <MSBuild Projects="03-Data\Orm.EntityStyles\Orm.EntityStyles.dproj" Targets="Clean"/>
     </Target>
     <Target Name="Orm_EntityStyles:Make">
-        <MSBuild Projects="Orm.EntityStyles\Orm.EntityStyles.dproj" Targets="Make"/>
+        <MSBuild Projects="03-Data\Orm.EntityStyles\Orm.EntityStyles.dproj" Targets="Make"/>
     </Target>
     <Target Name="Orm_SpecificationDemo">
-        <MSBuild Projects="Orm.Specification\Orm.SpecificationDemo.dproj"/>
+        <MSBuild Projects="03-Data\Orm.Specification\Orm.SpecificationDemo.dproj"/>
     </Target>
     <Target Name="Orm_SpecificationDemo:Clean">
-        <MSBuild Projects="Orm.Specification\Orm.SpecificationDemo.dproj" Targets="Clean"/>
+        <MSBuild Projects="03-Data\Orm.Specification\Orm.SpecificationDemo.dproj" Targets="Clean"/>
     </Target>
     <Target Name="Orm_SpecificationDemo:Make">
-        <MSBuild Projects="Orm.Specification\Orm.SpecificationDemo.dproj" Targets="Make"/>
+        <MSBuild Projects="03-Data\Orm.Specification\Orm.SpecificationDemo.dproj" Targets="Make"/>
     </Target>
     <Target Name="RestClientDemo">
-        <MSBuild Projects="Net.RestClient.Demo\RestClientDemo.dproj"/>
+        <MSBuild Projects="04-Advanced\Net.RestClient.Demo\RestClientDemo.dproj"/>
     </Target>
     <Target Name="RestClientDemo:Clean">
-        <MSBuild Projects="Net.RestClient.Demo\RestClientDemo.dproj" Targets="Clean"/>
+        <MSBuild Projects="04-Advanced\Net.RestClient.Demo\RestClientDemo.dproj" Targets="Clean"/>
     </Target>
     <Target Name="RestClientDemo:Make">
-        <MSBuild Projects="Net.RestClient.Demo\RestClientDemo.dproj" Targets="Make"/>
+        <MSBuild Projects="04-Advanced\Net.RestClient.Demo\RestClientDemo.dproj" Targets="Make"/>
     </Target>
     <Target Name="Web_BasicAuthDemo">
-        <MSBuild Projects="Web.BasicAuthDemo\Web.BasicAuthDemo.dproj"/>
+        <MSBuild Projects="02-Web\Web.BasicAuthDemo\Web.BasicAuthDemo.dproj"/>
     </Target>
     <Target Name="Web_BasicAuthDemo:Clean">
-        <MSBuild Projects="Web.BasicAuthDemo\Web.BasicAuthDemo.dproj" Targets="Clean"/>
+        <MSBuild Projects="02-Web\Web.BasicAuthDemo\Web.BasicAuthDemo.dproj" Targets="Clean"/>
     </Target>
     <Target Name="Web_BasicAuthDemo:Make">
-        <MSBuild Projects="Web.BasicAuthDemo\Web.BasicAuthDemo.dproj" Targets="Make"/>
+        <MSBuild Projects="02-Web\Web.BasicAuthDemo\Web.BasicAuthDemo.dproj" Targets="Make"/>
     </Target>
     <Target Name="Web_CachingDemo">
-        <MSBuild Projects="Web.CachingDemo\Web.CachingDemo.dproj"/>
+        <MSBuild Projects="02-Web\Web.CachingDemo\Web.CachingDemo.dproj"/>
     </Target>
     <Target Name="Web_CachingDemo:Clean">
-        <MSBuild Projects="Web.CachingDemo\Web.CachingDemo.dproj" Targets="Clean"/>
+        <MSBuild Projects="02-Web\Web.CachingDemo\Web.CachingDemo.dproj" Targets="Clean"/>
     </Target>
     <Target Name="Web_CachingDemo:Make">
-        <MSBuild Projects="Web.CachingDemo\Web.CachingDemo.dproj" Targets="Make"/>
+        <MSBuild Projects="02-Web\Web.CachingDemo\Web.CachingDemo.dproj" Targets="Make"/>
     </Target>
     <Target Name="Web_ControllerExample">
-        <MSBuild Projects="Web.ControllerExample\Web.ControllerExample.dproj"/>
+        <MSBuild Projects="02-Web\Web.ControllerExample\Web.ControllerExample.dproj"/>
     </Target>
     <Target Name="Web_ControllerExample:Clean">
-        <MSBuild Projects="Web.ControllerExample\Web.ControllerExample.dproj" Targets="Clean"/>
+        <MSBuild Projects="02-Web\Web.ControllerExample\Web.ControllerExample.dproj" Targets="Clean"/>
     </Target>
     <Target Name="Web_ControllerExample:Make">
-        <MSBuild Projects="Web.ControllerExample\Web.ControllerExample.dproj" Targets="Make"/>
+        <MSBuild Projects="02-Web\Web.ControllerExample\Web.ControllerExample.dproj" Targets="Make"/>
     </Target>
     <Target Name="Web_ControllerExample_FluentAPI">
-        <MSBuild Projects="Web.ControllerExample\Web.ControllerExample.FluentAPI.dproj"/>
+        <MSBuild Projects="02-Web\Web.ControllerExample\Web.ControllerExample.FluentAPI.dproj"/>
     </Target>
     <Target Name="Web_ControllerExample_FluentAPI:Clean">
-        <MSBuild Projects="Web.ControllerExample\Web.ControllerExample.FluentAPI.dproj" Targets="Clean"/>
+        <MSBuild Projects="02-Web\Web.ControllerExample\Web.ControllerExample.FluentAPI.dproj" Targets="Clean"/>
     </Target>
     <Target Name="Web_ControllerExample_FluentAPI:Make">
-        <MSBuild Projects="Web.ControllerExample\Web.ControllerExample.FluentAPI.dproj" Targets="Make"/>
+        <MSBuild Projects="02-Web\Web.ControllerExample\Web.ControllerExample.FluentAPI.dproj" Targets="Make"/>
     </Target>
     <Target Name="Web_DatabaseAsApi">
-        <MSBuild Projects="Web.DatabaseAsApi\Web.DatabaseAsApi.dproj"/>
+        <MSBuild Projects="03-Data\Web.DatabaseAsApi\Web.DatabaseAsApi.dproj"/>
     </Target>
     <Target Name="Web_DatabaseAsApi:Clean">
-        <MSBuild Projects="Web.DatabaseAsApi\Web.DatabaseAsApi.dproj" Targets="Clean"/>
+        <MSBuild Projects="03-Data\Web.DatabaseAsApi\Web.DatabaseAsApi.dproj" Targets="Clean"/>
     </Target>
     <Target Name="Web_DatabaseAsApi:Make">
-        <MSBuild Projects="Web.DatabaseAsApi\Web.DatabaseAsApi.dproj" Targets="Make"/>
+        <MSBuild Projects="03-Data\Web.DatabaseAsApi\Web.DatabaseAsApi.dproj" Targets="Make"/>
     </Target>
     <Target Name="Web_Dext_Starter_Admin">
-        <MSBuild Projects="Web.Dext.Starter.Admin\Web.Dext.Starter.Admin.dproj"/>
+        <MSBuild Projects="99-Archived_PoCs\Web.Dext.Starter.Admin\Web.Dext.Starter.Admin.dproj"/>
     </Target>
     <Target Name="Web_Dext_Starter_Admin:Clean">
-        <MSBuild Projects="Web.Dext.Starter.Admin\Web.Dext.Starter.Admin.dproj" Targets="Clean"/>
+        <MSBuild Projects="99-Archived_PoCs\Web.Dext.Starter.Admin\Web.Dext.Starter.Admin.dproj" Targets="Clean"/>
     </Target>
     <Target Name="Web_Dext_Starter_Admin:Make">
-        <MSBuild Projects="Web.Dext.Starter.Admin\Web.Dext.Starter.Admin.dproj" Targets="Make"/>
+        <MSBuild Projects="99-Archived_PoCs\Web.Dext.Starter.Admin\Web.Dext.Starter.Admin.dproj" Targets="Make"/>
     </Target>
     <Target Name="Web_DextStore">
-        <MSBuild Projects="Web.DextStore\Web.DextStore.dproj"/>
+        <MSBuild Projects="99-Archived_PoCs\Web.DextStore\Web.DextStore.dproj"/>
     </Target>
     <Target Name="Web_DextStore:Clean">
-        <MSBuild Projects="Web.DextStore\Web.DextStore.dproj" Targets="Clean"/>
+        <MSBuild Projects="99-Archived_PoCs\Web.DextStore\Web.DextStore.dproj" Targets="Clean"/>
     </Target>
     <Target Name="Web_DextStore:Make">
-        <MSBuild Projects="Web.DextStore\Web.DextStore.dproj" Targets="Make"/>
+        <MSBuild Projects="99-Archived_PoCs\Web.DextStore\Web.DextStore.dproj" Targets="Make"/>
     </Target>
     <Target Name="Web_DextFood">
-        <MSBuild Projects="Web.FoodDelivery\Web.DextFood.dproj"/>
+        <MSBuild Projects="99-Archived_PoCs\Web.FoodDelivery\Web.DextFood.dproj"/>
     </Target>
     <Target Name="Web_DextFood:Clean">
-        <MSBuild Projects="Web.FoodDelivery\Web.DextFood.dproj" Targets="Clean"/>
+        <MSBuild Projects="99-Archived_PoCs\Web.FoodDelivery\Web.DextFood.dproj" Targets="Clean"/>
     </Target>
     <Target Name="Web_DextFood:Make">
-        <MSBuild Projects="Web.FoodDelivery\Web.DextFood.dproj" Targets="Make"/>
+        <MSBuild Projects="99-Archived_PoCs\Web.FoodDelivery\Web.DextFood.dproj" Targets="Make"/>
     </Target>
     <Target Name="Web_JwtAuthDemo">
-        <MSBuild Projects="Web.JwtAuthDemo\Web.JwtAuthDemo.dproj"/>
+        <MSBuild Projects="02-Web\Web.JwtAuthDemo\Web.JwtAuthDemo.dproj"/>
     </Target>
     <Target Name="Web_JwtAuthDemo:Clean">
-        <MSBuild Projects="Web.JwtAuthDemo\Web.JwtAuthDemo.dproj" Targets="Clean"/>
+        <MSBuild Projects="02-Web\Web.JwtAuthDemo\Web.JwtAuthDemo.dproj" Targets="Clean"/>
     </Target>
     <Target Name="Web_JwtAuthDemo:Make">
-        <MSBuild Projects="Web.JwtAuthDemo\Web.JwtAuthDemo.dproj" Targets="Make"/>
+        <MSBuild Projects="02-Web\Web.JwtAuthDemo\Web.JwtAuthDemo.dproj" Targets="Make"/>
     </Target>
     <Target Name="Web_MinimalAPIExample">
-        <MSBuild Projects="Web.MinimalAPI\Web.MinimalAPIExample.dproj"/>
+        <MSBuild Projects="02-Web\Web.MinimalAPI\Web.MinimalAPIExample.dproj"/>
     </Target>
     <Target Name="Web_MinimalAPIExample:Clean">
-        <MSBuild Projects="Web.MinimalAPI\Web.MinimalAPIExample.dproj" Targets="Clean"/>
+        <MSBuild Projects="02-Web\Web.MinimalAPI\Web.MinimalAPIExample.dproj" Targets="Clean"/>
     </Target>
     <Target Name="Web_MinimalAPIExample:Make">
-        <MSBuild Projects="Web.MinimalAPI\Web.MinimalAPIExample.dproj" Targets="Make"/>
+        <MSBuild Projects="02-Web\Web.MinimalAPI\Web.MinimalAPIExample.dproj" Targets="Make"/>
     </Target>
     <Target Name="Web_OrderAPI">
-        <MSBuild Projects="Web.OrderAPI\Web.OrderAPI.dproj"/>
+        <MSBuild Projects="99-Archived_PoCs\Web.OrderAPI\Web.OrderAPI.dproj"/>
     </Target>
     <Target Name="Web_OrderAPI:Clean">
-        <MSBuild Projects="Web.OrderAPI\Web.OrderAPI.dproj" Targets="Clean"/>
+        <MSBuild Projects="99-Archived_PoCs\Web.OrderAPI\Web.OrderAPI.dproj" Targets="Clean"/>
     </Target>
     <Target Name="Web_OrderAPI:Make">
-        <MSBuild Projects="Web.OrderAPI\Web.OrderAPI.dproj" Targets="Make"/>
+        <MSBuild Projects="99-Archived_PoCs\Web.OrderAPI\Web.OrderAPI.dproj" Targets="Make"/>
     </Target>
     <Target Name="Web_RateLimitDemo">
-        <MSBuild Projects="Web.RateLimitDemo\Web.RateLimitDemo.dproj"/>
+        <MSBuild Projects="02-Web\Web.RateLimitDemo\Web.RateLimitDemo.dproj"/>
     </Target>
     <Target Name="Web_RateLimitDemo:Clean">
-        <MSBuild Projects="Web.RateLimitDemo\Web.RateLimitDemo.dproj" Targets="Clean"/>
+        <MSBuild Projects="02-Web\Web.RateLimitDemo\Web.RateLimitDemo.dproj" Targets="Clean"/>
     </Target>
     <Target Name="Web_RateLimitDemo:Make">
-        <MSBuild Projects="Web.RateLimitDemo\Web.RateLimitDemo.dproj" Targets="Make"/>
+        <MSBuild Projects="02-Web\Web.RateLimitDemo\Web.RateLimitDemo.dproj" Targets="Make"/>
     </Target>
     <Target Name="Web_SmartPropsDemo">
-        <MSBuild Projects="Web.SmartPropsDemo\Web.SmartPropsDemo.dproj"/>
+        <MSBuild Projects="03-Data\Web.SmartPropsDemo\Web.SmartPropsDemo.dproj"/>
     </Target>
     <Target Name="Web_SmartPropsDemo:Clean">
-        <MSBuild Projects="Web.SmartPropsDemo\Web.SmartPropsDemo.dproj" Targets="Clean"/>
+        <MSBuild Projects="03-Data\Web.SmartPropsDemo\Web.SmartPropsDemo.dproj" Targets="Clean"/>
     </Target>
     <Target Name="Web_SmartPropsDemo:Make">
-        <MSBuild Projects="Web.SmartPropsDemo\Web.SmartPropsDemo.dproj" Targets="Make"/>
+        <MSBuild Projects="03-Data\Web.SmartPropsDemo\Web.SmartPropsDemo.dproj" Targets="Make"/>
     </Target>
     <Target Name="Web_SslDemo">
-        <MSBuild Projects="Web.SslDemo\Web.SslDemo.dproj"/>
+        <MSBuild Projects="02-Web\Web.SslDemo\Web.SslDemo.dproj"/>
     </Target>
     <Target Name="Web_SslDemo:Clean">
-        <MSBuild Projects="Web.SslDemo\Web.SslDemo.dproj" Targets="Clean"/>
+        <MSBuild Projects="02-Web\Web.SslDemo\Web.SslDemo.dproj" Targets="Clean"/>
     </Target>
     <Target Name="Web_SslDemo:Make">
-        <MSBuild Projects="Web.SslDemo\Web.SslDemo.dproj" Targets="Make"/>
+        <MSBuild Projects="02-Web\Web.SslDemo\Web.SslDemo.dproj" Targets="Make"/>
     </Target>
     <Target Name="Web_StreamingDemo">
-        <MSBuild Projects="Web.StreamingDemo\Web.StreamingDemo.dproj"/>
+        <MSBuild Projects="99-Archived_PoCs\Web.StreamingDemo\Web.StreamingDemo.dproj"/>
     </Target>
     <Target Name="Web_StreamingDemo:Clean">
-        <MSBuild Projects="Web.StreamingDemo\Web.StreamingDemo.dproj" Targets="Clean"/>
+        <MSBuild Projects="99-Archived_PoCs\Web.StreamingDemo\Web.StreamingDemo.dproj" Targets="Clean"/>
     </Target>
     <Target Name="Web_StreamingDemo:Make">
-        <MSBuild Projects="Web.StreamingDemo\Web.StreamingDemo.dproj" Targets="Make"/>
+        <MSBuild Projects="99-Archived_PoCs\Web.StreamingDemo\Web.StreamingDemo.dproj" Targets="Make"/>
     </Target>
     <Target Name="Web_SwaggerControllerExample">
-        <MSBuild Projects="Web.SwaggerControllerExample\Web.SwaggerControllerExample.dproj"/>
+        <MSBuild Projects="02-Web\Web.SwaggerControllerExample\Web.SwaggerControllerExample.dproj"/>
     </Target>
     <Target Name="Web_SwaggerControllerExample:Clean">
-        <MSBuild Projects="Web.SwaggerControllerExample\Web.SwaggerControllerExample.dproj" Targets="Clean"/>
+        <MSBuild Projects="02-Web\Web.SwaggerControllerExample\Web.SwaggerControllerExample.dproj" Targets="Clean"/>
     </Target>
     <Target Name="Web_SwaggerControllerExample:Make">
-        <MSBuild Projects="Web.SwaggerControllerExample\Web.SwaggerControllerExample.dproj" Targets="Make"/>
+        <MSBuild Projects="02-Web\Web.SwaggerControllerExample\Web.SwaggerControllerExample.dproj" Targets="Make"/>
     </Target>
     <Target Name="Web_SwaggerExample">
-        <MSBuild Projects="Web.SwaggerExample\Web.SwaggerExample.dproj"/>
+        <MSBuild Projects="02-Web\Web.SwaggerExample\Web.SwaggerExample.dproj"/>
     </Target>
     <Target Name="Web_SwaggerExample:Clean">
-        <MSBuild Projects="Web.SwaggerExample\Web.SwaggerExample.dproj" Targets="Clean"/>
+        <MSBuild Projects="02-Web\Web.SwaggerExample\Web.SwaggerExample.dproj" Targets="Clean"/>
     </Target>
     <Target Name="Web_SwaggerExample:Make">
-        <MSBuild Projects="Web.SwaggerExample\Web.SwaggerExample.dproj" Targets="Make"/>
+        <MSBuild Projects="02-Web\Web.SwaggerExample\Web.SwaggerExample.dproj" Targets="Make"/>
     </Target>
     <Target Name="Web_TaskFlowAPI">
-        <MSBuild Projects="Web.TaskFlowAPI\Web.TaskFlowAPI.dproj"/>
+        <MSBuild Projects="99-Archived_PoCs\Web.TaskFlowAPI\Web.TaskFlowAPI.dproj"/>
     </Target>
     <Target Name="Web_TaskFlowAPI:Clean">
-        <MSBuild Projects="Web.TaskFlowAPI\Web.TaskFlowAPI.dproj" Targets="Clean"/>
+        <MSBuild Projects="99-Archived_PoCs\Web.TaskFlowAPI\Web.TaskFlowAPI.dproj" Targets="Clean"/>
     </Target>
     <Target Name="Web_TaskFlowAPI:Make">
-        <MSBuild Projects="Web.TaskFlowAPI\Web.TaskFlowAPI.dproj" Targets="Make"/>
+        <MSBuild Projects="99-Archived_PoCs\Web.TaskFlowAPI\Web.TaskFlowAPI.dproj" Targets="Make"/>
     </Target>
     <Target Name="Web_TUUIDBindingExample">
-        <MSBuild Projects="Web.TUUIDBindingExample\Web.TUUIDBindingExample.dproj"/>
+        <MSBuild Projects="02-Web\Web.TUUIDBindingExample\Web.TUUIDBindingExample.dproj"/>
     </Target>
     <Target Name="Web_TUUIDBindingExample:Clean">
-        <MSBuild Projects="Web.TUUIDBindingExample\Web.TUUIDBindingExample.dproj" Targets="Clean"/>
+        <MSBuild Projects="02-Web\Web.TUUIDBindingExample\Web.TUUIDBindingExample.dproj" Targets="Clean"/>
     </Target>
     <Target Name="Web_TUUIDBindingExample:Make">
-        <MSBuild Projects="Web.TUUIDBindingExample\Web.TUUIDBindingExample.dproj" Targets="Make"/>
+        <MSBuild Projects="02-Web\Web.TUUIDBindingExample\Web.TUUIDBindingExample.dproj" Targets="Make"/>
     </Target>
     <Target Name="Web_UUIDExample">
-        <MSBuild Projects="Web.UUIDExample\Web.UUIDExample.dproj"/>
+        <MSBuild Projects="02-Web\Web.UUIDExample\Web.UUIDExample.dproj"/>
     </Target>
     <Target Name="Web_UUIDExample:Clean">
-        <MSBuild Projects="Web.UUIDExample\Web.UUIDExample.dproj" Targets="Clean"/>
+        <MSBuild Projects="02-Web\Web.UUIDExample\Web.UUIDExample.dproj" Targets="Clean"/>
     </Target>
     <Target Name="Web_UUIDExample:Make">
-        <MSBuild Projects="Web.UUIDExample\Web.UUIDExample.dproj" Targets="Make"/>
+        <MSBuild Projects="02-Web\Web.UUIDExample\Web.UUIDExample.dproj" Targets="Make"/>
     </Target>
     <Target Name="WebStencilsDemo">
-        <MSBuild Projects="WebStencilsDemo\WebStencilsDemo.dproj"/>
+        <MSBuild Projects="04-Advanced\WebStencilsDemo\WebStencilsDemo.dproj"/>
     </Target>
     <Target Name="WebStencilsDemo:Clean">
-        <MSBuild Projects="WebStencilsDemo\WebStencilsDemo.dproj" Targets="Clean"/>
+        <MSBuild Projects="04-Advanced\WebStencilsDemo\WebStencilsDemo.dproj" Targets="Clean"/>
     </Target>
     <Target Name="WebStencilsDemo:Make">
-        <MSBuild Projects="WebStencilsDemo\WebStencilsDemo.dproj" Targets="Make"/>
+        <MSBuild Projects="04-Advanced\WebStencilsDemo\WebStencilsDemo.dproj" Targets="Make"/>
     </Target>
     <Target Name="Web_SalesSystem_Minimal">
-        <MSBuild Projects="Web.SalesSystem\Server\Web.SalesSystem.Minimal.dproj"/>
+        <MSBuild Projects="99-Archived_PoCs\Web.SalesSystem\Server\Web.SalesSystem.Minimal.dproj"/>
     </Target>
     <Target Name="Web_SalesSystem_Minimal:Clean">
-        <MSBuild Projects="Web.SalesSystem\Server\Web.SalesSystem.Minimal.dproj" Targets="Clean"/>
+        <MSBuild Projects="99-Archived_PoCs\Web.SalesSystem\Server\Web.SalesSystem.Minimal.dproj" Targets="Clean"/>
     </Target>
     <Target Name="Web_SalesSystem_Minimal:Make">
-        <MSBuild Projects="Web.SalesSystem\Server\Web.SalesSystem.Minimal.dproj" Targets="Make"/>
+        <MSBuild Projects="99-Archived_PoCs\Web.SalesSystem\Server\Web.SalesSystem.Minimal.dproj" Targets="Make"/>
     </Target>
     <Target Name="Web_SalesSystem_Tests">
-        <MSBuild Projects="Web.SalesSystem\Tests\Web.SalesSystem.Tests.dproj"/>
+        <MSBuild Projects="99-Archived_PoCs\Web.SalesSystem\Tests\Web.SalesSystem.Tests.dproj"/>
     </Target>
     <Target Name="Web_SalesSystem_Tests:Clean">
-        <MSBuild Projects="Web.SalesSystem\Tests\Web.SalesSystem.Tests.dproj" Targets="Clean"/>
+        <MSBuild Projects="99-Archived_PoCs\Web.SalesSystem\Tests\Web.SalesSystem.Tests.dproj" Targets="Clean"/>
     </Target>
     <Target Name="Web_SalesSystem_Tests:Make">
-        <MSBuild Projects="Web.SalesSystem\Tests\Web.SalesSystem.Tests.dproj" Targets="Make"/>
+        <MSBuild Projects="99-Archived_PoCs\Web.SalesSystem\Tests\Web.SalesSystem.Tests.dproj" Targets="Make"/>
     </Target>
     <Target Name="Web_TicketSales">
-        <MSBuild Projects="Web.TicketSales\Server\Web.TicketSales.dproj"/>
+        <MSBuild Projects="99-Archived_PoCs\Web.TicketSales\Server\Web.TicketSales.dproj"/>
     </Target>
     <Target Name="Web_TicketSales:Clean">
-        <MSBuild Projects="Web.TicketSales\Server\Web.TicketSales.dproj" Targets="Clean"/>
+        <MSBuild Projects="99-Archived_PoCs\Web.TicketSales\Server\Web.TicketSales.dproj" Targets="Clean"/>
     </Target>
     <Target Name="Web_TicketSales:Make">
-        <MSBuild Projects="Web.TicketSales\Server\Web.TicketSales.dproj" Targets="Make"/>
+        <MSBuild Projects="99-Archived_PoCs\Web.TicketSales\Server\Web.TicketSales.dproj" Targets="Make"/>
     </Target>
     <Target Name="Web_TicketSales_Tests">
-        <MSBuild Projects="Web.TicketSales\Tests\Web.TicketSales.Tests.dproj"/>
+        <MSBuild Projects="99-Archived_PoCs\Web.TicketSales\Tests\Web.TicketSales.Tests.dproj"/>
     </Target>
     <Target Name="Web_TicketSales_Tests:Clean">
-        <MSBuild Projects="Web.TicketSales\Tests\Web.TicketSales.Tests.dproj" Targets="Clean"/>
+        <MSBuild Projects="99-Archived_PoCs\Web.TicketSales\Tests\Web.TicketSales.Tests.dproj" Targets="Clean"/>
     </Target>
     <Target Name="Web_TicketSales_Tests:Make">
-        <MSBuild Projects="Web.TicketSales\Tests\Web.TicketSales.Tests.dproj" Targets="Make"/>
+        <MSBuild Projects="99-Archived_PoCs\Web.TicketSales\Tests\Web.TicketSales.Tests.dproj" Targets="Make"/>
     </Target>
     <Target Name="Core_EventBusDemo">
-        <MSBuild Projects="Core.EventBusDemo\Core.EventBusDemo.dproj"/>
+        <MSBuild Projects="99-Archived_PoCs\Core.EventBusDemo\Core.EventBusDemo.dproj"/>
     </Target>
     <Target Name="Core_EventBusDemo:Clean">
-        <MSBuild Projects="Core.EventBusDemo\Core.EventBusDemo.dproj" Targets="Clean"/>
+        <MSBuild Projects="99-Archived_PoCs\Core.EventBusDemo\Core.EventBusDemo.dproj" Targets="Clean"/>
     </Target>
     <Target Name="Core_EventBusDemo:Make">
-        <MSBuild Projects="Core.EventBusDemo\Core.EventBusDemo.dproj" Targets="Make"/>
+        <MSBuild Projects="99-Archived_PoCs\Core.EventBusDemo\Core.EventBusDemo.dproj" Targets="Make"/>
     </Target>
     <Target Name="Web_EventBusDemo">
-        <MSBuild Projects="Web.EventBusDemo\Web.EventBusDemo.dproj"/>
+        <MSBuild Projects="99-Archived_PoCs\Web.EventBusDemo\Web.EventBusDemo.dproj"/>
     </Target>
     <Target Name="Web_EventBusDemo:Clean">
-        <MSBuild Projects="Web.EventBusDemo\Web.EventBusDemo.dproj" Targets="Clean"/>
+        <MSBuild Projects="99-Archived_PoCs\Web.EventBusDemo\Web.EventBusDemo.dproj" Targets="Clean"/>
     </Target>
     <Target Name="Web_EventBusDemo:Make">
-        <MSBuild Projects="Web.EventBusDemo\Web.EventBusDemo.dproj" Targets="Make"/>
+        <MSBuild Projects="99-Archived_PoCs\Web.EventBusDemo\Web.EventBusDemo.dproj" Targets="Make"/>
     </Target>
     <Target Name="Build">
         <CallTarget Targets="Core_TestConfig;Core_TestHttpParser;Core_EventBusDemo;Web_EventBusDemo;CustomerCRUD_Tests;Dext_Examples_ComplexQuerying;Dext_Examples_MultiTenancy;DesktopMVUCounter;DesktopMVUCounterFrame;DesktopMVVMCustomerCRUD;Orm_EntityDemo;Orm_EntityStyles;Orm_SpecificationDemo;RestClientDemo;Web_BasicAuthDemo;Web_CachingDemo;Web_ControllerExample;Web_ControllerExample_FluentAPI;Web_DatabaseAsApi;Web_Dext_Starter_Admin;Web_DextStore;Web_DextFood;Web_JwtAuthDemo;Web_MinimalAPIExample;Web_OrderAPI;Web_RateLimitDemo;Web_SmartPropsDemo;Web_SslDemo;Web_StreamingDemo;Web_SwaggerControllerExample;Web_SwaggerExample;Web_TaskFlowAPI;Web_TUUIDBindingExample;Web_UUIDExample;WebStencilsDemo;Web_SalesSystem_Minimal;Web_SalesSystem_Tests;Web_TicketSales;Web_TicketSales_Tests"/>

@@ -23,15 +23,35 @@ echo Step 1: Building and Running Examples
 echo ==========================================
 echo.
 
-REM Iterate through each directory in Examples
-for /d %%d in ("%DEXT%\Examples\*") do (
-    set "DIR_NAME=%%~nxd"
-    set "PROCESSED_IN_DIR=0"
-    
-    REM Only process if it's not Output and contains a .dproj
-    if /i "!DIR_NAME!" NEQ "Output" (
+REM Iterate through categories and projects
+set /a TOTAL_TASKS=0
+set /a CURRENT_TASK=0
+
+echo [INIT] Counting projects for testing...
+for /d %%c in ("%DEXT%\Examples\0*", "%DEXT%\Examples\9*") do (
+    for /d %%d in ("%%c\*") do (
         if exist "%%d\*.dproj" (
-            
+            for %%f in ("%%d\*.dproj") do (
+                REM Check if project has a test script
+                for %%s in ("%%d\Test.*.ps1") do (
+                    set /a TOTAL_TASKS+=1
+                )
+            )
+        )
+    )
+)
+
+echo [INIT] Found %TOTAL_TASKS% projects to test.
+echo.
+
+for /d %%c in ("%DEXT%\Examples\0*", "%DEXT%\Examples\9*") do (
+    set "CAT_NAME=%%~nxc"
+    echo ==========================================
+    echo Category: !CAT_NAME!
+    echo ==========================================
+    
+    for /d %%d in ("%%c\*") do (
+        if exist "%%d\*.dproj" (
             for %%f in ("%%d\*.dproj") do (
                 set "PROJECT_NAME=%%~nf"
                 set "PROJECT_FILE=%%f"
@@ -43,9 +63,10 @@ for /d %%d in ("%DEXT%\Examples\*") do (
                 )
                 
                 if "!TEST_SCRIPT!" NEQ "" (
+                    set /a CURRENT_TASK+=1
                     echo.
                     echo ------------------------------------------
-                    echo Processing: !PROJECT_NAME!
+                    echo [!CURRENT_TASK!/%TOTAL_TASKS%] Processing: !PROJECT_NAME!
                     echo ------------------------------------------
                     
                     REM 1. Build project

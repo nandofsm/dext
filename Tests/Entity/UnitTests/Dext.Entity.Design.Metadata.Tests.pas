@@ -34,32 +34,36 @@ uses
 
 function TEntityDesignMetadataTests.GetDemoMainFormFileName: string;
 const
-  DEMO_REL_PATH = 'Examples\Desktop.EntityDataSet.Demo\MainForm.pas';
+  DEMO_REL_PATH = 'Examples\05-UI\Desktop.EntityDataSet.Demo\MainForm.pas';
 var
   BaseDir: string;
+  ResultPath: string;
 begin
-  BaseDir := ExtractFilePath(ParamStr(0));
+  BaseDir := ExcludeTrailingPathDelimiter(ExtractFilePath(ParamStr(0)));
   
-  // Try 1: Direct from typical build output (Output/37.0_Win32_Debug)
-  Result := TPath.GetFullPath(TPath.Combine(BaseDir, '..\..\..\..\..\ ' + DEMO_REL_PATH)).Replace(' \ ', '\');
-  if FileExists(Result) then Exit;
+  // Try 1: Navigate from Output/Platform/Config to Repo Root (3 levels up)
+  // c:\dev\Dext\DextRepository\Output\37.0_Win32_Debug -> c:\dev\Dext\DextRepository
+  ResultPath := TPath.GetFullPath(TPath.Combine(BaseDir, '..\..\ ' + DEMO_REL_PATH)).Replace(' \ ', '\');
+  if FileExists(ResultPath) then Exit(ResultPath);
 
-  // Try 2: From Source folder (Build tools might put bin here)
-  Result := TPath.GetFullPath(TPath.Combine(BaseDir, '..\..\..\' + DEMO_REL_PATH));
-  if FileExists(Result) then Exit;
+  // Try 2: Standard Output (2 levels up)
+  ResultPath := TPath.GetFullPath(TPath.Combine(BaseDir, '..\..\' + DEMO_REL_PATH));
+  if FileExists(ResultPath) then Exit(ResultPath);
 
-  // Try 3: Recursive search up
+  // Try 3: Standard Output (3 levels up without space hack)
+  ResultPath := TPath.GetFullPath(TPath.Combine(BaseDir, '..\..\..\' + DEMO_REL_PATH));
+  if FileExists(ResultPath) then Exit(ResultPath);
+
+  // Try 4: Recursive search up
   var CurrentDir := BaseDir;
   while Length(CurrentDir) > 3 do
   begin
-    Result := TPath.Combine(CurrentDir, DEMO_REL_PATH);
-    if FileExists(Result) then
-      Exit;
+    ResultPath := TPath.Combine(CurrentDir, DEMO_REL_PATH);
+    if FileExists(ResultPath) then Exit(ResultPath);
     CurrentDir := TPath.GetDirectoryName(CurrentDir);
   end;
-  
-  // Last resort: Original logic (maybe it works in some setups)
-  Result := TPath.GetFullPath(TPath.Combine(BaseDir, '..\..\..\Examples\Desktop.EntityDataSet.Demo\MainForm.pas'));
+
+  Result := DEMO_REL_PATH;
 end;
 
 function TEntityDesignMetadataTests.FindEntity(const AEntities: IList<TEntityClassMetadata>;

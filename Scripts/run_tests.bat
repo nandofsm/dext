@@ -50,22 +50,29 @@ echo [SKIP] Building All Tests (parameter --no-build detected)
 goto :run_step
 
 :run_step
-echo.
-echo ==========================================
-echo Step 2: Running All Tests
-echo ==========================================
-echo.
+REM Step 2: Running All Tests
+set /a TOTAL_TESTS=0
+set /a CURRENT_TEST=0
 
-REM Change to output directory for execution context
 if not exist "%TESTS_OUTPUT%" goto :no_output_folder
 pushd "%TESTS_OUTPUT%"
 
+for %%e in (*.exe) do (
+    set /a TOTAL_TESTS+=1
+)
+
+echo ==========================================
+echo Step 2: Running %TOTAL_TESTS% Tests
+echo ==========================================
+echo.
+
 REM Run each test that was successfully built
 for %%e in (*.exe) do (
+    set /a CURRENT_TEST+=1
     set "EXE_NAME=%%~ne"
     echo.
     echo ------------------------------------------
-    echo Testing: !EXE_NAME!
+    echo [!CURRENT_TEST!/%TOTAL_TESTS%] Testing: !EXE_NAME!
     echo ------------------------------------------
     
     REM Run the test
