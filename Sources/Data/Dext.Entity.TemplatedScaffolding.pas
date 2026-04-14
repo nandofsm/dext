@@ -6,8 +6,10 @@ uses
   System.SysUtils,
   System.Classes,
   System.IOUtils,
+  Dext.Collections,
   Dext.Entity.Scaffolding,
   Dext.Scaffolding.Models,
+  Dext.Entity.Scaffolding.Processor,
   Dext.Templating;
 
 type
@@ -16,7 +18,7 @@ type
   TTemplatedEntityGenerator = class
   private
     FEngine: ITemplateEngine;
-    function CleanName(const AName: string): string;
+    function CleanName(const AName: string; ASingularize: Boolean = False): string;
     function SQLTypeToDelphiType(const ASQLType: string; AScale: Integer): string;
     function CreateTableViewModel(const AMeta: TMetaTable): TTableViewModel;
   public
@@ -36,7 +38,7 @@ begin
   FEngine := TTemplating.CreateEngine;
 end;
 
-function TTemplatedEntityGenerator.CleanName(const AName: string): string;
+function TTemplatedEntityGenerator.CleanName(const AName: string; ASingularize: Boolean): string;
 var
   Parts: TArray<string>;
   S, Cleaned: string;
@@ -54,6 +56,14 @@ begin
   for S in Parts do
     if S.Length > 0 then
       Result := Result + UpperCase(S.Chars[0]) + S.Substring(1).ToLower;
+
+  if ASingularize then
+  begin
+    if Result.EndsWith('ies', True) then
+      Result := Result.Substring(0, Result.Length - 3) + 'y'
+    else if Result.EndsWith('s', True) and not Result.EndsWith('ss', True) then
+      Result := Result.Substring(0, Result.Length - 1);
+  end;
 end;
 
 function TTemplatedEntityGenerator.SQLTypeToDelphiType(const ASQLType: string; AScale: Integer): string;
@@ -81,7 +91,9 @@ function TTemplatedEntityGenerator.CreateTableViewModel(const AMeta: TMetaTable)
 begin
   Result := TTableViewModel.Create;
   Result.Name := AMeta.Name;
-  Result.DelphiClassName := 'T' + CleanName(AMeta.Name);
+  Result.DelphiClassName := 'T' + CleanName(AMeta.Name, True);
+  Result.DelphiUnitName := CleanName(AMeta.Name);
+  Result.DelphiNamespace := 'Dext.Data.Entities'; // Default namespace for entities
   
   for var MetaCol in AMeta.Columns do
   begin
@@ -120,54 +132,66 @@ end;
 
 procedure TTemplatedEntityGenerator.Generate(const ASchema: ISchemaProvider; const ATemplatePath, AOutputDir: string; AMode: TGenerationMode);
 var
-  Tables: TArray<string>;
+  TableNames: TArray<string>;
+  TableMetaList: IList<TMetaTable>;
+  RootModel: TScaffoldViewModel;
+  Processor: TScaffoldingMetadataProcessor;
+  Context: ITemplateContext;
   TemplateContent: string;
   OutputContent: string;
-  RootModel: TScaffoldViewModel;
-  Context: ITemplateContext;
 begin
   if not TFile.Exists(ATemplatePath) then
     raise Exception.Create('Template not found: ' + ATemplatePath);
     
   TemplateContent := TFile.ReadAllText(ATemplatePath);
-  Tables := ASchema.GetTables;
-  
-  ForceDirectories(AOutputDir);
-  
-  if AMode = gmMultipleFiles then
-  begin
-    for var TableName in Tables do
+  TableNames := ASchema.GetTables;
+  TableMetaList := TCollections.CreateList<TMetaTable>;
+  RootModel := TScaffoldViewModel.Create;
+  try
+    ForceDirectories(AOutputDir);
+
+    // Step 1: Collect all metadata and create initial ViewModels
+    for var TableName in TableNames do
     begin
-      var TableMeta := ASchema.GetTableMetadata(TableName);
-      var TableModel := CreateTableViewModel(TableMeta);
-      try
+      var Meta := ASchema.GetTableMetadata(TableName);
+      TableMetaList.Add(Meta);
+      RootModel.Tables.Add(CreateTableViewModel(Meta));
+    end;
+
+    // Step 2: Process Relationships (Join tables, M2M, etc.)
+    Processor := TScaffoldingMetadataProcessor.Create(RootModel);
+    try
+      Processor.Process(TableMetaList.ToArray);
+    finally
+      Processor.Free;
+    end;
+
+    // Step 3: Render and Save
+    if AMode = gmMultipleFiles then
+    begin
+      for var TableVM in RootModel.Tables do
+      begin
+        if TableVM.IsJoinTable then Continue; // Skip Join Tables generation
+        
         Context := TTemplating.CreateContext;
-        Context.SetObject('Model', TableModel);
+        Context.SetObject('Model', TableVM);
         
         OutputContent := FEngine.Render(TemplateContent, Context);
-        var FileName := TPath.Combine(AOutputDir, CleanName(TableName) + '.pas');
+        var FileName := TPath.Combine(AOutputDir, TableVM.DelphiUnitName + '.pas');
         TFile.WriteAllText(FileName, OutputContent);
-      finally
-        TableModel.Free;
       end;
-    end;
-  end
-  else
-  begin
-    RootModel := TScaffoldViewModel.Create;
-    try
-      for var TableName in Tables do
-        RootModel.Tables.Add(CreateTableViewModel(ASchema.GetTableMetadata(TableName)));
-        
+    end
+    else
+    begin
       Context := TTemplating.CreateContext;
       Context.SetObject('Model', RootModel);
       
       OutputContent := FEngine.Render(TemplateContent, Context);
       var FileName := TPath.Combine(AOutputDir, 'Entities.pas');
       TFile.WriteAllText(FileName, OutputContent);
-    finally
-      RootModel.Free;
     end;
+  finally
+    RootModel.Free;
   end;
 end;
 

@@ -9,7 +9,8 @@ The Dext ORM Scaffolding tool allows you to automatically generate Delphi Entity
 - **Type Mapping**: Automatically maps SQL types (INT, VARCHAR, DATE, etc.) to Delphi types (Integer, string, TDateTime, etc.).
 - **Nullable Support**: Uses `Nullable<T>` for nullable database columns.
 - **Relationships**: Detects Foreign Keys and generates navigation properties for lazy loading.
-- **Naming Conventions**: Automatically converts `snake_case` database names to `PascalCase` Delphi names.
+- **Many-to-Many Detection**: Automatically identifies junction tables and generates bidirectional `[ManyToMany]` properties.
+- **Naming Conventions**: Automatically converts `snake_case` database names to `PascalCase` Delphi names (Singularized Classes, Pluralized Collections).
 
 ## CLI Usage (Recommended)
 
@@ -70,6 +71,31 @@ begin
   Generator := TDelphiEntityGenerator.Create;
   Code := Generator.GenerateUnit('MyEntities', MetaList);
   TFile.WriteAllText('MyEntities.pas', Code);
+end;
+```
+
+### Templated Scaffolding (Advanced)
+
+Since Version 1.0, Dext uses a **Templated Engine** (`TTemplatedEntityGenerator`) for code generation. This allows you to customize the output by modifying `.template` files.
+
+The templated engine automatically handles:
+- **Join Table Detection**: Tables that only link two other tables are identified as junction tables and are not generated as separate entities.
+- **ManyToMany Attribute**: Bidirectional properties are added to the related entities using the `[ManyToMany]` attribute.
+- **Dext.Collections**: Generated properties use `IEntityCollection<T>` (based on `IList<T>`) for relationship management.
+
+To use the templated generator programmatically:
+
+```pascal
+uses
+  Dext.Entity.TemplatedScaffolding;
+
+procedure GenerateTemplated;
+var
+  Generator: TTemplatedEntityGenerator;
+begin
+  Generator := TTemplatedEntityGenerator.Create;
+  // Metadata is processed and rendered using razor-style templates
+  Generator.Generate(MetaList, 'Templates/entity.pas.template', 'Output/');
 end;
 ```
 

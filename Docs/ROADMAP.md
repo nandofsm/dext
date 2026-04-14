@@ -22,7 +22,7 @@ Status | Task | Spec | Description
 Status | Task | Spec | Description
 :---: | :--- | :---: | :---
 🔴 | **High-Perf Reflection** | [S07](Specs/S07-High-Perf-Reflection.md) | Type Handler Registry to eliminate RTTI/TValue overhead.
-🟡 | **Advanced Scaffolding** | [S01](Specs/S01-Advanced-Scaffolding.md) | New CLI template engine (`dext new`, `dext add`).
+✅ | **Advanced Scaffolding** | [S01](Specs/S01-Advanced-Scaffolding.md) | New CLI template engine (`dext new`, `dext add`).
 ✅ | **Template Engine** | [S09](Specs/S09-Template-Engine.md) | Zero-dependency AST-based template engine (Razor-like).
 🟡 | **Dext IDE Explorer** | [S05](Specs/S05-Advanced-Tooling.md) | Initial visual tool for Migrations inside the IDE.
 🟡 | **Production Middleware** | - | SPA Fallback, Forwarded Headers, and Resilience.
@@ -57,7 +57,7 @@ Status | Tarefa | Spec | Descrição
 Status | Tarefa | Spec | Descrição
 :---: | :--- | :---: | :---
 🔴 | **High-Perf Reflection** | [S07](Specs/S07-High-Perf-Reflection.md) | Registry de Handlers para eliminar overhead de RTTI/TValue.
-🟡 | **Scaffolding Avançado** | [S01](Specs/S01-Advanced-Scaffolding.md) | Novo motor de templates CLI (`dext new`, `dext add`).
+✅ | **Scaffolding Avançado** | [S01](Specs/S01-Advanced-Scaffolding.md) | Novo motor de templates CLI (`dext new`, `dext add`).
 ✅ | **Motor de Templates** | [S09](Specs/S09-Template-Engine.md) | Motor de templates baseado em AST, zero dependência (estilo Razor).
 🟡 | **Dext IDE Explorer** | [S05](Specs/S05-Advanced-Tooling.md) | Ferramenta visual inicial para Migrations na IDE.
 🟡 | **Middleware Pack** | - | SPA Fallback, Forwarded Headers e Resiliência.

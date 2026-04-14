@@ -1,0 +1,37 @@
+unit @Namespace.Controllers.@Name;
+
+interface
+
+uses
+  Dext.Web@if(Model.DelphiUnitName),
+  @Model.DelphiNamespace.@Model.DelphiUnitName@endif;
+
+type
+  [Route('/api/@Name.ToCamelCase()')]
+  T@Name.ToPascalCase()Controller = class(TController)
+  public
+    [HttpGet]
+    function Get: string;
+    @if(Model.DelphiUnitName)
+    [HttpGet(':id')]
+    function GetById(id: Integer): string;
+    @endif
+  end;
+
+implementation
+
+{ T@Name.ToPascalCase()Controller }
+
+function T@Name.ToPascalCase()Controller.Get: string;
+begin
+  Result := 'List of @Name';
+end;
+
+@if(Model.DelphiUnitName)
+function T@Name.ToPascalCase()Controller.GetById(id: Integer): string;
+begin
+  Result := 'Details of @Model.DelphiUnitName ' + id.ToString;
+end;
+@endif
+
+end.

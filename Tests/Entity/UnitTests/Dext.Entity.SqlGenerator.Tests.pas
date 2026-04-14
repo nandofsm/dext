@@ -5,6 +5,11 @@ interface
 uses
   System.SysUtils,
   System.Rtti,
+{$IFNDEF TESTINSIGHT}
+  FireDAC.ConsoleUI.Wait,
+{$ELSE}
+  FireDAC.VCLUI.Wait,
+{$ENDIF}
   Dext.Mocks,
   Dext.Mocks.Matching,
   Dext.Testing,

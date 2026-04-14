@@ -1,0 +1,37 @@
+unit @Namespace.Data.Repositories.@Name;
+
+interface
+
+uses
+  System.Generics.Collections,
+  Dext.Entity,
+  @Model.DelphiNamespace.@Model.DelphiUnitName;
+
+type
+  I@Name.ToPascalCase()Repository = interface
+    ['{@ProjectGUID}']
+    function ListAll: TList<@Model.DelphiClassName>;
+    function GetById(const AId: Variant): @Model.DelphiClassName;
+  end;
+
+  T@Name.ToPascalCase()Repository = class(TDextRepository<@Model.DelphiClassName>, I@Name.ToPascalCase()Repository)
+  public
+    function ListAll: TList<@Model.DelphiClassName>;
+    function GetById(const AId: Variant): @Model.DelphiClassName;
+  end;
+
+implementation
+
+{ T@Name.ToPascalCase()Repository }
+
+function T@Name.ToPascalCase()Repository.ListAll: TList<@Model.DelphiClassName>;
+begin
+  Result := Self.Find.ToList;
+end;
+
+function T@Name.ToPascalCase()Repository.GetById(const AId: Variant): @Model.DelphiClassName;
+begin
+  Result := Self.Get(AId);
+end;
+
+end.

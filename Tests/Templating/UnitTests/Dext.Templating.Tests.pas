@@ -13,32 +13,19 @@ type
   [TestFixture]
   TTemplatingTests = class
   public
-    [Test]
-    procedure Test_Simple_Property_Resolution;
-    [Test]
-    procedure Test_Nested_Property_Resolution;
-    [Test]
-    procedure Test_Conditional_IF_True;
-    [Test]
-    procedure Test_Conditional_IF_False;
-    [Test]
-    procedure Test_Loop_ForEach;
-    [Test]
-    procedure Test_Filters_PascalCase;
-    [Test]
-    procedure Test_Filters_CamelCase;
-    [Test]
-    procedure Test_Escaping;
-    [Test]
-    procedure Test_Html_Escaping;
-    [Test]
-    procedure Test_Nested_Control_Flow;
-    [Test]
-    procedure Test_Whitespace_Handling;
-    [Test]
-    procedure Test_Nested_Loops;
-    [Test]
-    procedure Test_Complex_Path_Resolution;
+    [Test] procedure Test_Simple_Property_Resolution;
+    [Test] procedure Test_Nested_Property_Resolution;
+    [Test] procedure Test_Conditional_IF_True;
+    [Test] procedure Test_Conditional_IF_False;
+    [Test] procedure Test_Loop_ForEach;
+    [Test] procedure Test_Filters_PascalCase;
+    [Test] procedure Test_Filters_CamelCase;
+    [Test] procedure Test_Escaping;
+    [Test] procedure Test_Html_Escaping;
+    [Test] procedure Test_Nested_Control_Flow;
+    [Test] procedure Test_Whitespace_Handling;
+    [Test] procedure Test_Nested_Loops;
+    [Test] procedure Test_Complex_Path_Resolution;
   end;
 
 implementation

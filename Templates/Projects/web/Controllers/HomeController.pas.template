@@ -1,0 +1,24 @@
+unit @ProjectName.Controllers.Home;
+
+interface
+
+uses
+  Dext.Web;
+
+type
+  [Route('/')]
+  THomeController = class(TController)
+  public
+    function Index: string;
+  end;
+
+implementation
+
+{ THomeController }
+
+function THomeController.Index: string;
+begin
+  Result := 'Welcome to ' + @ProjectName + '! Your Dext Web App is running.';
+end;
+
+end.

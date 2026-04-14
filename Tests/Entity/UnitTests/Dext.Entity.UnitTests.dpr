@@ -26,7 +26,8 @@ uses
   Dext.Entity.DefaultValue.Tests in 'Dext.Entity.DefaultValue.Tests.pas',
   Dext.Entity.Design.Metadata.Tests in 'Dext.Entity.Design.Metadata.Tests.pas',
   Dext.Entity.Architecture.Tests in 'Dext.Entity.Architecture.Tests.pas',
-  Dext.Entity.ReportedIssues.Tests in 'Dext.Entity.ReportedIssues.Tests.pas';
+  Dext.Entity.ReportedIssues.Tests in 'Dext.Entity.ReportedIssues.Tests.pas',
+  Dext.Entity.Scaffolding.Tests in 'Dext.Entity.Scaffolding.Tests.pas';
 
 begin
   {$IFDEF TESTINSIGHT}
@@ -66,7 +67,8 @@ begin
         TSmartTypesMatrixTests,
         TSmartTypesTests,
         TEntityReportedIssuesTests,
-        TEntityArchitectureTests
+        TEntityArchitectureTests,
+        TScaffoldingTests
       ]));
   except
     on E: Exception do

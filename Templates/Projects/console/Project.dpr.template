@@ -1,0 +1,42 @@
+program @ProjectName;
+
+{$APPTYPE CONSOLE}
+
+uses
+  System.SysUtils,
+  Dext.Core,
+  Dext.Logging;
+
+type
+  TSampleService = class
+  public
+    procedure Run;
+  end;
+
+{ TSampleService }
+
+procedure TSampleService.Run;
+begin
+  WriteLn('Hello from Dext Console Service!');
+end;
+
+begin
+  try
+    var Host := THost.CreateDefaultBuilder
+      .ConfigureServices(procedure(const Services: IServiceCollection)
+      begin
+        Services.AddLogging;
+        Services.AddSingleton<TSampleService>;
+      end)
+      .Build;
+
+    var Service := Host.Services.GetService<TSampleService>;
+    Service.Run;
+    
+    WriteLn('Press Enter to exit...');
+    ReadLn;
+  except
+    on E: Exception do
+      Writeln(E.ClassName, ': ', E.Message);
+  end;
+end.

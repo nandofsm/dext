@@ -1,0 +1,28 @@
+unit @Namespace.Services.@Name;
+
+interface
+
+uses
+  Dext.Core;
+
+type
+  I@Name.ToPascalCase()Service = interface
+    ['{@ProjectGUID}'] // In templates, we can use ProjectGUID or a fresh one
+    procedure Execute;
+  end;
+
+  T@Name.ToPascalCase()Service = class(TInterfacedObject, I@Name.ToPascalCase()Service)
+  public
+    procedure Execute;
+  end;
+
+implementation
+
+{ T@Name.ToPascalCase()Service }
+
+procedure T@Name.ToPascalCase()Service.Execute;
+begin
+  // Logic for @Name
+end;
+
+end.

@@ -6,7 +6,7 @@ This directory contains the formal technical specifications and requirements for
 
 ID | Title | Status | Goal
 :---: | :--- | :---: | :---
-**S01** | [Advanced Scaffolding](S01-Advanced-Scaffolding.md) | 📝 Draft | Automate the creation of Startups, Entities, and Endpoints using templates.
+**S01** | [Advanced Scaffolding](S01-Advanced-Scaffolding.md) | ✅ Finalized | Automate the creation of Startups, Entities, and Endpoints using templates.
 **S02** | [Modernizer: gRPC & Protobuf](S02-Modernizer-gRPC.md) | 📝 Draft | High-speed binary communication as a legacy replacement for DataSnap/RDW.
 **S03** | [Live Observability Dashboard](S03-Live-Observability.md) | 📝 Draft | Real-time debugging of SQL, Exceptions, and Tracing via dynamic proxies.
 **S04** | [DataAPI Conventions](S04-DataApi-Conventions.md) | ✅ Finalized | Simplify REST endpoint exposure using attributes and global defaults.

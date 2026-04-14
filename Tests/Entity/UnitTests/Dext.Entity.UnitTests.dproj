@@ -120,6 +120,7 @@
         <DCCReference Include="Dext.Entity.Design.Metadata.Tests.pas"/>
         <DCCReference Include="Dext.Entity.Architecture.Tests.pas"/>
         <DCCReference Include="Dext.Entity.ReportedIssues.Tests.pas"/>
+        <DCCReference Include="Dext.Entity.Scaffolding.Tests.pas"/>
         <BuildConfiguration Include="Base">
             <Key>Base</Key>
         </BuildConfiguration>

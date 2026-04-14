@@ -1,0 +1,15 @@
+program @ProjectName;
+
+{$APPTYPE CONSOLE}
+
+uses
+  Dext.MM,
+  Dext.Web,
+  Startup in 'Startup.pas';
+
+begin
+  THost.CreateDefaultBuilder
+    .UseStartup<TStartup>
+    .Build
+    .Run;
+end.

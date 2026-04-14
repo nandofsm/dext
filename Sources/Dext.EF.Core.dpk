@@ -83,7 +83,8 @@ contains
   Dext.Entity.Metadata in 'Data\Dext.Entity.Metadata.pas',
   Dext.Entity.LazyLoader in 'Data\Dext.Entity.LazyLoader.pas',
   Dext.Entity.TemplatedScaffolding in 'Data\Dext.Entity.TemplatedScaffolding.pas',
-  Dext.Scaffolding.Models in 'Data\Dext.Scaffolding.Models.pas';
+  Dext.Scaffolding.Models in 'Data\Dext.Scaffolding.Models.pas',
+  Dext.Entity.Scaffolding.Processor in 'Data\Dext.Entity.Scaffolding.Processor.pas';
 
 end.
 

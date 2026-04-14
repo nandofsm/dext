@@ -1,0 +1,36 @@
+unit @ProjectName.Startup;
+
+interface
+
+uses
+  Dext.Core,
+  Dext.Web,
+  Dext.Logging;
+
+type
+  TStartup = class
+  public
+    procedure ConfigureServices(const AServices: IServiceCollection);
+    procedure Configure(const AApp: IApplicationBuilder);
+  end;
+
+implementation
+
+{ TStartup }
+
+procedure TStartup.ConfigureServices(const AServices: IServiceCollection);
+begin
+  AServices.AddLogging;
+  AServices.AddControllers;
+  AServices.AddSwagger;
+end;
+
+procedure TStartup.Configure(const AApp: IApplicationBuilder);
+begin
+  AApp.UseLogging;
+  AApp.UseRouting;
+  AApp.UseSwagger;
+  AApp.UseEndpoints;
+end;
+
+end.

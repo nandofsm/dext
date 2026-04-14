@@ -14,6 +14,39 @@ A arquitetura do Dext abstrai detalhes específicos sobre como o HTML será vali
 
 Você configura a sua engine direto no `Program.pas` / `Startup.pas` ao adicionar os serviços.
 
+## Dext Template Engine (Estilo Razor)
+
+Disponível no pacote `Dext.Core`, este é um motor de templates **zero dependência**, baseado em AST e de alta performance construído especificamente para o Dext. Ele suporta a sintaxe moderna estilo Razor com escopo baseado em chaves.
+
+### 1. Adicionando o Suporte
+
+```pascal
+uses
+  Dext.Web.View,
+  Dext.Web.View.DextTemplate;
+
+procedure TStartup.ConfigureServices(const Services: TDextServices; const Configuration: IConfiguration);
+begin
+  Services
+    .AddDextTemplate(
+      procedure(Opts: TViewOptions)
+      begin
+        Opts.TemplateRoot := TPath.GetFullPath('wwwroot/views');
+        Opts.DefaultLayout := '_Layout.html';
+      end);
+end;
+```
+
+### 2. Sintaxe do Template
+
+O Dext Template Engine suporta:
+- **Expressões**: `@Model.Name`, `@item.Price`
+- **Fluxo de Controle**: 
+  - `@if (condicao) { ... }`
+  - `@foreach (var item in Colecao) { ... }`
+- **Escopo por Chaves**: `{ }` explícitos para blocos de código limpos.
+- **Resolução via RTTI**: Resolve automaticamente propriedades, campos e métodos sem parâmetros.
+
 ## Integração com Web Stencils (Delphi 12.2+)
 
 A partir do Delphi 12.2, a Embarcadero introduziu o **Web Stencils**. O Dext já inclui um Provider construído exclusivamente para ele com recursos insanos de conectividade de dados.

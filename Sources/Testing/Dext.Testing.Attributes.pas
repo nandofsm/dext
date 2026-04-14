@@ -66,6 +66,8 @@ type
     property Description: string read FDescription;
   end;
 
+  FixtureAttribute = TestFixtureAttribute;
+
   /// <summary>
   ///   Alias for TestFixture (MSTest naming convention).
   /// </summary>

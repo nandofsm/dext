@@ -209,11 +209,7 @@ end;
 
 function TExpressionNode.Render(const AContext: ITemplateContext): string;
 begin
-  // This will be handled by the engine's ResolveExpression
-  // For the node itself, we need to know the engine or pass a resolver
-  // To keep it clean, let's assume the context or a global resolver handles it
-  // Actually, I'll pass the resolution logic later or make the node more independent.
-  Result := FExpression; // Placeholder, the engine will replace this call
+  Result := FExpression;
 end;
 
 { TConditionalNode }
@@ -235,7 +231,6 @@ end;
 
 function TConditionalNode.Render(const AContext: ITemplateContext): string;
 begin
-  // Real implementation will evaluate FCondition
   Result := ''; 
 end;
 
@@ -345,7 +340,6 @@ begin
   FRttiCtx := TRttiContext.Create;
   FIsHtmlMode := False;
 
-  // Register default filters
   RegisterFilter('ToPascalCase', 
     function(S: string): string 
     var
@@ -430,10 +424,13 @@ begin
     if I = High(Parts) then
       Exit;
 
-    if Result.Kind <> tkClass then Exit;
-
-    Current := Result.AsObject;
-    if not Assigned(Current) then Exit;
+    if Result.Kind = tkClass then
+    begin
+      Current := Result.AsObject;
+      if not Assigned(Current) then Exit;
+    end
+    else
+      Exit;
   end;
 end;
 
@@ -445,8 +442,13 @@ begin
   Val := ResolveObjectValue(AObj, APropPath);
   if Val.IsEmpty then
     Result := ''
-  else if Val.Kind = tkClass then
-    Result := Val.AsObject.ToString
+  else if (Val.Kind = tkClass) then
+  begin
+    if Val.AsObject <> nil then
+      Result := Val.AsObject.ToString
+    else
+      Result := '';
+  end
   else
     Result := Val.ToString;
 end;
@@ -461,7 +463,6 @@ var
 begin
   Expr := System.SysUtils.Trim(AExpr);
 
-  // Handle common mutators
   if Expr.EndsWith('.ToPascalCase()', True) then
   begin
     Result := ApplyFilter('ToPascalCase', ResolveExpression(Expr.Substring(0, Expr.Length - 15), AContext));
@@ -474,20 +475,17 @@ begin
     Exit;
   end;
 
-  // Handle nested properties (Model.Table.Name)
   DotPos := System.Pos('.', Expr);
   if DotPos > 0 then
   begin
     ObjKey := System.Copy(Expr, 1, DotPos - 1);
     PropPath := System.Copy(Expr, DotPos + 1, MaxInt);
     
-    // Check if it's a known object in context
     Obj := AContext.GetObject(ObjKey);
     if Assigned(Obj) then
       Result := ResolveObjectProperty(Obj, PropPath)
     else
     begin
-      // Fallback: try to get value from context for the whole expression
       if not AContext.TryGetValue(Expr, Result) then
         Result := '';
     end;
@@ -503,9 +501,6 @@ var
   Val: string;
 begin
   Val := ResolveExpression(ACond, AContext);
-  // Truthy logic:
-  // 1. Any string that is exactly 'true' (case-insensitive)
-  // 2. Any non-empty string that is NOT 'false', '0', or 'null'
   Val := Val.ToLower;
   if Val = 'true' then
     Exit(True);
@@ -521,16 +516,72 @@ var
   Pos, NextAt, EndTagPos: Integer;
   TagContent: string;
 
-  procedure ParseBlock(TargetNodes: TTemplateNodeList);
+  procedure ParseBlock(TargetNodes: TTemplateNodeList; const AEndMarkers: TArray<string>; AStopOnBrace: Boolean = False);
+  var
+    M: string;
+    FoundMarker: Boolean;
   begin
     while Pos <= Length(ATemplate) do
     begin
+      FoundMarker := False;
+      for M in AEndMarkers do
+        if System.StrUtils.StartsText(M, System.Copy(ATemplate, Pos, Length(M))) then
+        begin
+          Inc(Pos, Length(M));
+          if (Pos <= Length(ATemplate)) and (ATemplate[Pos] = #13) then Inc(Pos);
+          if (Pos <= Length(ATemplate)) and (ATemplate[Pos] = #10) then Inc(Pos);
+          FoundMarker := True;
+          Break;
+        end;
+
+      if FoundMarker then Break;
+
+      if AStopOnBrace and (ATemplate[Pos] = '}') then
+      begin
+        Inc(Pos);
+        if (Pos <= Length(ATemplate)) and (ATemplate[Pos] = #13) then Inc(Pos);
+        if (Pos <= Length(ATemplate)) and (ATemplate[Pos] = #10) then Inc(Pos);
+        Break;
+      end;
+
       NextAt := System.Pos('@', ATemplate, Pos);
+      
+      if AStopOnBrace then
+      begin
+        var NextBrace := Pos;
+        while (NextBrace <= Length(ATemplate)) and (ATemplate[NextBrace] <> '}') do Inc(NextBrace);
+        if (NextBrace <= Length(ATemplate)) and ((NextAt = 0) or (NextBrace < NextAt)) then
+        begin
+          if NextBrace > Pos then
+            TargetNodes.Add(TTextNode.Create(System.Copy(ATemplate, Pos, NextBrace - Pos)));
+          Pos := NextBrace + 1;
+          // Skip one newline if exists
+          if (Pos <= Length(ATemplate)) and (ATemplate[Pos] = #13) then Inc(Pos);
+          if (Pos <= Length(ATemplate)) and (ATemplate[Pos] = #10) then Inc(Pos);
+          Exit;
+        end;
+      end;
+
+      for M in AEndMarkers do
+      begin
+        var MPos := System.Pos('@' + M, ATemplate, Pos);
+        if (MPos > 0) and ((NextAt = 0) or (MPos <= NextAt)) then
+        begin
+          if MPos > Pos then
+            TargetNodes.Add(TTextNode.Create(System.Copy(ATemplate, Pos, MPos - Pos)));
+          Pos := MPos + Length(M) + 1;
+          // Skip one newline if exists
+          if (Pos <= Length(ATemplate)) and (ATemplate[Pos] = #13) then Inc(Pos);
+          if (Pos <= Length(ATemplate)) and (ATemplate[Pos] = #10) then Inc(Pos);
+          Exit;
+        end;
+      end;
+
       if NextAt = 0 then
       begin
         TargetNodes.Add(TTextNode.Create(System.Copy(ATemplate, Pos, MaxInt)));
         Pos := Length(ATemplate) + 1;
-        Break;
+        Exit;
       end;
 
       if NextAt > Pos then
@@ -538,7 +589,6 @@ var
 
       Pos := NextAt + 1;
 
-      // Handle @@ literals
       if (Pos <= Length(ATemplate)) and (ATemplate[Pos] = '@') then
       begin
         TargetNodes.Add(TTextNode.Create('@'));
@@ -546,12 +596,9 @@ var
         Continue;
       end;
 
-      // Check for keywords
       if System.StrUtils.StartsText('if', System.Copy(ATemplate, Pos, MaxInt)) then
       begin
-        // @if (condition)
         Inc(Pos, 2); 
-        // Skip whitespace
         while (Pos <= Length(ATemplate)) and System.Character.TCharacter.IsWhiteSpace(ATemplate[Pos]) do
           Inc(Pos);
           
@@ -572,7 +619,6 @@ var
         end
         else
         begin
-          // Fallback to end of line if no parenthesis
           EndTagPos := Pos;
           while (EndTagPos <= Length(ATemplate)) and (ATemplate[EndTagPos] <> #13) and (ATemplate[EndTagPos] <> #10) do
             Inc(EndTagPos);
@@ -580,30 +626,34 @@ var
           Pos := EndTagPos;
         end;
         
-        // Skip possible newline after @if
-        if (Pos <= Length(ATemplate)) and (ATemplate[Pos] = #13) then Inc(Pos);
-        if (Pos <= Length(ATemplate)) and (ATemplate[Pos] = #10) then Inc(Pos);
-
+        while (Pos <= Length(ATemplate)) and (ATemplate[Pos] <= ' ') do
+          Inc(Pos);
+        
         var IfNode := TConditionalNode.Create(TagContent);
         TargetNodes.Add(IfNode);
-        ParseBlock(IfNode.TrueNodes);
+        
+        var UseBrace := (Pos <= Length(ATemplate)) and (ATemplate[Pos] = '{');
+        if UseBrace then
+        begin
+          Inc(Pos);
+          if (Pos <= Length(ATemplate)) and (ATemplate[Pos] = #13) then Inc(Pos);
+          if (Pos <= Length(ATemplate)) and (ATemplate[Pos] = #10) then Inc(Pos);
+          ParseBlock(IfNode.TrueNodes, [], True);
+        end
+        else
+          ParseBlock(IfNode.TrueNodes, ['endif']);
         Continue;
       end;
 
       if System.StrUtils.StartsText('endif', System.Copy(ATemplate, Pos, MaxInt)) then
       begin
         Inc(Pos, 5);
-        // Skip possible newline after @endif
-        if (Pos <= Length(ATemplate)) and (ATemplate[Pos] = #13) then Inc(Pos);
-        if (Pos <= Length(ATemplate)) and (ATemplate[Pos] = #10) then Inc(Pos);
-        Break; 
+        Continue; 
       end;
 
       if System.StrUtils.StartsText('foreach', System.Copy(ATemplate, Pos, MaxInt)) then
       begin
-        // @foreach (item in list)
         Inc(Pos, 7);
-        // Skip whitespace
         while (Pos <= Length(ATemplate)) and System.Character.TCharacter.IsWhiteSpace(ATemplate[Pos]) do
           Inc(Pos);
 
@@ -631,32 +681,41 @@ var
           Pos := EndTagPos;
         end;
         
-        // Skip possible newline after @foreach
-        if (Pos <= Length(ATemplate)) and (ATemplate[Pos] = #13) then Inc(Pos);
-        if (Pos <= Length(ATemplate)) and (ATemplate[Pos] = #10) then Inc(Pos);
-
         var CleanExpr := TagContent;
-        var Parts := CleanExpr.Split([' '], TStringSplitOptions.ExcludeEmpty);
+        var PartsArray := CleanExpr.Split([' '], TStringSplitOptions.ExcludeEmpty);
         
-        if Length(Parts) >= 3 then
+        if Length(PartsArray) >= 3 then
         begin
           var ItemName := '';
           var ListExpr := '';
           
-          if (Length(Parts) >= 4) and (Parts[0] = 'var') then
+          if (Length(PartsArray) >= 4) and (PartsArray[0] = 'var') then
           begin
-            ItemName := Parts[1];
-            ListExpr := Parts[3];
+            ItemName := PartsArray[1];
+            ListExpr := PartsArray[3];
           end
           else
           begin
-            ItemName := Parts[0];
-            ListExpr := Parts[2];
+            ItemName := PartsArray[0];
+            ListExpr := PartsArray[2];
           end;
           
           var ForNode := TLoopNode.Create(ItemName, ListExpr);
           TargetNodes.Add(ForNode);
-          ParseBlock(ForNode.Nodes);
+          
+          while (Pos <= Length(ATemplate)) and (ATemplate[Pos] <= ' ') do
+            Inc(Pos);
+          
+          var UseBrace := (Pos <= Length(ATemplate)) and (ATemplate[Pos] = '{');
+          if UseBrace then
+          begin
+            Inc(Pos);
+            if (Pos <= Length(ATemplate)) and (ATemplate[Pos] = #13) then Inc(Pos);
+            if (Pos <= Length(ATemplate)) and (ATemplate[Pos] = #10) then Inc(Pos);
+            ParseBlock(ForNode.Nodes, [], True);
+          end
+          else
+            ParseBlock(ForNode.Nodes, ['endforeach']);
         end;
         Continue;
       end;
@@ -664,20 +723,15 @@ var
       if System.StrUtils.StartsText('endforeach', System.Copy(ATemplate, Pos, MaxInt)) then
       begin
         Inc(Pos, 10);
-        // Skip possible newline after @endforeach
-        if (Pos <= Length(ATemplate)) and (ATemplate[Pos] = #13) then Inc(Pos);
-        if (Pos <= Length(ATemplate)) and (ATemplate[Pos] = #10) then Inc(Pos);
-        Break;
+        Continue;
       end;
 
-      // Normal Expression
       EndTagPos := Pos;
       while (EndTagPos <= Length(ATemplate)) and 
             (ATemplate[EndTagPos] <> '@') and
             (not System.Character.TCharacter.IsWhiteSpace(ATemplate[EndTagPos])) and
-            (not System.SysUtils.CharInSet(ATemplate[EndTagPos], [';', ':', ',', '{', '}', '<', '>', '/', '\'])) do
+            (not System.SysUtils.CharInSet(ATemplate[EndTagPos], [';', ':', ',', '{', '}', '<', '>', '/', '\', '[', ']', '''', '"', '=', '+', '-', '*', '!', '?', '|', '&'])) do
       begin
-        // Allow parentheses if they come in pairs (for filter calls like .ToPascalCase())
         if ATemplate[EndTagPos] = '(' then
         begin
           var Depth := 1;
@@ -702,7 +756,7 @@ var
 begin
   Result := TTemplateNodeList.Create(True);
   Pos := 1;
-  ParseBlock(Result);
+  ParseBlock(Result, []);
 end;
 
 function TDextTemplateEngine.Render(const ATemplate: string;
@@ -739,30 +793,45 @@ var
         var ForNode := TLoopNode(Node);
         var Items: TArray<TObject> := [];
         
-        var DotPos := Pos('.', ForNode.FListExpr);
+        var ListExprStr := ForNode.FListExpr;
+        var DotPos := System.Pos('.', ListExprStr);
         if DotPos > 0 then
         begin
-          var ObjKey := ForNode.FListExpr.Substring(0, DotPos - 1);
-          var PropPath := ForNode.FListExpr.Substring(DotPos);
+          var ObjKey := System.Copy(ListExprStr, 1, DotPos - 1);
+          var PropPath := System.Copy(ListExprStr, DotPos + 1, MaxInt);
           var RootObj := AContext.GetObject(ObjKey);
           if Assigned(RootObj) then
           begin
             var Val := ResolveObjectValue(RootObj, PropPath);
-            if not Val.IsEmpty and (Val.Kind = tkClass) then
+            if not Val.IsEmpty then
             begin
-              var ListObj := Val.AsObject;
-              if Assigned(ListObj) then
+              if Val.Kind = tkInterface then
               begin
-                var ListType := FRttiCtx.GetType(ListObj.ClassInfo);
-                var CountProp := ListType.GetProperty('Count');
-                var ItemsProp := ListType.GetIndexedProperty('Items');
-                
-                if Assigned(CountProp) and Assigned(ItemsProp) then
+                var ObjList: IObjectList;
+                if Supports(Val.AsInterface, IObjectList, ObjList) then
                 begin
-                  var Count := CountProp.GetValue(ListObj).AsInteger;
+                  var Count := ObjList.Count;
                   SetLength(Items, Count);
                   for var J := 0 to Count - 1 do
-                    Items[J] := ItemsProp.GetValue(ListObj, [J]).AsObject;
+                    Items[J] := ObjList.Items[J];
+                end;
+              end
+              else if Val.Kind = tkClass then
+              begin
+                var ListObj := Val.AsObject;
+                if Assigned(ListObj) then
+                begin
+                  var ListType := FRttiCtx.GetType(ListObj.ClassInfo);
+                  var CountProp := ListType.GetProperty('Count');
+                  var ItemsProp := ListType.GetIndexedProperty('Items');
+                  
+                  if Assigned(CountProp) and Assigned(ItemsProp) then
+                  begin
+                    var Count := CountProp.GetValue(ListObj).AsInteger;
+                    SetLength(Items, Count);
+                    for var J := 0 to Count - 1 do
+                      Items[J] := ItemsProp.GetValue(ListObj, [J]).AsObject;
+                  end;
                 end;
               end;
             end;
@@ -795,6 +864,8 @@ begin
     Nodes.Free;
   end;
 end;
+
+{ TTemplating }
 
 class function TTemplating.CreateContext: ITemplateContext;
 begin

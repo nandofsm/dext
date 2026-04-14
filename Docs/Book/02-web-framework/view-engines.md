@@ -14,6 +14,39 @@ Dext's architecture abstracts specific details about how HTML will be validated.
 
 You configure your engine directly in `Program.pas` / `Startup.pas` when adding services.
 
+## Dext Template Engine (Razor-Style)
+
+Available in the `Dext.Core` package, this is a **zero-dependency**, high-performance AST-based template engine built specifically for Dext. It supports modern Razor-style syntax with brace-based scoping.
+
+### 1. Adding Support
+
+```pascal
+uses
+  Dext.Web.View,
+  Dext.Web.View.DextTemplate;
+
+procedure TStartup.ConfigureServices(const Services: TDextServices; const Configuration: IConfiguration);
+begin
+  Services
+    .AddDextTemplate(
+      procedure(Opts: TViewOptions)
+      begin
+        Opts.TemplateRoot := TPath.GetFullPath('wwwroot/views');
+        Opts.DefaultLayout := '_Layout.html';
+      end);
+end;
+```
+
+### 2. Template Syntax
+
+The Dext Template Engine supports:
+- **Expressions**: `@Model.Name`, `@item.Price`
+- **Control Flow**: 
+  - `@if (condition) { ... }`
+  - `@foreach (var item in Collection) { ... }`
+- **Brace Scoping**: Explicit `{ }` for clean code blocks.
+- **RTTI Resolution**: Automatically resolves properties, fields, and parameterless methods.
+
 ## Web Stencils Integration (Delphi 12.2+)
 
 Starting with Delphi 12.2, Embarcadero introduced **Web Stencils**. Dext already includes a Provider built exclusively for it with insane data connectivity features.

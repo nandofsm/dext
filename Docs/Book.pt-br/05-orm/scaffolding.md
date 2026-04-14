@@ -9,7 +9,8 @@ A ferramenta de Scaffolding do Dext ORM permite gerar automaticamente classes de
 - **Mapeamento de Tipos**: Mapeia automaticamente tipos SQL para tipos Delphi (Integer, string, TDateTime, etc.).
 - **Suporte a Nullable**: Utiliza `Nullable<T>` para colunas de banco que permitem nulo.
 - **Relacionamentos**: Detecta Chaves Estrangeiras e gera propriedades de navegação para lazy loading.
-- **Convenções de Nomenclatura**: Converte automaticamente nomes `snake_case` do banco para `PascalCase` em Delphi.
+- **Detecção Many-to-Many**: Identifica automaticamente tabelas de junção e gera propriedades bidirecionais com o atributo `[ManyToMany]`.
+- **Convenções de Nomenclatura**: Converte automaticamente nomes `snake_case` do banco para `PascalCase` em Delphi (Classes no singular, Coleções no plural).
 
 ## Uso via CLI (Recomendado)
 
@@ -72,6 +73,31 @@ begin
   Code := Generator.GenerateUnit('MinhasEntidades', MetaList);
   
   TFile.WriteAllText('MinhasEntidades.pas', Code);
+end;
+```
+
+### Scaffolding via Templates (Avançado)
+
+A partir da versão 1.0, o Dext utiliza um **Motor de Templates** (`TTemplatedEntityGenerator`) para a geração de código. Isso permite customizar a saída alterando arquivos `.template`.
+
+O motor baseado em templates lida automaticamente com:
+- **Detecção de Tabelas de Junção**: Tabelas que apenas ligam outras duas tabelas são identificadas como junções e não são geradas como entidades separadas.
+- **Atributo ManyToMany**: Propriedades bidirecionais são adicionadas às entidades relacionadas usando o atributo `[ManyToMany]`.
+- **Dext.Collections**: As propriedades geradas utilizam `IEntityCollection<T>` (baseado em `IList<T>`) para o gerenciamento de relacionamentos.
+
+Para usar o gerador por templates programaticamente:
+
+```pascal
+uses
+  Dext.Entity.TemplatedScaffolding;
+
+procedure GenerateTemplated;
+var
+  Generator: TTemplatedEntityGenerator;
+begin
+  Generator := TTemplatedEntityGenerator.Create;
+  // Os metadados são processados e renderizados usando templates estilo razor
+  Generator.Generate(MetaList, 'Templates/entity.pas.template', 'Output/');
 end;
 ```
 

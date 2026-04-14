@@ -40,20 +40,6 @@ type
   end;
 ```
 
-### 2.5. Escaping & Web Views (Modo Híbrido)
-
-O Motor de Templates do Dext operará em dois contextos principais: **Scaffolding de Código-Fonte** e **Web Views (Frontend)**. O motor exigirá uma política configurável de *Escaping*:
-
-1. **Raw Mode (Code Generation):** 
-   - Ao processar código nativo (`.pas.template`, `.json`, etc.), utilizamos texto puro (Raw). Símbolos estruturais (`>`, `<`, `&`) permanecem imutáveis.
-2. **HTML Mode (Web Views / Reports):** 
-   - Ao processar web views, as variáveis reativas (`@Model.TextoUsuario`) devem sofrer HTML Escape automático na saída prevenindo XSS.
-3. **Mecanismo de ByPass (Raw Output):**
-   - Caso uma Web View precise renderizar HTML não-escapado explicitamente, um modifier como `@Html.Raw(Model.Prop)` ou `@Model.Prop.AsRaw()` deve ser fornecido.
-
-*(Nota: Diferente do Razor Web puro, o padrão da nossa configuração de Engine na CLI dext_gen será sempre Raw, enquanto os endpoints Web dentro do Server ativarão Html Mode por padrão no ITemplateEngine).*
-Caso o código original Delphi realmente necessite imprimir um literal `@`, basta ser duplicado: `@@`.
-
 ### 2.2. Lógica de Decisão (If/Else)
 
 Diferente do C# no Razor, que acopla blocos estruturais em chaves `{ }`, no Delphi as chaves são meros comentários. Logo, para suportar indentação adequada sem depender do parser imperfeito do texto, adotamos delimitação clara via `@endif` ou blocos inline:
@@ -61,10 +47,6 @@ Diferente do C# no Razor, que acopla blocos estruturais em chaves `{ }`, no Delp
 ```razor
 @if (Col.IsPrimaryKey)
   [PK, AutoInc]
-@elseif (Col.IsUnique)
-  [Unique]
-@else
-  [Column('@Col.DBName')]
 @endif
 property @Col.Name: @Col.DataType;
 ```
@@ -74,14 +56,8 @@ property @Col.Name: @Col.DataType;
 O motor entende a capacidade de caminhar em Generics e listas que foram registradas para a RTTI otimizada.
 
 ```razor
-  private
 @foreach (Col in Model.Columns)
     F@Col.Name: @Col.DataType;
-@endforeach
-
-  public
-@foreach (Col in Model.Columns)
-    property @Col.Name: @Col.DataType read F@Col.Name write F@Col.Name;
 @endforeach
 ```
 
@@ -91,7 +67,6 @@ String manipulations nativos acoplados por sintaxe pipe/dot na avaliação sem g
 
 ```razor
 T@Model.TableName.ToPascalCase() = class(TDataApi)
-// Output: TCustomerOrder = class(TDataApi)
 ```
 Extensões Built-in fundamentais para o Scaffolding:
 - `.ToPascalCase()`, `.ToCamelCase()`, `.ToSnakeCase()`
@@ -103,54 +78,42 @@ Extensões Built-in fundamentais para o Scaffolding:
 
 ### 3.1. Parsing e Árvore de Sintaxe Abstrata (AST)
 
-A implementação do motor precisa varrer o template em um parser "Token-Lexer" e preencher uma AST simples, recusando a abordagem ingênua de mero *"String.Replace"*:
+A implementação do motor utiliza um parser descendente recursivo para preencher uma AST:
 1. `TTextNode`: Texto fonte cru.
 2. `TExpressionNode`: A injeção reativa (`@EntityName.ToPascalCase()`).
-3. `TConditionalNode`: Bloco em memória avaliado lazily se a condição `@if` for Truthy.
+3. `TConditionalNode`: Bloco em memória avaliado se a condição `@if` for Truthy.
 4. `TLoopNode`: Bloco em memória repetido com base num iterável interno.
 
 ### 3.2. Sinergia de Alta Performance (Alinhado à S07)
 
-Dado que a geração de arquivos pode lidar com varreduras longas:
-- Acessos como `@Model.Field.Value` **NÃO usarão RTTI tradicional pesada por Reflection** em loop profundo se pudermos evitar.
-- O motor `Dext.Templating.pas` consultará diretamente o `TTypeHandlerRegistry` idealizado na especificação S07 (High-Performance Reflection). Dele obteremos delegados cacheados `TFunc` ultravelozes.
+O motor utiliza o sistema de Reflection do Delphi (RTTI), com planos futuros de migração para o `TTypeHandlerRegistry` (S07) para eliminar o overhead de TValue.
 
-### 3.3. Contratos de API (`ITemplateEngine`)
+### 3.3. Segurança Contextual (HTML Escaping)
 
-```delphi
-type
-  ITemplateEngine = interface
-    ['{GUID}']
-    // Registro de Mutators extendíveis (Ex: para plugins do dext.cli adicionarem .ToLower)
-    function AddFilter(const AName: string; AFilter: TFunc<string, string>): ITemplateEngine;
-    
-    // Renders de runtime baseados no modelo objeto fortemente tipado
-    function Render(const ATemplate: string; AModel: TObject): string;
-    function RenderFile(const AFilePath: string; AModel: TObject): string;
-  end;
-```
-
-### 3.4. Integração Agnóstica de Web Views (`IViewEngine`)
-
-Conforme arquitetura existente (`Dext.Web.View.pas`), as views no Dext são resolvidas pela interface agnóstica `IViewEngine`. Atualmente, essa camada é provida por um plugin WebStencils. 
-
-Para que o novo **Motor Nativo (Dext.Templating)** assuma o controle (ou sirva de alternativa plug&play robusta) em ambientes Web, ele **deverá implementar** nativamente uma ponte para a pipeline Web do Dext, traduzindo o dicionário `IViewData` para a árvore AST e resolvendo dinamicamente.
-
-```delphi
-  // Estrutura Conceitual da Integração
-  TDextNativeViewEngine = class(TInterfacedObject, IViewEngine)
-  public
-    // Intercepta a chamada agnóstica de Controller (View(Nome, ViewData))
-    function Render(AContext: IHttpContext; const AViewName: string; AViewData: IViewData): string;
-  end;
-```
-Na injeção de dependência (`IServiceCollection`), deve ser possível trocar o fornecedor com facilidade (ex: `services.AddNativeViewEngine()` substituindo o `services.AddWebStencils()`).
-
+O motor suporta dois contextos de renderização:
+1. **Raw Mode**: Texto puro (padrão para Scaffolding).
+2. **HTML Mode**: Auto-escaping de entidades HTML (padrão para Web Views).
 
 ---
 
-## 4. Próxima Ação de Execução
+## 4. Maturidade e Posicionamento (Maturity Matrix)
 
-Se esta especificação for aprovada como baseline estrutural (o "Modelo" base exigido):
-1. Limparemos os resquícios Handlebars/DMustache no tooling atual voltando a visão para a AST Razor-like descrita acima.
-2. Construiremos o core Lexer/Parser para identificar o token `@`.
+Para transparência e guia futuro, o motor atual (`Dext.Templating`) situa-se no seguinte espectro tecnológico:
+
+| Recurso | Mustache / Logic-less | **Dext (S09)** | **WebStencils** | **.NET Razor** |
+| :--- | :---: | :---: | :---: | :---: |
+| **Parsing** | Regex / Text Replace | **AST Parser** | AST Parser | Fully Compiled |
+| **Lógica** | "Logic-less" (Apenas Tags) | **If / ForEach** | If / For / Each | Full C# Logic |
+| **Segurança** | Escape Manual | **Auto-HTML Escape** | Native Escape | Contextual Escape |
+| **Composição** | Apenas Partials | **Manual (Workaround)** | Layouts / Sections | Layouts / Sections |
+| **Tipagem** | Dinâmica / Nenhuma | **Dinâmica (RTTI)** | Dinâmica | Strongly Typed |
+
+### 4.1. Classificação: "Scaffolding++"
+O motor atual é classificado como **"Scaffolding++"**. Ele supera os motores de geração de código tradicionais pela inteligência do parser AST e segurança nativa, mas para atingir o nível industrial de um **Full View Engine** (como o Razor), as funcionalidades de composição avançada foram movidas para a especificação [S10](S10-Advanced-View-Engine.md).
+
+---
+
+## 5. Próxima Ação de Execução
+
+1.  **Limpeza**: Remover resquícios de motores antigos.
+2.  **S01 Integration**: Iniciar implementação dos templates de Scaffolding (Entidade, DTO, Repository).
