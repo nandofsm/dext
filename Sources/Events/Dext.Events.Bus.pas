@@ -163,7 +163,6 @@ type
     FRegistry: IEventHandlerRegistry;
     FSnapshotCache: IDictionary<Pointer, TDispatchSnapshot>;
     FSnapshotLock: TMultiReadExclusiveWriteSynchronizer;
-    FRttiCtx: TRttiContext;
     FCreateScope: Boolean;
     function AcquireSnapshot(AEventType: PTypeInfo): TDispatchSnapshot;
     function DoDispatch(AEventType: PTypeInfo; const AEvent: TValue;
@@ -186,6 +185,9 @@ type
   end;
 
 implementation
+ 
+uses
+  Dext.Core.Reflection;
 
 // Standalone pipeline builder — each call creates a new stack frame so the
 // anonymous function captures its OWN copies of ABehavior and ANext.
@@ -360,7 +362,6 @@ begin
   FCreateScope     := ACreateScope;
   FSnapshotCache   := TCollections.CreateDictionary<Pointer, TDispatchSnapshot>;
   FSnapshotLock    := TMultiReadExclusiveWriteSynchronizer.Create;
-  FRttiCtx         := TRttiContext.Create;
 end;
 
 destructor TEventBus.Destroy;
@@ -407,7 +408,7 @@ begin
         // in virtual method tables, so we use RTTI to find it by name.
         // We use the same persistent FRttiCtx to ensure objects stay valid.
         Method := nil;
-        for var LMethod in FRttiCtx.GetType(RAWHandlers[I].HandlerClass).GetMethods do
+        for var LMethod in TReflection.Context.GetType(RAWHandlers[I].HandlerClass).GetMethods do
         begin
           if (LMethod.Name = 'Handle') and (Length(LMethod.GetParameters) = 1) then
           begin

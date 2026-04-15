@@ -26,7 +26,8 @@ uses
   Dext.Mocks.Matching,
   Dext.Testing.Attributes,
   Dext.Testing.Runner,
-  Dext.Testing.Fluent;
+  Dext.Testing.Fluent,
+  Customer.Context in 'Data\Customer.Context.pas';
 
 type
   /// <summary>

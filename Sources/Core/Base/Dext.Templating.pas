@@ -154,7 +154,6 @@ type
   TDextTemplateEngine = class(TInterfacedObject, ITemplateEngine, ITemplateFilterRegistry)
   private
     FFilters: IDictionary<string, System.SysUtils.TFunc<string, string>>;
-    FRttiCtx: TRttiContext;
     FIsHtmlMode: Boolean;
 
     function ResolveExpression(const AExpr: string; const AContext: ITemplateContext): string;
@@ -183,7 +182,8 @@ type
 implementation
 
 uses
-  Dext.Collections.Comparers;
+  Dext.Collections.Comparers,
+  Dext.Core.Reflection;
 
 { TTextNode }
 
@@ -337,7 +337,6 @@ constructor TDextTemplateEngine.Create;
 begin
   inherited Create;
   FFilters := TCollections.CreateDictionaryIgnoreCase<string, System.SysUtils.TFunc<string, string>>;
-  FRttiCtx := TRttiContext.Create;
   FIsHtmlMode := False;
 
   RegisterFilter('ToPascalCase', 
@@ -374,7 +373,6 @@ end;
 destructor TDextTemplateEngine.Destroy;
 begin
   FFilters := nil;
-  FRttiCtx.Free;
   inherited;
 end;
 
@@ -413,7 +411,7 @@ begin
 
   for I := 0 to High(Parts) do
   begin
-    TypeRtti := FRttiCtx.GetType(Current.ClassInfo);
+    TypeRtti := TReflection.Context.GetType(Current.ClassInfo);
     if not Assigned(TypeRtti) then Exit;
 
     PropRtti := TypeRtti.GetProperty(System.SysUtils.Trim(Parts[I]));
@@ -821,7 +819,7 @@ var
                 var ListObj := Val.AsObject;
                 if Assigned(ListObj) then
                 begin
-                  var ListType := FRttiCtx.GetType(ListObj.ClassInfo);
+                  var ListType := TReflection.Context.GetType(ListObj.ClassInfo);
                   var CountProp := ListType.GetProperty('Count');
                   var ItemsProp := ListType.GetIndexedProperty('Items');
                   

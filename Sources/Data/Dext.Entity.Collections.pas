@@ -135,7 +135,6 @@ procedure TTrackingList<T>.SetInverseProperty(const AItem: T);
 var
   ParentMap: TEntityMap;
   PropMap: TPropertyMap;
-  Ctx: TRttiContext;
   Typ: TRttiType;
   InvProp: TRttiProperty;
 begin
@@ -143,17 +142,16 @@ begin
   if (ParentMap = nil) or (not ParentMap.Properties.TryGetValue(FPropertyName, PropMap)) then Exit;
   if PropMap.InverseProperty = '' then Exit;
 
-  Ctx := TRttiContext.Create;
   try
-    Typ := Ctx.GetType(AItem.ClassType);
+    Typ := TReflection.Context.GetType(AItem.ClassType);
     InvProp := Typ.GetProperty(PropMap.InverseProperty);
     if InvProp <> nil then
     begin
        // Use TReflection to handle Prop<T> or standard property
        TReflection.SetValue(Pointer(AItem), InvProp, TValue.From<TObject>(FOwner));
     end;
-  finally
-    Ctx.Free;
+  except
+    raise;
   end;
 end;
 
@@ -161,7 +159,6 @@ procedure TTrackingList<T>.ClearInverseProperty(const AItem: T);
 var
   ParentMap: TEntityMap;
   PropMap: TPropertyMap;
-  Ctx: TRttiContext;
   Typ: TRttiType;
   InvProp: TRttiProperty;
 begin
@@ -169,14 +166,13 @@ begin
   if (ParentMap = nil) or (not ParentMap.Properties.TryGetValue(FPropertyName, PropMap)) then Exit;
   if PropMap.InverseProperty = '' then Exit;
 
-  Ctx := TRttiContext.Create;
   try
-    Typ := Ctx.GetType(AItem.ClassType);
+    Typ := TReflection.Context.GetType(AItem.ClassType);
     InvProp := Typ.GetProperty(PropMap.InverseProperty);
     if InvProp <> nil then
        TReflection.SetValue(Pointer(AItem), InvProp, TValue.Empty);
-  finally
-    Ctx.Free;
+  except
+    raise;
   end;
 end;
 
@@ -185,23 +181,21 @@ end;
 class function TTrackingListFactory.CreateList(AItemType: PTypeInfo; const AContext: IDbContext; const AOwner: TObject;
   const APropertyName: string): TObject;
 var
-  Ctx: TRttiContext;
   Typ: TRttiType;
   ListTypName: string;
   ListTyp: TRttiType;
 begin
-  Ctx := TRttiContext.Create;
   try
-    Typ := Ctx.GetType(AItemType);
+    Typ := TReflection.Context.GetType(AItemType);
     // Generic name for TTrackingList<T>
     ListTypName := 'Dext.Entity.Collections.TTrackingList<' + Typ.QualifiedName + '>';
-    ListTyp := Ctx.FindType(ListTypName);
+    ListTyp := TReflection.Context.FindType(ListTypName);
     
     if ListTyp = nil then
     begin
       // Fallback search: iterate all types in RTTI
       var TypeNamePattern := 'TTrackingList<' + Typ.Name + '>';
-      for var tRtti in Ctx.GetTypes do
+      for var tRtti in TReflection.Context.GetTypes do
       begin
         if tRtti.IsInstance and (tRtti.Name.Contains(TypeNamePattern) or tRtti.QualifiedName.Contains(TypeNamePattern)) then
         begin
@@ -215,7 +209,7 @@ begin
     begin
       // Last resort: try TList<T>
       var ListPattern := 'TList<' + Typ.Name + '>';
-      for var tRtti in Ctx.GetTypes do
+      for var tRtti in TReflection.Context.GetTypes do
       begin
         if tRtti.IsInstance and (tRtti.Name.Contains(ListPattern) or tRtti.QualifiedName.Contains(ListPattern)) then
         begin
@@ -224,13 +218,13 @@ begin
         end;
       end;
     end;
-
+    
     if ListTyp = nil then
       raise Exception.CreateFmt('Could not find specialized list RTTI for %s. Make sure the unit or the list is used.', [ListTypName]);
 
     Result := TActivator.CreateInstance(ListTyp.AsInstance.MetaclassType, [TValue.From<IDbContext>(AContext), AOwner, APropertyName]);
-  finally
-    Ctx.Free;
+  except
+    raise;
   end;
 end;
 

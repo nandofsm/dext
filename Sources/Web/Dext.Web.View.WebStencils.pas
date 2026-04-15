@@ -132,7 +132,6 @@ var
   C: TClass;
   Map: TEntityMap;
   RType: TRttiType;
-  Ctx: TRttiContext;
   Builder: TModelBuilder;
 begin
   if not Assigned(AOptions) then Exit;
@@ -145,42 +144,37 @@ begin
 
   if AOptions.WhitelistEntities then
   begin
-    Ctx := TRttiContext.Create;
-    try
-      // 1. Whitelist from Global ModelBuilder Instance
-      for Map in TModelBuilder.Instance.GetMaps do
+    // 1. Whitelist from Global ModelBuilder Instance
+    for Map in TModelBuilder.Instance.GetMaps do
+    begin
+      if Map.EntityType <> nil then
       begin
-        if Map.EntityType <> nil then
-        begin
-          RType := Ctx.GetType(Map.EntityType);
-          if (RType <> nil) and (RType.IsInstance) then
-            TWebStencilsProcessor.Whitelist.Configure(RType.AsInstance.MetaclassType, [], [], False);
-        end;
+        RType := TReflection.Context.GetType(Map.EntityType);
+        if (RType <> nil) and (RType.IsInstance) then
+          TWebStencilsProcessor.Whitelist.Configure(RType.AsInstance.MetaclassType, [], [], False);
       end;
+    end;
 
-      // 2. Whitelist from each registered TDbContext's ModelBuilder
-      TDbContext.FModelLock.BeginRead;
-      try
-        if Assigned(TDbContext.FModelCache) then
+    // 2. Whitelist from each registered TDbContext's ModelBuilder
+    TDbContext.FModelLock.BeginRead;
+    try
+      if Assigned(TDbContext.FModelCache) then
+      begin
+        for Builder in TDbContext.FModelCache.Values do
         begin
-          for Builder in TDbContext.FModelCache.Values do
+          for Map in Builder.GetMaps do
           begin
-            for Map in Builder.GetMaps do
+            if Map.EntityType <> nil then
             begin
-              if Map.EntityType <> nil then
-              begin
-                RType := Ctx.GetType(Map.EntityType);
-                if (RType <> nil) and (RType.IsInstance) then
-                  TWebStencilsProcessor.Whitelist.Configure(RType.AsInstance.MetaclassType, [], [], False);
-              end;
+              RType := TReflection.Context.GetType(Map.EntityType);
+              if (RType <> nil) and (RType.IsInstance) then
+                TWebStencilsProcessor.Whitelist.Configure(RType.AsInstance.MetaclassType, [], [], False);
             end;
           end;
         end;
-      finally
-        TDbContext.FModelLock.EndRead;
       end;
     finally
-      Ctx.Free;
+      TDbContext.FModelLock.EndRead;
     end;
   end;
 end;

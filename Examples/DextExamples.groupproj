@@ -9,10 +9,10 @@
         <Projects Include="04-Advanced\Core.TestHttpParser\Core.TestHttpParser.dproj">
             <Dependencies/>
         </Projects>
-        <Projects Include="99-Archived_PoCs\Core.EventBusDemo\Core.EventBusDemo.dproj">
+        <Projects Include="07-UseCases\Core.EventBusDemo\EventBusDemo.dproj">
             <Dependencies/>
         </Projects>
-        <Projects Include="99-Archived_PoCs\Web.EventBusDemo\Web.EventBusDemo.dproj">
+        <Projects Include="07-UseCases\Web.EventBusDemo\Web.EventBusDemo.dproj">
             <Dependencies/>
         </Projects>
         <Projects Include="05-UI\Desktop.MVVM.CustomerCRUD\CustomerCRUD.Tests.dproj">
@@ -60,13 +60,13 @@
         <Projects Include="03-Data\Web.DatabaseAsApi\Web.DatabaseAsApi.dproj">
             <Dependencies/>
         </Projects>
-        <Projects Include="99-Archived_PoCs\Web.Dext.Starter.Admin\Web.Dext.Starter.Admin.dproj">
+        <Projects Include="07-UseCases\Web.Dext.Starter.Admin\Web.Dext.Starter.Admin.dproj">
             <Dependencies/>
         </Projects>
-        <Projects Include="99-Archived_PoCs\Web.DextStore\Web.DextStore.dproj">
+        <Projects Include="07-UseCases\Web.DextStore\Web.DextStore.dproj">
             <Dependencies/>
         </Projects>
-        <Projects Include="99-Archived_PoCs\Web.FoodDelivery\Web.DextFood.dproj">
+        <Projects Include="07-UseCases\Web.FoodDelivery\Web.DextFood.dproj">
             <Dependencies/>
         </Projects>
         <Projects Include="02-Web\Web.JwtAuthDemo\Web.JwtAuthDemo.dproj">
@@ -75,7 +75,7 @@
         <Projects Include="02-Web\Web.MinimalAPI\Web.MinimalAPIExample.dproj">
             <Dependencies/>
         </Projects>
-        <Projects Include="99-Archived_PoCs\Web.OrderAPI\Web.OrderAPI.dproj">
+        <Projects Include="07-UseCases\Web.OrderAPI\Web.OrderAPI.dproj">
             <Dependencies/>
         </Projects>
         <Projects Include="02-Web\Web.RateLimitDemo\Web.RateLimitDemo.dproj">
@@ -87,7 +87,7 @@
         <Projects Include="02-Web\Web.SslDemo\Web.SslDemo.dproj">
             <Dependencies/>
         </Projects>
-        <Projects Include="99-Archived_PoCs\Web.StreamingDemo\Web.StreamingDemo.dproj">
+        <Projects Include="07-UseCases\Web.StreamingDemo\Web.StreamingDemo.dproj">
             <Dependencies/>
         </Projects>
         <Projects Include="02-Web\Web.SwaggerControllerExample\Web.SwaggerControllerExample.dproj">
@@ -96,7 +96,7 @@
         <Projects Include="02-Web\Web.SwaggerExample\Web.SwaggerExample.dproj">
             <Dependencies/>
         </Projects>
-        <Projects Include="99-Archived_PoCs\Web.TaskFlowAPI\Web.TaskFlowAPI.dproj">
+        <Projects Include="07-UseCases\Web.TaskFlowAPI\Web.TaskFlowAPI.dproj">
             <Dependencies/>
         </Projects>
         <Projects Include="02-Web\Web.TUUIDBindingExample\Web.TUUIDBindingExample.dproj">
@@ -108,16 +108,28 @@
         <Projects Include="04-Advanced\WebStencilsDemo\WebStencilsDemo.dproj">
             <Dependencies/>
         </Projects>
-        <Projects Include="99-Archived_PoCs\Web.SalesSystem\Server\Web.SalesSystem.Minimal.dproj">
+        <Projects Include="07-UseCases\Web.SalesSystem\Server\Web.SalesSystem.Minimal.dproj">
             <Dependencies/>
         </Projects>
-        <Projects Include="99-Archived_PoCs\Web.SalesSystem\Tests\Web.SalesSystem.Tests.dproj">
+        <Projects Include="07-UseCases\Web.SalesSystem\Tests\Web.SalesSystem.Tests.dproj">
             <Dependencies/>
         </Projects>
-        <Projects Include="99-Archived_PoCs\Web.TicketSales\Server\Web.TicketSales.dproj">
+        <Projects Include="07-UseCases\Web.TicketSales\Server\Web.TicketSales.dproj">
             <Dependencies/>
         </Projects>
-        <Projects Include="99-Archived_PoCs\Web.TicketSales\Tests\Web.TicketSales.Tests.dproj">
+        <Projects Include="07-UseCases\Web.TicketSales\Tests\Web.TicketSales.Tests.dproj">
+            <Dependencies/>
+        </Projects>
+        <Projects Include="07-UseCases\Web.EventHub\Server\Web.EventHub.dproj">
+            <Dependencies/>
+        </Projects>
+        <Projects Include="07-UseCases\Web.EventHub\Tests\Web.EventHub.Tests.dproj">
+            <Dependencies/>
+        </Projects>
+        <Projects Include="07-UseCases\Web.HelpDesk\Server\Web.HelpDesk.dproj">
+            <Dependencies/>
+        </Projects>
+        <Projects Include="07-UseCases\Web.HelpDesk\Tests\Web.HelpDesk.Tests.dproj">
             <Dependencies/>
         </Projects>
     </ItemGroup>
@@ -282,31 +294,31 @@
         <MSBuild Projects="03-Data\Web.DatabaseAsApi\Web.DatabaseAsApi.dproj" Targets="Make"/>
     </Target>
     <Target Name="Web_Dext_Starter_Admin">
-        <MSBuild Projects="99-Archived_PoCs\Web.Dext.Starter.Admin\Web.Dext.Starter.Admin.dproj"/>
+        <MSBuild Projects="07-UseCases\Web.Dext.Starter.Admin\Web.Dext.Starter.Admin.dproj"/>
     </Target>
     <Target Name="Web_Dext_Starter_Admin:Clean">
-        <MSBuild Projects="99-Archived_PoCs\Web.Dext.Starter.Admin\Web.Dext.Starter.Admin.dproj" Targets="Clean"/>
+        <MSBuild Projects="07-UseCases\Web.Dext.Starter.Admin\Web.Dext.Starter.Admin.dproj" Targets="Clean"/>
     </Target>
     <Target Name="Web_Dext_Starter_Admin:Make">
-        <MSBuild Projects="99-Archived_PoCs\Web.Dext.Starter.Admin\Web.Dext.Starter.Admin.dproj" Targets="Make"/>
+        <MSBuild Projects="07-UseCases\Web.Dext.Starter.Admin\Web.Dext.Starter.Admin.dproj" Targets="Make"/>
     </Target>
     <Target Name="Web_DextStore">
-        <MSBuild Projects="99-Archived_PoCs\Web.DextStore\Web.DextStore.dproj"/>
+        <MSBuild Projects="07-UseCases\Web.DextStore\Web.DextStore.dproj"/>
     </Target>
     <Target Name="Web_DextStore:Clean">
-        <MSBuild Projects="99-Archived_PoCs\Web.DextStore\Web.DextStore.dproj" Targets="Clean"/>
+        <MSBuild Projects="07-UseCases\Web.DextStore\Web.DextStore.dproj" Targets="Clean"/>
     </Target>
     <Target Name="Web_DextStore:Make">
-        <MSBuild Projects="99-Archived_PoCs\Web.DextStore\Web.DextStore.dproj" Targets="Make"/>
+        <MSBuild Projects="07-UseCases\Web.DextStore\Web.DextStore.dproj" Targets="Make"/>
     </Target>
     <Target Name="Web_DextFood">
-        <MSBuild Projects="99-Archived_PoCs\Web.FoodDelivery\Web.DextFood.dproj"/>
+        <MSBuild Projects="07-UseCases\Web.FoodDelivery\Web.DextFood.dproj"/>
     </Target>
     <Target Name="Web_DextFood:Clean">
-        <MSBuild Projects="99-Archived_PoCs\Web.FoodDelivery\Web.DextFood.dproj" Targets="Clean"/>
+        <MSBuild Projects="07-UseCases\Web.FoodDelivery\Web.DextFood.dproj" Targets="Clean"/>
     </Target>
     <Target Name="Web_DextFood:Make">
-        <MSBuild Projects="99-Archived_PoCs\Web.FoodDelivery\Web.DextFood.dproj" Targets="Make"/>
+        <MSBuild Projects="07-UseCases\Web.FoodDelivery\Web.DextFood.dproj" Targets="Make"/>
     </Target>
     <Target Name="Web_JwtAuthDemo">
         <MSBuild Projects="02-Web\Web.JwtAuthDemo\Web.JwtAuthDemo.dproj"/>
@@ -327,13 +339,13 @@
         <MSBuild Projects="02-Web\Web.MinimalAPI\Web.MinimalAPIExample.dproj" Targets="Make"/>
     </Target>
     <Target Name="Web_OrderAPI">
-        <MSBuild Projects="99-Archived_PoCs\Web.OrderAPI\Web.OrderAPI.dproj"/>
+        <MSBuild Projects="07-UseCases\Web.OrderAPI\Web.OrderAPI.dproj"/>
     </Target>
     <Target Name="Web_OrderAPI:Clean">
-        <MSBuild Projects="99-Archived_PoCs\Web.OrderAPI\Web.OrderAPI.dproj" Targets="Clean"/>
+        <MSBuild Projects="07-UseCases\Web.OrderAPI\Web.OrderAPI.dproj" Targets="Clean"/>
     </Target>
     <Target Name="Web_OrderAPI:Make">
-        <MSBuild Projects="99-Archived_PoCs\Web.OrderAPI\Web.OrderAPI.dproj" Targets="Make"/>
+        <MSBuild Projects="07-UseCases\Web.OrderAPI\Web.OrderAPI.dproj" Targets="Make"/>
     </Target>
     <Target Name="Web_RateLimitDemo">
         <MSBuild Projects="02-Web\Web.RateLimitDemo\Web.RateLimitDemo.dproj"/>
@@ -363,13 +375,13 @@
         <MSBuild Projects="02-Web\Web.SslDemo\Web.SslDemo.dproj" Targets="Make"/>
     </Target>
     <Target Name="Web_StreamingDemo">
-        <MSBuild Projects="99-Archived_PoCs\Web.StreamingDemo\Web.StreamingDemo.dproj"/>
+        <MSBuild Projects="07-UseCases\Web.StreamingDemo\Web.StreamingDemo.dproj"/>
     </Target>
     <Target Name="Web_StreamingDemo:Clean">
-        <MSBuild Projects="99-Archived_PoCs\Web.StreamingDemo\Web.StreamingDemo.dproj" Targets="Clean"/>
+        <MSBuild Projects="07-UseCases\Web.StreamingDemo\Web.StreamingDemo.dproj" Targets="Clean"/>
     </Target>
     <Target Name="Web_StreamingDemo:Make">
-        <MSBuild Projects="99-Archived_PoCs\Web.StreamingDemo\Web.StreamingDemo.dproj" Targets="Make"/>
+        <MSBuild Projects="07-UseCases\Web.StreamingDemo\Web.StreamingDemo.dproj" Targets="Make"/>
     </Target>
     <Target Name="Web_SwaggerControllerExample">
         <MSBuild Projects="02-Web\Web.SwaggerControllerExample\Web.SwaggerControllerExample.dproj"/>
@@ -390,13 +402,13 @@
         <MSBuild Projects="02-Web\Web.SwaggerExample\Web.SwaggerExample.dproj" Targets="Make"/>
     </Target>
     <Target Name="Web_TaskFlowAPI">
-        <MSBuild Projects="99-Archived_PoCs\Web.TaskFlowAPI\Web.TaskFlowAPI.dproj"/>
+        <MSBuild Projects="07-UseCases\Web.TaskFlowAPI\Web.TaskFlowAPI.dproj"/>
     </Target>
     <Target Name="Web_TaskFlowAPI:Clean">
-        <MSBuild Projects="99-Archived_PoCs\Web.TaskFlowAPI\Web.TaskFlowAPI.dproj" Targets="Clean"/>
+        <MSBuild Projects="07-UseCases\Web.TaskFlowAPI\Web.TaskFlowAPI.dproj" Targets="Clean"/>
     </Target>
     <Target Name="Web_TaskFlowAPI:Make">
-        <MSBuild Projects="99-Archived_PoCs\Web.TaskFlowAPI\Web.TaskFlowAPI.dproj" Targets="Make"/>
+        <MSBuild Projects="07-UseCases\Web.TaskFlowAPI\Web.TaskFlowAPI.dproj" Targets="Make"/>
     </Target>
     <Target Name="Web_TUUIDBindingExample">
         <MSBuild Projects="02-Web\Web.TUUIDBindingExample\Web.TUUIDBindingExample.dproj"/>
@@ -426,67 +438,103 @@
         <MSBuild Projects="04-Advanced\WebStencilsDemo\WebStencilsDemo.dproj" Targets="Make"/>
     </Target>
     <Target Name="Web_SalesSystem_Minimal">
-        <MSBuild Projects="99-Archived_PoCs\Web.SalesSystem\Server\Web.SalesSystem.Minimal.dproj"/>
+        <MSBuild Projects="07-UseCases\Web.SalesSystem\Server\Web.SalesSystem.Minimal.dproj"/>
     </Target>
     <Target Name="Web_SalesSystem_Minimal:Clean">
-        <MSBuild Projects="99-Archived_PoCs\Web.SalesSystem\Server\Web.SalesSystem.Minimal.dproj" Targets="Clean"/>
+        <MSBuild Projects="07-UseCases\Web.SalesSystem\Server\Web.SalesSystem.Minimal.dproj" Targets="Clean"/>
     </Target>
     <Target Name="Web_SalesSystem_Minimal:Make">
-        <MSBuild Projects="99-Archived_PoCs\Web.SalesSystem\Server\Web.SalesSystem.Minimal.dproj" Targets="Make"/>
+        <MSBuild Projects="07-UseCases\Web.SalesSystem\Server\Web.SalesSystem.Minimal.dproj" Targets="Make"/>
     </Target>
     <Target Name="Web_SalesSystem_Tests">
-        <MSBuild Projects="99-Archived_PoCs\Web.SalesSystem\Tests\Web.SalesSystem.Tests.dproj"/>
+        <MSBuild Projects="07-UseCases\Web.SalesSystem\Tests\Web.SalesSystem.Tests.dproj"/>
     </Target>
     <Target Name="Web_SalesSystem_Tests:Clean">
-        <MSBuild Projects="99-Archived_PoCs\Web.SalesSystem\Tests\Web.SalesSystem.Tests.dproj" Targets="Clean"/>
+        <MSBuild Projects="07-UseCases\Web.SalesSystem\Tests\Web.SalesSystem.Tests.dproj" Targets="Clean"/>
     </Target>
     <Target Name="Web_SalesSystem_Tests:Make">
-        <MSBuild Projects="99-Archived_PoCs\Web.SalesSystem\Tests\Web.SalesSystem.Tests.dproj" Targets="Make"/>
+        <MSBuild Projects="07-UseCases\Web.SalesSystem\Tests\Web.SalesSystem.Tests.dproj" Targets="Make"/>
     </Target>
     <Target Name="Web_TicketSales">
-        <MSBuild Projects="99-Archived_PoCs\Web.TicketSales\Server\Web.TicketSales.dproj"/>
+        <MSBuild Projects="07-UseCases\Web.TicketSales\Server\Web.TicketSales.dproj"/>
     </Target>
     <Target Name="Web_TicketSales:Clean">
-        <MSBuild Projects="99-Archived_PoCs\Web.TicketSales\Server\Web.TicketSales.dproj" Targets="Clean"/>
+        <MSBuild Projects="07-UseCases\Web.TicketSales\Server\Web.TicketSales.dproj" Targets="Clean"/>
     </Target>
     <Target Name="Web_TicketSales:Make">
-        <MSBuild Projects="99-Archived_PoCs\Web.TicketSales\Server\Web.TicketSales.dproj" Targets="Make"/>
+        <MSBuild Projects="07-UseCases\Web.TicketSales\Server\Web.TicketSales.dproj" Targets="Make"/>
     </Target>
     <Target Name="Web_TicketSales_Tests">
-        <MSBuild Projects="99-Archived_PoCs\Web.TicketSales\Tests\Web.TicketSales.Tests.dproj"/>
+        <MSBuild Projects="07-UseCases\Web.TicketSales\Tests\Web.TicketSales.Tests.dproj"/>
     </Target>
     <Target Name="Web_TicketSales_Tests:Clean">
-        <MSBuild Projects="99-Archived_PoCs\Web.TicketSales\Tests\Web.TicketSales.Tests.dproj" Targets="Clean"/>
+        <MSBuild Projects="07-UseCases\Web.TicketSales\Tests\Web.TicketSales.Tests.dproj" Targets="Clean"/>
     </Target>
     <Target Name="Web_TicketSales_Tests:Make">
-        <MSBuild Projects="99-Archived_PoCs\Web.TicketSales\Tests\Web.TicketSales.Tests.dproj" Targets="Make"/>
+        <MSBuild Projects="07-UseCases\Web.TicketSales\Tests\Web.TicketSales.Tests.dproj" Targets="Make"/>
     </Target>
     <Target Name="Core_EventBusDemo">
-        <MSBuild Projects="99-Archived_PoCs\Core.EventBusDemo\Core.EventBusDemo.dproj"/>
+        <MSBuild Projects="07-UseCases\Core.EventBusDemo\EventBusDemo.dproj"/>
     </Target>
     <Target Name="Core_EventBusDemo:Clean">
-        <MSBuild Projects="99-Archived_PoCs\Core.EventBusDemo\Core.EventBusDemo.dproj" Targets="Clean"/>
+        <MSBuild Projects="07-UseCases\Core.EventBusDemo\EventBusDemo.dproj" Targets="Clean"/>
     </Target>
     <Target Name="Core_EventBusDemo:Make">
-        <MSBuild Projects="99-Archived_PoCs\Core.EventBusDemo\Core.EventBusDemo.dproj" Targets="Make"/>
+        <MSBuild Projects="07-UseCases\Core.EventBusDemo\EventBusDemo.dproj" Targets="Make"/>
     </Target>
     <Target Name="Web_EventBusDemo">
-        <MSBuild Projects="99-Archived_PoCs\Web.EventBusDemo\Web.EventBusDemo.dproj"/>
+        <MSBuild Projects="07-UseCases\Web.EventBusDemo\Web.EventBusDemo.dproj"/>
     </Target>
     <Target Name="Web_EventBusDemo:Clean">
-        <MSBuild Projects="99-Archived_PoCs\Web.EventBusDemo\Web.EventBusDemo.dproj" Targets="Clean"/>
+        <MSBuild Projects="07-UseCases\Web.EventBusDemo\Web.EventBusDemo.dproj" Targets="Clean"/>
     </Target>
     <Target Name="Web_EventBusDemo:Make">
-        <MSBuild Projects="99-Archived_PoCs\Web.EventBusDemo\Web.EventBusDemo.dproj" Targets="Make"/>
+        <MSBuild Projects="07-UseCases\Web.EventBusDemo\Web.EventBusDemo.dproj" Targets="Make"/>
+    </Target>
+    <Target Name="Web_EventHub">
+        <MSBuild Projects="07-UseCases\Web.EventHub\Server\Web.EventHub.dproj"/>
+    </Target>
+    <Target Name="Web_EventHub:Clean">
+        <MSBuild Projects="07-UseCases\Web.EventHub\Server\Web.EventHub.dproj" Targets="Clean"/>
+    </Target>
+    <Target Name="Web_EventHub:Make">
+        <MSBuild Projects="07-UseCases\Web.EventHub\Server\Web.EventHub.dproj" Targets="Make"/>
+    </Target>
+    <Target Name="Web_EventHub_Tests">
+        <MSBuild Projects="07-UseCases\Web.EventHub\Tests\Web.EventHub.Tests.dproj"/>
+    </Target>
+    <Target Name="Web_EventHub_Tests:Clean">
+        <MSBuild Projects="07-UseCases\Web.EventHub\Tests\Web.EventHub.Tests.dproj" Targets="Clean"/>
+    </Target>
+    <Target Name="Web_EventHub_Tests:Make">
+        <MSBuild Projects="07-UseCases\Web.EventHub\Tests\Web.EventHub.Tests.dproj" Targets="Make"/>
+    </Target>
+    <Target Name="Web_HelpDesk">
+        <MSBuild Projects="07-UseCases\Web.HelpDesk\Server\Web.HelpDesk.dproj"/>
+    </Target>
+    <Target Name="Web_HelpDesk:Clean">
+        <MSBuild Projects="07-UseCases\Web.HelpDesk\Server\Web.HelpDesk.dproj" Targets="Clean"/>
+    </Target>
+    <Target Name="Web_HelpDesk:Make">
+        <MSBuild Projects="07-UseCases\Web.HelpDesk\Server\Web.HelpDesk.dproj" Targets="Make"/>
+    </Target>
+    <Target Name="Web_HelpDesk_Tests">
+        <MSBuild Projects="07-UseCases\Web.HelpDesk\Tests\Web.HelpDesk.Tests.dproj"/>
+    </Target>
+    <Target Name="Web_HelpDesk_Tests:Clean">
+        <MSBuild Projects="07-UseCases\Web.HelpDesk\Tests\Web.HelpDesk.Tests.dproj" Targets="Clean"/>
+    </Target>
+    <Target Name="Web_HelpDesk_Tests:Make">
+        <MSBuild Projects="07-UseCases\Web.HelpDesk\Tests\Web.HelpDesk.Tests.dproj" Targets="Make"/>
     </Target>
     <Target Name="Build">
-        <CallTarget Targets="Core_TestConfig;Core_TestHttpParser;Core_EventBusDemo;Web_EventBusDemo;CustomerCRUD_Tests;Dext_Examples_ComplexQuerying;Dext_Examples_MultiTenancy;DesktopMVUCounter;DesktopMVUCounterFrame;DesktopMVVMCustomerCRUD;Orm_EntityDemo;Orm_EntityStyles;Orm_SpecificationDemo;RestClientDemo;Web_BasicAuthDemo;Web_CachingDemo;Web_ControllerExample;Web_ControllerExample_FluentAPI;Web_DatabaseAsApi;Web_Dext_Starter_Admin;Web_DextStore;Web_DextFood;Web_JwtAuthDemo;Web_MinimalAPIExample;Web_OrderAPI;Web_RateLimitDemo;Web_SmartPropsDemo;Web_SslDemo;Web_StreamingDemo;Web_SwaggerControllerExample;Web_SwaggerExample;Web_TaskFlowAPI;Web_TUUIDBindingExample;Web_UUIDExample;WebStencilsDemo;Web_SalesSystem_Minimal;Web_SalesSystem_Tests;Web_TicketSales;Web_TicketSales_Tests"/>
+        <CallTarget Targets="Core_TestConfig;Core_TestHttpParser;Core_EventBusDemo;Web_EventBusDemo;CustomerCRUD_Tests;Dext_Examples_ComplexQuerying;Dext_Examples_MultiTenancy;DesktopMVUCounter;DesktopMVUCounterFrame;DesktopMVVMCustomerCRUD;Orm_EntityDemo;Orm_EntityStyles;Orm_SpecificationDemo;RestClientDemo;Web_BasicAuthDemo;Web_CachingDemo;Web_ControllerExample;Web_ControllerExample_FluentAPI;Web_DatabaseAsApi;Web_Dext_Starter_Admin;Web_DextStore;Web_DextFood;Web_JwtAuthDemo;Web_MinimalAPIExample;Web_OrderAPI;Web_RateLimitDemo;Web_SmartPropsDemo;Web_SslDemo;Web_StreamingDemo;Web_SwaggerControllerExample;Web_SwaggerExample;Web_TaskFlowAPI;Web_TUUIDBindingExample;Web_UUIDExample;WebStencilsDemo;Web_SalesSystem_Minimal;Web_SalesSystem_Tests;Web_TicketSales;Web_TicketSales_Tests;Web_EventHub;Web_EventHub_Tests;Web_HelpDesk;Web_HelpDesk_Tests"/>
     </Target>
     <Target Name="Clean">
-        <CallTarget Targets="Core_TestConfig:Clean;Core_TestHttpParser:Clean;Core_EventBusDemo:Clean;Web_EventBusDemo:Clean;CustomerCRUD_Tests:Clean;Dext_Examples_ComplexQuerying:Clean;Dext_Examples_MultiTenancy:Clean;DesktopMVUCounter:Clean;DesktopMVUCounterFrame:Clean;DesktopMVVMCustomerCRUD:Clean;Orm_EntityDemo:Clean;Orm_EntityStyles:Clean;Orm_SpecificationDemo:Clean;RestClientDemo:Clean;Web_BasicAuthDemo:Clean;Web_CachingDemo:Clean;Web_ControllerExample:Clean;Web_ControllerExample_FluentAPI:Clean;Web_DatabaseAsApi:Clean;Web_Dext_Starter_Admin:Clean;Web_DextStore:Clean;Web_DextFood:Clean;Web_JwtAuthDemo:Clean;Web_MinimalAPIExample:Clean;Web_OrderAPI:Clean;Web_RateLimitDemo:Clean;Web_SmartPropsDemo:Clean;Web_SslDemo:Clean;Web_StreamingDemo:Clean;Web_SwaggerControllerExample:Clean;Web_SwaggerExample:Clean;Web_TaskFlowAPI:Clean;Web_TUUIDBindingExample:Clean;Web_UUIDExample:Clean;WebStencilsDemo:Clean;Web_SalesSystem_Minimal:Clean;Web_SalesSystem_Tests:Clean;Web_TicketSales:Clean;Web_TicketSales_Tests:Clean"/>
+        <CallTarget Targets="Core_TestConfig:Clean;Core_TestHttpParser:Clean;Core_EventBusDemo:Clean;Web_EventBusDemo:Clean;CustomerCRUD_Tests:Clean;Dext_Examples_ComplexQuerying:Clean;Dext_Examples_MultiTenancy:Clean;DesktopMVUCounter:Clean;DesktopMVUCounterFrame:Clean;DesktopMVVMCustomerCRUD:Clean;Orm_EntityDemo:Clean;Orm_EntityStyles:Clean;Orm_SpecificationDemo:Clean;RestClientDemo:Clean;Web_BasicAuthDemo:Clean;Web_CachingDemo:Clean;Web_ControllerExample:Clean;Web_ControllerExample_FluentAPI:Clean;Web_DatabaseAsApi:Clean;Web_Dext_Starter_Admin:Clean;Web_DextStore:Clean;Web_DextFood:Clean;Web_JwtAuthDemo:Clean;Web_MinimalAPIExample:Clean;Web_OrderAPI:Clean;Web_RateLimitDemo:Clean;Web_SmartPropsDemo:Clean;Web_SslDemo:Clean;Web_StreamingDemo:Clean;Web_SwaggerControllerExample:Clean;Web_SwaggerExample:Clean;Web_TaskFlowAPI:Clean;Web_TUUIDBindingExample:Clean;Web_UUIDExample:Clean;WebStencilsDemo:Clean;Web_SalesSystem_Minimal:Clean;Web_SalesSystem_Tests:Clean;Web_TicketSales:Clean;Web_TicketSales_Tests:Clean;Web_EventHub:Clean;Web_EventHub_Tests:Clean;Web_HelpDesk:Clean;Web_HelpDesk_Tests:Clean"/>
     </Target>
     <Target Name="Make">
-        <CallTarget Targets="Core_TestConfig:Make;Core_TestHttpParser:Make;Core_EventBusDemo:Make;Web_EventBusDemo:Make;CustomerCRUD_Tests:Make;Dext_Examples_ComplexQuerying:Make;Dext_Examples_MultiTenancy:Make;DesktopMVUCounter:Make;DesktopMVUCounterFrame:Make;DesktopMVVMCustomerCRUD:Make;Orm_EntityDemo:Make;Orm_EntityStyles:Make;Orm_SpecificationDemo:Make;RestClientDemo:Make;Web_BasicAuthDemo:Make;Web_CachingDemo:Make;Web_ControllerExample:Make;Web_ControllerExample_FluentAPI:Make;Web_DatabaseAsApi:Make;Web_Dext_Starter_Admin:Make;Web_DextStore:Make;Web_DextFood:Make;Web_JwtAuthDemo:Make;Web_MinimalAPIExample:Make;Web_OrderAPI:Make;Web_RateLimitDemo:Make;Web_SmartPropsDemo:Make;Web_SslDemo:Make;Web_StreamingDemo:Make;Web_SwaggerControllerExample:Make;Web_SwaggerExample:Make;Web_TaskFlowAPI:Make;Web_TUUIDBindingExample:Make;Web_UUIDExample:Make;WebStencilsDemo:Make;Web_SalesSystem_Minimal:Make;Web_SalesSystem_Tests:Make;Web_TicketSales:Make;Web_TicketSales_Tests:Make"/>
+        <CallTarget Targets="Core_TestConfig:Make;Core_TestHttpParser:Make;Core_EventBusDemo:Make;Web_EventBusDemo:Make;CustomerCRUD_Tests:Make;Dext_Examples_ComplexQuerying:Make;Dext_Examples_MultiTenancy:Make;DesktopMVUCounter:Make;DesktopMVUCounterFrame:Make;DesktopMVVMCustomerCRUD:Make;Orm_EntityDemo:Make;Orm_EntityStyles:Make;Orm_SpecificationDemo:Make;RestClientDemo:Make;Web_BasicAuthDemo:Make;Web_CachingDemo:Make;Web_ControllerExample:Make;Web_ControllerExample_FluentAPI:Make;Web_DatabaseAsApi:Make;Web_Dext_Starter_Admin:Make;Web_DextStore:Make;Web_DextFood:Make;Web_JwtAuthDemo:Make;Web_MinimalAPIExample:Make;Web_OrderAPI:Make;Web_RateLimitDemo:Make;Web_SmartPropsDemo:Make;Web_SslDemo:Make;Web_StreamingDemo:Make;Web_SwaggerControllerExample:Make;Web_SwaggerExample:Make;Web_TaskFlowAPI:Make;Web_TUUIDBindingExample:Make;Web_UUIDExample:Make;WebStencilsDemo:Make;Web_SalesSystem_Minimal:Make;Web_SalesSystem_Tests:Make;Web_TicketSales:Make;Web_TicketSales_Tests:Make;Web_EventHub:Make;Web_EventHub_Tests:Make;Web_HelpDesk:Make;Web_HelpDesk_Tests:Make"/>
     </Target>
     <Import Project="$(BDS)\Bin\CodeGear.Group.Targets" Condition="Exists('$(BDS)\Bin\CodeGear.Group.Targets')"/>
 </Project>

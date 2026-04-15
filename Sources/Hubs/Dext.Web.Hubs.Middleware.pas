@@ -48,7 +48,8 @@ uses
   Dext.Web.Hubs.Protocol.Json,
   Dext.Web.Hubs.Transport.SSE,
   Dext.Web.Hubs.Types,
-  Dext.Web.Interfaces;
+  Dext.Web.Interfaces,
+  Dext.Core.Reflection;
 
 type
   /// <summary>
@@ -179,7 +180,6 @@ function THubDispatcher.InvokeMethod(const ConnectionId, MethodName: string;
   const Args: TArray<TValue>): TValue;
 var
   Hub: THub;
-  RttiCtx: TRttiContext;
   RttiType: TRttiType;
   Method: TRttiMethod;
   CallerContext: IHubCallerContext;
@@ -197,20 +197,15 @@ begin
     Hub.SetContext(CallerContext, HubClients, FGroupManager);
     
     // Find and invoke method
-    RttiCtx := TRttiContext.Create;
-    try
-      RttiType := RttiCtx.GetType(FHubClass);
-      Method := RttiType.GetMethod(MethodName);
-      
-      if Method = nil then
-        raise EHubMethodNotFoundException.CreateFmt('Method not found: %s', [MethodName]);
-      
-      // Convert args if needed
-      Params := Args;
-      Result := Method.Invoke(Hub, Params);
-    finally
-      RttiCtx.Free;
-    end;
+    RttiType := TReflection.Context.GetType(FHubClass);
+    Method := RttiType.GetMethod(MethodName);
+    
+    if Method = nil then
+      raise EHubMethodNotFoundException.CreateFmt('Method not found: %s', [MethodName]);
+    
+    // Convert args if needed
+    Params := Args;
+    Result := Method.Invoke(Hub, Params);
   finally
     Hub.Free;
   end;

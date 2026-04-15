@@ -71,7 +71,6 @@ type
   TDbSet<T: class> = class(TInterfacedObject, IDbSet<T>, IDbSet)
   private
     FContextPtr: Pointer;
-    FRttiContext: TRttiContext; 
     FTableName: string;
     FPKColumns: IList<string>; 
     FProps: IDictionary<string, TRttiProperty>; 
@@ -349,7 +348,11 @@ begin
     end;
 
     if TypeName = 'TUUID' then
-      Exit(AValue.AsType<TUUID>.ToString);
+    begin
+      var U: TUUID;
+      AValue.ExtractRawData(@U);
+      Exit(U.ToString);
+    end;
   end;
   
   // Fallback to variant conversion
@@ -488,7 +491,6 @@ begin
   FFields := TCollections.CreateDictionary<string, TRttiField>;
   FColumns := TCollections.CreateDictionary<string, string>;
   FPKColumns := TCollections.CreateList<string>;
-  FRttiContext := TRttiContext.Create;
   FIdentityMap := TCollections.CreateDictionary<string, T>(True);
   FOrphans := TCollections.CreateList<T>(True);
   FIgnoreQueryFilters := False;
@@ -498,7 +500,6 @@ end;
 
 destructor TDbSet<T>.Destroy;
 begin
-  FRttiContext.Free;
   FIdentityMap := nil;
   FOrphans := nil;
   FProps := nil;
@@ -518,7 +519,7 @@ var
   Typ: TRttiType;
   Field: TRttiField; // Added for field mapping discovery
 begin
-  Typ := FRttiContext.GetType(T);
+  Typ := TReflection.Context.GetType(T);
   FMap := TEntityMap(FContext.GetMapping(TypeInfo(T)));
   FTableName := '';
   if (FMap <> nil) and (FMap.TableName <> '') then
@@ -723,26 +724,20 @@ end;
 
 function TDbSet<T>.GetRelatedId(const AObject: TObject): TValue;
 var
-  Ctx: TRttiContext;
   Typ: TRttiType;
   Prop: TRttiProperty;
   Attr: TCustomAttribute;
 begin
-  Ctx := TRttiContext.Create;
-  try
-    Typ := Ctx.GetType(AObject.ClassType);
-    for Prop in Typ.GetProperties do
-    begin
-      for Attr in Prop.GetAttributes do
-        if Attr is PrimaryKeyAttribute then
-          Exit(Prop.GetValue(AObject));
-    end;
-    Prop := Typ.GetProperty('Id');
-    if Prop <> nil then
-      Exit(Prop.GetValue(AObject));
-  finally
-    Ctx.Free;
+  Typ := TReflection.Context.GetType(AObject.ClassType);
+  for Prop in Typ.GetProperties do
+  begin
+    for Attr in Prop.GetAttributes do
+      if Attr is PrimaryKeyAttribute then
+        Exit(Prop.GetValue(AObject));
   end;
+  Prop := Typ.GetProperty('Id');
+  if Prop <> nil then
+    Exit(Prop.GetValue(AObject));
   raise Exception.Create('Could not determine Primary Key for related entity ' + AObject.ClassName);
 end;
 
@@ -1035,32 +1030,26 @@ end;
 
 procedure TDbSet<T>.HandleTimestamps(const AEntity: TObject; AIsInsert: Boolean);
 var
-  Ctx: TRttiContext;
   Typ: TRttiType;
   Prop: TRttiProperty;
   Attr: TCustomAttribute;
   NowVal: TDateTime;
 begin
   NowVal := Now;
-  Ctx := TRttiContext.Create;
-  try
-    Typ := Ctx.GetType(T);
-    for Prop in Typ.GetProperties do
+  Typ := TReflection.Context.GetType(T);
+  for Prop in Typ.GetProperties do
+  begin
+    for Attr in Prop.GetAttributes do
     begin
-      for Attr in Prop.GetAttributes do
+      if (Attr is CreatedAtAttribute) and AIsInsert then
       begin
-        if (Attr is CreatedAtAttribute) and AIsInsert then
-        begin
-          TReflection.SetValue(Pointer(AEntity), Prop, NowVal);
-        end
-        else if (Attr is UpdatedAtAttribute) then
-        begin
-          TReflection.SetValue(Pointer(AEntity), Prop, NowVal);
-        end;
+        TReflection.SetValue(Pointer(AEntity), Prop, NowVal);
+      end
+      else if (Attr is UpdatedAtAttribute) then
+      begin
+        TReflection.SetValue(Pointer(AEntity), Prop, NowVal);
       end;
     end;
-  finally
-    Ctx.Free;
   end;
 end;
 
@@ -1075,8 +1064,6 @@ var
   UseReturning: Boolean;
   RetVal: TValue;
   AutoIncColumn: string;
-  Ctx: TRttiContext;
-  Typ: TRttiType;
   Attr: TCustomAttribute;
   PropMap: TPropertyMap;
 begin
@@ -1087,11 +1074,7 @@ begin
     // Find AutoInc property and column
     AutoIncColumn := '';
     AutoIncProp := nil;
-    Ctx := TRttiContext.Create;
-    try
-      Typ := Ctx.GetType(T);
-    
-    for Prop in Typ.GetProperties do
+    for Prop in TReflection.Context.GetType(T).GetProperties do
     begin
       // Check Fluent Mapping first
       PropMap := nil;
@@ -1235,9 +1218,6 @@ begin
        else
          FIdentityMap.Add(NewId, T(AEntity));
      end;
-    finally
-      Ctx.Free;
-    end;
   finally
     Generator.Free;
   end;
@@ -1306,8 +1286,6 @@ var
   Sql: string;
   Cmd: IDbCommand;
   RowsAffected: Integer;
-  Ctx: TRttiContext;
-  Typ: TRttiType;
   Prop: TRttiProperty;
   Attr: TCustomAttribute;
   Val: TValue;
@@ -1345,24 +1323,18 @@ begin
     end;
     if RowsAffected = 0 then
       raise EOptimisticConcurrencyException.Create('Concurrency violation: The record has been modified or deleted by another user.');
-    Ctx := TRttiContext.Create;
-    try
-      Typ := Ctx.GetType(T);
-      for Prop in Typ.GetProperties do
+    for Prop in TReflection.Context.GetType(T).GetProperties do
+    begin
+      for Attr in Prop.GetAttributes do
       begin
-        for Attr in Prop.GetAttributes do
+        if Attr is VersionAttribute then
         begin
-          if Attr is VersionAttribute then
-          begin
-            Val := Prop.GetValue(Pointer(AEntity));
-            if Val.IsEmpty then NewVer := 1 else NewVer := Val.AsInteger + 1;
-            TReflection.SetValue(Pointer(AEntity), Prop, NewVer);
-            Break;
-          end;
+          Val := Prop.GetValue(Pointer(AEntity));
+          if Val.IsEmpty then NewVer := 1 else NewVer := Val.AsInteger + 1;
+          TReflection.SetValue(Pointer(AEntity), Prop, NewVer);
+          Break;
         end;
       end;
-    finally
-      Ctx.Free;
     end;
 
     // After successful update, ensure it's in the Identity Map and not in Orphans
@@ -1384,7 +1356,6 @@ var
   Generator: TSqlGenerator<T>;
   Sql: string;
   Cmd: IDbCommand;
-  Ctx: TRttiContext;
   RType: TRttiType;
   SoftDeleteAttr: SoftDeleteAttribute;
   Prop: TRttiProperty;
@@ -1406,66 +1377,59 @@ begin
   // 2. Check Attribute
   else
   begin
-    Ctx := TRttiContext.Create;
-    try
-      RType := Ctx.GetType(T);
-      if RType <> nil then
+    RType := TReflection.Context.GetType(T);
+    if RType <> nil then
+    begin
+      for var Attr in RType.GetAttributes do
       begin
-        for var Attr in RType.GetAttributes do
+        if Attr is SoftDeleteAttribute then
         begin
-          if Attr is SoftDeleteAttribute then
-          begin
-            SoftDeleteAttr := SoftDeleteAttribute(Attr);
-            IsSoftDelete := True;
-            PropName := SoftDeleteAttr.ColumnName;
-            DeletedVal := SoftDeleteAttr.DeletedValue;
-            Break;
-          end;
+          SoftDeleteAttr := SoftDeleteAttribute(Attr);
+          IsSoftDelete := True;
+          PropName := SoftDeleteAttr.ColumnName;
+          DeletedVal := SoftDeleteAttr.DeletedValue;
+          Break;
         end;
       end;
-    finally
-      Ctx.Free;
     end;
   end;
   
   if IsSoftDelete then
   begin
     // Soft Delete: UPDATE entity to mark as deleted
-    Ctx := TRttiContext.Create;
-    try
-      RType := Ctx.GetType(T);
-      if RType <> nil then
+    RType := TReflection.Context.GetType(T);
+    if RType <> nil then
+    begin
+      // Find the soft delete column property
+      Prop := nil;
+      ColumnName := PropName; // Use PropName as search key
+      
+      for var P in RType.GetProperties do
       begin
-        // Find the soft delete column property
-        Prop := nil;
-        ColumnName := PropName; // Use PropName as search key
-        
-        for var P in RType.GetProperties do
+        // Check match by Property Name
+        if SameText(P.Name, ColumnName) then
         begin
-          // Check match by Property Name
-          if SameText(P.Name, ColumnName) then
-          begin
-            Prop := P;
-            Break;
-          end;
-
-          // Check match by Column Name (Only relevant if PropName was actually a Column Name from Attribute)
-          for var Attr in P.GetAttributes do
-          begin
-            if Attr is ColumnAttribute then
-            begin
-               if SameText(ColumnAttribute(Attr).Name, ColumnName) then
-               begin
-                 Prop := P;
-                 Break;
-               end;
-            end;
-          end;
-          if Prop <> nil then Break;
+          Prop := P;
+          Break;
         end;
-        
-        if Prop <> nil then
+
+        // Check match by Column Name (Only relevant if PropName was actually a Column Name from Attribute)
+        for var Attr in P.GetAttributes do
         begin
+          if Attr is ColumnAttribute then
+          begin
+             if SameText(ColumnAttribute(Attr).Name, ColumnName) then
+             begin
+               Prop := P;
+               Break;
+             end;
+          end;
+        end;
+        if Prop <> nil then Break;
+      end;
+      
+      if Prop <> nil then
+      begin
           // Set the soft delete value
           var ValToSet: TValue;
           
@@ -1487,9 +1451,6 @@ begin
             AEntity.Free;
           Exit;
         end;
-      end;
-    finally
-      Ctx.Free;
     end;
   end;
   
@@ -1545,7 +1506,7 @@ begin
   TokenCol := '';
   ExpiryCol := '';
 
-  Typ := FRttiContext.GetType(T);
+  Typ := TReflection.Context.GetType(T);
   for Prop in Typ.GetProperties do
   begin
     if Prop.HasAttribute<LockTokenAttribute> then TokenProp := Prop;
@@ -1635,7 +1596,7 @@ begin
   TokenProp := nil;
   ExpiryProp := nil;
 
-  Typ := FRttiContext.GetType(T);
+  Typ := TReflection.Context.GetType(T);
   for Prop in Typ.GetProperties do
   begin
     if Prop.HasAttribute<LockTokenAttribute> then TokenProp := Prop;
@@ -1938,45 +1899,39 @@ procedure TDbSet<T>.ExtractForeignKeys(const AEntities: IList<T>; PropertyToChec
 var
   Ent: T;
   Val: TValue;
-  Ctx: TRttiContext;
   Typ: TRttiType;
 begin
   IDs := TCollections.CreateList<TValue>;
   FKMap := TCollections.CreateDictionary<T, TValue>;
-  Ctx := TRttiContext.Create;
-  try
-    Typ := Ctx.GetType(T);
-    var NavProp := Typ.GetProperty(PropertyToCheck);
-    if NavProp = nil then Exit;
-    var FoundFK := '';
-    var FKAttr := NavProp.GetAttribute<ForeignKeyAttribute>;
-    if FKAttr <> nil then
+  Typ := TReflection.Context.GetType(T);
+  var NavProp := Typ.GetProperty(PropertyToCheck);
+  if NavProp = nil then Exit;
+  var FoundFK := '';
+  var FKAttr := NavProp.GetAttribute<ForeignKeyAttribute>;
+  if FKAttr <> nil then
+  begin
+    for var Pair in FColumns do
     begin
-      for var Pair in FColumns do
+      if SameText(Pair.Value, FKAttr.ColumnName) then
       begin
-        if SameText(Pair.Value, FKAttr.ColumnName) then
-        begin
-          FoundFK := Pair.Key;
-          Break;
-        end;
+        FoundFK := Pair.Key;
+        Break;
       end;
     end;
-    if FoundFK = '' then
-      FoundFK := PropertyToCheck + 'Id';
-    var FKProp := Typ.GetProperty(FoundFK);
-    if FKProp = nil then Exit;
-    for Ent in AEntities do
+  end;
+  if FoundFK = '' then
+    FoundFK := PropertyToCheck + 'Id';
+  var FKProp := Typ.GetProperty(FoundFK);
+  if FKProp = nil then Exit;
+  for Ent in AEntities do
+  begin
+    Val := FKProp.GetValue(Pointer(Ent));
+    if TryUnwrapAndValidateFK(Val, TReflection.Context) then
     begin
-      Val := FKProp.GetValue(Pointer(Ent));
-      if TryUnwrapAndValidateFK(Val, Ctx) then
-      begin
-        if not IDs.Contains(Val) then
-          IDs.Add(Val);
-        FKMap.Add(Ent, Val);
-      end;
+      if not IDs.Contains(Val) then
+        IDs.Add(Val);
+      FKMap.Add(Ent, Val);
     end;
-  finally
-    Ctx.Free;
   end;
 end;
 
@@ -1997,7 +1952,7 @@ begin
   try
     ExtractForeignKeys(AEntities, NavPropName, IDs, FKMap);
     if (IDs = nil) or (IDs.Count = 0) then Exit;
-    NavProp := FRttiContext.GetType(T).GetProperty(NavPropName);
+    NavProp := TReflection.Context.GetType(T).GetProperty(NavPropName);
     if NavProp = nil then Exit;
     TargetType := NavProp.PropertyType;
     if TargetType.TypeKind <> tkClass then Exit;
@@ -2086,7 +2041,6 @@ var
   Obj: TObject;
   NavProp: TRttiProperty;
   TargetFKPropName: string;
-  Ctx: TRttiContext;
   TargetFKValue: TValue;
   TargetFKStr: string;
   ListIntf: IInterface;
@@ -2096,7 +2050,7 @@ var
   TargetMap: TEntityMap;
   InversePropMap: TPropertyMap;
 begin
-  NavProp := FRttiContext.GetType(T).GetProperty(NavPropName);
+  NavProp := TReflection.Context.GetType(T).GetProperty(NavPropName);
   if NavProp = nil then Exit;
 
   // 1. Collect Parent IDs and build map
@@ -2123,22 +2077,17 @@ begin
 
     // 2. Identify Target Type (from IList<TTarget>)
     TargetType := nil;
-    Ctx := TRttiContext.Create;
-    try
-      var PropType := NavProp.PropertyType;
-      if PropType.TypeKind = tkInterface then
+    var PropType := NavProp.PropertyType;
+    if PropType.TypeKind = tkInterface then
+    begin
+      var TypeName := PropType.Name;
+      var StartPos := Pos('<', TypeName);
+      var EndPos := Pos('>', TypeName);
+      if (StartPos > 0) and (EndPos > StartPos) then
       begin
-        var TypeName := PropType.Name;
-        var StartPos := Pos('<', TypeName);
-        var EndPos := Pos('>', TypeName);
-        if (StartPos > 0) and (EndPos > StartPos) then
-        begin
-          var GenericTypeName := Copy(TypeName, StartPos + 1, EndPos - StartPos - 1);
-          TargetType := Ctx.FindType(GenericTypeName);
-        end;
+        var GenericTypeName := Copy(TypeName, StartPos + 1, EndPos - StartPos - 1);
+        TargetType := TReflection.Context.FindType(GenericTypeName);
       end;
-    finally
-      Ctx.Free;
     end;
     
     if TargetType = nil then Exit;
@@ -2208,13 +2157,13 @@ begin
     // 4. Assign children to parents
     for Obj in TargetList do
     begin
-       ObjProp := FRttiContext.GetType(Obj.ClassType).GetProperty(TargetPropName);
+       ObjProp := TReflection.Context.GetType(Obj.ClassType).GetProperty(TargetPropName);
        if ObjProp <> nil then
        begin
           TargetFKValue := ObjProp.GetValue(Obj);
           
           // CRITICAL: Must unwrap if it is Prop<T> or Nullable
-          if not TryUnwrapAndValidateFK(TargetFKValue, FRttiContext) then Continue;
+          if not TryUnwrapAndValidateFK(TargetFKValue, TReflection.Context) then Continue;
 
           TargetFKStr := TValueToKeyString(TargetFKValue);
           
@@ -2236,7 +2185,7 @@ begin
                 ListIntf := Val.AsInterface;
                 if ListIntf <> nil then
                 begin
-                   var IntfTyp := FRttiContext.GetType(Val.TypeInfo);
+                   var IntfTyp := TReflection.Context.GetType(Val.TypeInfo);
                    var AddMethod := IntfTyp.GetMethod('Add');
                    if AddMethod <> nil then
                    begin
@@ -2265,7 +2214,6 @@ var
   TargetIds: IDictionary<string, IList<TValue>>; // EntityId -> List of RelatedIds
   AllRelatedIds: IList<TValue>;
   RelatedObjects: IDictionary<string, TObject>; // RelatedId -> Object
-  Ctx: TRttiContext;
   LTargetType: TRttiType;
   RelatedDbSet: IDbSet;
   IdValues: TArray<Variant>;
@@ -2280,7 +2228,7 @@ var
 begin
   if PropMap.JoinTableName = '' then Exit;
 
-  NavProp := FRttiContext.GetType(T).GetProperty(NavPropName);
+  NavProp := TReflection.Context.GetType(T).GetProperty(NavPropName);
   if NavProp = nil then Exit;
 
   // Collect all entity IDs
@@ -2341,8 +2289,6 @@ begin
 
       if AllRelatedIds.Count = 0 then Exit;
 
-      Ctx := TRttiContext.Create;
-      try
         LTargetType := nil;
         PropType := NavProp.PropertyType;
         if PropType.TypeKind = tkInterface then
@@ -2355,7 +2301,7 @@ begin
           if (LStartPos > 0) and (LEndPos > LStartPos) then
           begin
             LGenericTypeName := Copy(LTypeName, LStartPos + 1, LEndPos - LStartPos - 1);
-            LTargetType := Ctx.FindType(LGenericTypeName);
+            LTargetType := TReflection.Context.FindType(LGenericTypeName);
           end;
         end;
 
@@ -2407,12 +2353,9 @@ begin
           RelatedObjects := nil;
         end;
       finally
-        Ctx.Free;
+        TargetIds := nil;
+        AllRelatedIds := nil;
       end;
-    finally
-      TargetIds := nil;
-      AllRelatedIds := nil;
-    end;
   finally
     EntityIds := nil;
   end;
@@ -2675,10 +2618,11 @@ begin
         Result := LSelf.FirstOrDefault(S as ISpecification<T>);
       end),
     FContext.Connection,
-    function: IEnumerator<T>
-    begin
-      Result := LSelf.RequestStreamingIterator(LSpec);
-    end
+    TFunc<IEnumerator<T>>(
+      function: IEnumerator<T>
+      begin
+        Result := LSelf.RequestStreamingIterator(LSpec);
+      end)
   );
 end;
 
@@ -2885,7 +2829,6 @@ end;
 
 function TDbSet<T>.Restore(const AEntity: T): IDbSet<T>;
 var
-  Ctx: TRttiContext;
   RType: TRttiType;
   SoftDeleteAttr: SoftDeleteAttribute;
   Prop: TRttiProperty;
@@ -2907,35 +2850,28 @@ begin
   // 2. Check Attribute
   else
   begin
-    Ctx := TRttiContext.Create;
-    try
-      RType := Ctx.GetType(T);
-      if RType <> nil then
+    RType := TReflection.Context.GetType(T);
+    if RType <> nil then
+    begin
+      for var Attr in RType.GetAttributes do
       begin
-        for var Attr in RType.GetAttributes do
+        if Attr is SoftDeleteAttribute then
         begin
-          if Attr is SoftDeleteAttribute then
-          begin
-            SoftDeleteAttr := SoftDeleteAttribute(Attr);
-            IsSoftDelete := True;
-            PropName := SoftDeleteAttr.ColumnName;
-            NotDeletedVal := SoftDeleteAttr.NotDeletedValue;
-            Break;
-          end;
+          SoftDeleteAttr := SoftDeleteAttribute(Attr);
+          IsSoftDelete := True;
+          PropName := SoftDeleteAttr.ColumnName;
+          NotDeletedVal := SoftDeleteAttr.NotDeletedValue;
+          Break;
         end;
       end;
-    finally
-      Ctx.Free;
     end;
   end;
   
   if IsSoftDelete then
   begin
-    Ctx := TRttiContext.Create;
-    try
-      RType := Ctx.GetType(T);
-      if RType <> nil then
-      begin
+    RType := TReflection.Context.GetType(T);
+    if RType <> nil then
+    begin
         // Find the soft delete column property
         Prop := nil;
         ColumnName := PropName;
@@ -2975,9 +2911,6 @@ begin
           PersistUpdate(AEntity);
         end;
       end;
-    finally
-      Ctx.Free;
-    end;
   end;
   Result := Self;
 end;

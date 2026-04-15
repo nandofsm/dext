@@ -745,7 +745,6 @@ end;
 
 procedure TEntityDataSet.LoadFromUtf8Json(const ASpan: TByteSpan; AClass: TClass);
 var
-  Context: TRttiContext;
   CurrentObj: TObject;
   PropMap: TPropertyMap;
   PropName: string;
@@ -772,10 +771,8 @@ begin
 
   if not Reader.Read then Exit;
 
-  // Preparar RTTI context uma vez para todas as propriedades
-  Context := TRttiContext.Create;
-  try
-    RttiType := Context.GetType(FEntityClass);
+  // Use centralized RTTI context
+  RttiType := TReflection.Context.GetType(FEntityClass);
 
     if Reader.TokenType = TJsonTokenType.StartArray then
     begin
@@ -858,9 +855,6 @@ begin
         end;
       end;
     end;
-  finally
-    Context.Free;
-  end;
 
   // Ativar o dataset e reconstruir visão virtual
   Load(FItems, AClass, True);
@@ -929,7 +923,6 @@ end;
 
 procedure TEntityDataSet.ApplyFilterAndSort(AFiltered: Boolean; ATrackObj: TObject);
 var
-  Context: TRttiContext;
   EntityType: TRttiType;
   Expr: IExpression;
   i: Integer;
@@ -1005,17 +998,13 @@ begin
     if (FIndexFieldNames <> '') and (FVirtualIndex.Count > 1) and Assigned(FItems) then
     begin
       Names := FIndexFieldNames.Split([';']);
-      Context := TRttiContext.Create;
-      try
-        EntityType := Context.GetType(FEntityClass);
+      // Use centralized RTTI context
+      EntityType := TReflection.Context.GetType(FEntityClass);
         FVirtualIndex.Sort(Dext.Collections.Comparers.TComparer<Integer>.Construct(
           function(const A, B: Integer): Integer
           begin
             Result := CompareObjectsInternal(FItems[A], FItems[B], Names, EntityType);
           end));
-      finally
-        Context.Free;
-      end;
     end;
 
     // Restaurar a posição do cursor na visão virtual
@@ -2199,7 +2188,6 @@ procedure TEntityDataSet.InternalInitFieldDefs;
   end;
 
 var
-  Context: TRttiContext;
   FieldDef: TFieldDef;
   NewField: TField;
   Prop: TRttiProperty;
@@ -2215,11 +2203,10 @@ begin
 
   FieldDefs.Clear;
 
-  Context := TRttiContext.Create;
-  try
-    RttiType := nil;
-    if FEntityClass <> nil then
-      RttiType := Context.GetType(FEntityClass);
+  // Use centralized RTTI context
+  RttiType := nil;
+  if FEntityClass <> nil then
+    RttiType := TReflection.Context.GetType(FEntityClass);
 
     for PropMap in FEntityMap.Properties.Values do
     begin
@@ -2380,9 +2367,6 @@ begin
         end;
       end;
     end;
-  finally
-    Context.Free;
-  end;
 end;
 
 procedure TEntityDataSet.SyncDetailData(const AFieldName: string; ADetailDataSet: TDataSet);
@@ -2581,28 +2565,22 @@ end;
 
 function TEntityDataSet.CreateNewEntity: TObject;
 var
-  Context: TRttiContext;
   RttiMethod: TRttiMethod;
   RttiType: TRttiType;
 begin
   Result := nil;
-  Context := TRttiContext.Create;
-  try
-    RttiType := Context.GetType(FEntityClass);
-    if RttiType <> nil then
+  RttiType := TReflection.Context.GetType(FEntityClass);
+  if RttiType <> nil then
+  begin
+    for RttiMethod in RttiType.GetMethods do
     begin
-      for RttiMethod in RttiType.GetMethods do
+      // Busca constructor sem parâmetros
+      if RttiMethod.IsConstructor and (Length(RttiMethod.GetParameters) = 0) then
       begin
-        // Busca constructor sem parâmetros
-        if RttiMethod.IsConstructor and (Length(RttiMethod.GetParameters) = 0) then
-        begin
-          Result := RttiMethod.Invoke(FEntityClass, []).AsObject;
-          Break;
-        end;
+        Result := RttiMethod.Invoke(FEntityClass, []).AsObject;
+        Break;
       end;
     end;
-  finally
-    Context.Free;
   end;
 end;
 
@@ -2785,6 +2763,9 @@ var
   PValue: Pointer;
   LP: PByte;
   LVal: TValue;
+  LRttiType: TRttiType;
+  RttiField: TRttiField;
+  LFieldVal, LUnwrappedField: TValue;
 begin
   Result := False;
   Value := Unassigned;
@@ -2878,15 +2859,13 @@ begin
     end;
 
     // Last resort: RTTI Field
-    var ctx := TRttiContext.Create;
-    var LRttiType := ctx.GetType(CurrentObj.ClassType);
+    LRttiType := TReflection.Context.GetType(CurrentObj.ClassType);
     if LRttiType <> nil then
     begin
-      var RttiField := LRttiType.GetField(Field.FieldName);
+      RttiField := LRttiType.GetField(Field.FieldName);
       if RttiField <> nil then
       begin
-        var LFieldVal := RttiField.GetValue(CurrentObj);
-        var LUnwrappedField: TValue;
+        LFieldVal := RttiField.GetValue(CurrentObj);
         if TReflection.TryUnwrapProp(LFieldVal, LUnwrappedField) then
         begin
           if not LUnwrappedField.IsEmpty then
@@ -2922,7 +2901,8 @@ begin
     if not PBoolean(LP)^ then
     begin
       Value := Null;
-      Exit(True);
+      Result := True;
+      Exit;
     end;
   end;
 
@@ -3258,9 +3238,13 @@ begin
       end;
     end;
 
-    var RttiProp := GetProperty(Field.FieldName);
-    if RttiProp <> nil then
-      RttiProp.SetValue(CurrentObj, V);
+    var RttiType := TReflection.Context.GetType(CurrentObj.ClassType);
+    if RttiType <> nil then
+    begin
+      var RttiProp := RttiType.GetProperty(Field.FieldName);
+      if RttiProp <> nil then
+        RttiProp.SetValue(CurrentObj, V);
+    end;
       
     SetModified(True);
     DataEvent(deFieldChange, NativeInt(Field));
@@ -3340,10 +3324,13 @@ begin
     if LMasterField <> nil then
     begin
       var LMasterVal := LMasterField.Value;
-      var LDetailProp := GetProperty(LDetailLinkFields[I].Trim);
-      
-      if (LDetailProp <> nil) and (not VarIsNull(LMasterVal)) then
-        LDetailProp.SetValue(AEntity, TValue.FromVariant(LMasterVal));
+      var LDetailType := TReflection.Context.GetType(AEntity.ClassType);
+      if (LDetailType <> nil) and (not VarIsNull(LMasterVal)) then
+      begin
+        var LDetailProp := LDetailType.GetProperty(LDetailLinkFields[I].Trim);
+        if LDetailProp <> nil then
+          LDetailProp.SetValue(AEntity, TValue.FromVariant(LMasterVal));
+      end;
     end;
   end;
 end;

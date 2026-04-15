@@ -147,6 +147,9 @@ type
 
 implementation
 
+uses
+  Dext.Core.Reflection;
+
 { TPropertyInfo }
 
 constructor TPropertyInfo.Create(const AName: string; APropInfo: PPropInfo;
@@ -159,37 +162,23 @@ begin
 end;
 
 function TPropertyInfo.GetValue(Instance: TObject): TValue;
-var
-  Ctx: TRttiContext;
 begin
-  Ctx := TRttiContext.Create;
-  try
-    var RttiType := Ctx.GetType(Instance.ClassType);
-    if RttiType = nil then Exit(TValue.Empty);
-    var RttiProp := RttiType.GetProperty(FName);
-    if RttiProp <> nil then
-      Result := RttiProp.GetValue(Instance)
-    else
-      Result := TValue.Empty;
-  finally
-    Ctx.Free;
-  end;
+  var RttiType := TReflection.Context.GetType(Instance.ClassType);
+  if RttiType = nil then Exit(TValue.Empty);
+  var RttiProp := RttiType.GetProperty(FName);
+  if RttiProp <> nil then
+    Result := RttiProp.GetValue(Instance)
+  else
+    Result := TValue.Empty;
 end;
 
 procedure TPropertyInfo.SetValue(Instance: TObject; const Value: TValue);
-var
-  Ctx: TRttiContext;
 begin
-  Ctx := TRttiContext.Create;
-  try
-    var RttiType := Ctx.GetType(Instance.ClassType);
-    if RttiType = nil then Exit;
-    var RttiProp := RttiType.GetProperty(FName);
-    if RttiProp <> nil then
-      RttiProp.SetValue(Instance, Value);
-  finally
-    Ctx.Free;
-  end;
+  var RttiType := TReflection.Context.GetType(Instance.ClassType);
+  if RttiType = nil then Exit;
+  var RttiProp := RttiType.GetProperty(FName);
+  if RttiProp <> nil then
+    RttiProp.SetValue(Instance, Value);
 end;
 
 { TProp<T> }
@@ -338,24 +327,18 @@ end;
 
 constructor TEntityBuilder<T>.Create;
 var
-  Ctx: TRttiContext;
   RType: TRttiType;
   Method: TRttiMethod;
 begin
   inherited Create;
-  Ctx := TRttiContext.Create;
-  try
-    RType := Ctx.GetType(TypeInfo(T));
-    if (RType <> nil) and (RType is TRttiInstanceType) then
-    begin
-      Method := TRttiInstanceType(RType).GetMethod('Create');
-      if Method <> nil then
-        FEntity := Method.Invoke(TRttiInstanceType(RType).MetaclassType, []).AsType<T>
-      else
-        FEntity := Default(T);
-    end;
-  finally
-    Ctx.Free;
+  RType := TReflection.Context.GetType(TypeInfo(T));
+  if (RType <> nil) and (RType is TRttiInstanceType) then
+  begin
+    Method := TRttiInstanceType(RType).GetMethod('Create');
+    if Method <> nil then
+      FEntity := Method.Invoke(TRttiInstanceType(RType).MetaclassType, []).AsType<T>
+    else
+      FEntity := Default(T);
   end;
 end;
 

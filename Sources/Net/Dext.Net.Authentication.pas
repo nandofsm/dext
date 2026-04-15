@@ -31,6 +31,7 @@ uses
   System.SysUtils,
   System.Classes,
   System.DateUtils,
+  System.NetConsts,
   System.Net.HttpClient,
   System.Net.URLClient,
   System.NetEncoding,

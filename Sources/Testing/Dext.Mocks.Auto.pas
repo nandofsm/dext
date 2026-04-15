@@ -41,7 +41,6 @@ type
     FInterceptors: IDictionary<PTypeInfo, IInterceptor>;
     FClassProxies: IDictionary<PTypeInfo, TObject>; // OwnsProxies
     FMocks: IDictionary<PTypeInfo, IMock>;
-    FContext: TRttiContext;
     function GetMockInterceptor(Info: PTypeInfo): IInterceptor;
   public
     constructor Create;
@@ -52,14 +51,18 @@ type
 
 implementation
 
+uses
+  Dext.Core.Reflection,
+  System.Variants;
+
 { TAutoMocker }
 
 constructor TAutoMocker.Create;
 begin
+  inherited Create;
   FInterceptors := TCollections.CreateDictionary<PTypeInfo, IInterceptor>;
   FClassProxies := TCollections.CreateDictionary<PTypeInfo, TObject>(True);
   FMocks := TCollections.CreateDictionary<PTypeInfo, IMock>;
-  FContext := TRttiContext.Create;
 end;
 
 destructor TAutoMocker.Destroy;
@@ -71,7 +74,6 @@ begin
     FInterceptors := nil;
   end;
 
-  FContext.Free;
   FMocks := nil;
   FClassProxies := nil; // own objects
 
@@ -131,7 +133,7 @@ var
   ProxyIntf: IInterface;
   I: Integer;
 begin
-  RttiType := FContext.GetType(TypeInfo(T));
+  RttiType := TReflection.Context.GetType(TypeInfo(T));
   if RttiType = nil then
     raise Exception.Create('Type not found in RTTI: ' + T.ClassName);
 

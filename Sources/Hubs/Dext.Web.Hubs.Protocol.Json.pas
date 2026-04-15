@@ -38,6 +38,7 @@ uses
   System.SysUtils,
   System.TypInfo,
   Dext.Web.Hubs.Interfaces,
+  Dext.Core.Reflection,
   Dext.Web.Hubs.Types;
 
 type
@@ -263,7 +264,6 @@ var
   Field: TRttiField;
   Prop: TRttiProperty;
   RttiType: TRttiType;
-  RttiCtx: TRttiContext;
 begin
   if Value.IsEmpty then
     Exit(TJSONNull.Create);
@@ -295,16 +295,16 @@ begin
           
         // Serialize object properties
         Obj := TJSONObject.Create;
-        RttiCtx := TRttiContext.Create;
         try
-          RttiType := RttiCtx.GetType(Value.AsObject.ClassType);
+          RttiType := TReflection.Context.GetType(Value.AsObject.ClassType);
           for Prop in RttiType.GetProperties do
           begin
             if Prop.IsReadable and (Prop.Visibility in [mvPublic, mvPublished]) then
               Obj.AddPair(Prop.Name, ValueToJson(Prop.GetValue(Value.AsObject)));
           end;
-        finally
-          RttiCtx.Free;
+        except
+          Obj.Free;
+          raise;
         end;
         Result := Obj;
       end;
@@ -312,13 +312,13 @@ begin
     tkRecord:
       begin
         Obj := TJSONObject.Create;
-        RttiCtx := TRttiContext.Create;
         try
-          RttiType := RttiCtx.GetType(Value.TypeInfo);
+          RttiType := TReflection.Context.GetType(Value.TypeInfo);
           for Field in RttiType.GetFields do
             Obj.AddPair(Field.Name, ValueToJson(Field.GetValue(Value.GetReferenceToRawData)));
-        finally
-          RttiCtx.Free;
+        except
+          Obj.Free;
+          raise;
         end;
         Result := Obj;
       end;

@@ -605,6 +605,22 @@ begin
   end;
 end;
 
+function GetUUIDString(const V: TValue): string;
+var
+  U: TUUID;
+begin
+  V.ExtractRawData(@U);
+  Result := U.ToString;
+end;
+
+function GetGUIDString(const V: TValue): string;
+var
+  G: TGUID;
+begin
+  V.ExtractRawData(@G);
+  Result := GUIDToString(G);
+end;
+
 { TDextSerializer }
 
 constructor TDextSerializer.Create(const ASettings: TJsonSettings);
@@ -711,7 +727,8 @@ begin
       var Node := AJson.GetNode(ActualPropName);
       if Node <> nil then
       begin
-        var Val: TValue;
+        var Handler := TReflection.GetHandler(AType, Prop.Name);
+        var Val: TValue := TValue.Empty;
         case Node.GetNodeType of
           jntString: Val := TValue.From<string>(Node.AsString);
           jntNumber:
@@ -758,7 +775,7 @@ begin
         end;
         
         if not Val.IsEmpty then
-          TReflection.SetValue(Instance, Prop, Val);
+          Handler.SetValue(Instance, Val);
       end;
     end;
   except
@@ -844,7 +861,7 @@ begin
       except
         FieldValue := TValue.From<TUUID>(TUUID.Null);
       end;
-      Field.SetValue(Result.GetReferenceToRawData, FieldValue);
+      TReflection.SetValue(Result.GetReferenceToRawData, Field, FieldValue);
       Continue;
     end;
 
@@ -1054,14 +1071,14 @@ begin
   if AValue.TypeInfo = TypeInfo(TGUID) then
   begin
     Result := TDextJson.Provider.CreateObject;
-    Result.SetString(ValueField, GUIDToString(AValue.AsType<TGUID>));
+    Result.SetString(ValueField, GetGUIDString(AValue));
     Exit;
   end;
 
   if AValue.TypeInfo = TypeInfo(TUUID) then
   begin
     Result := TDextJson.Provider.CreateObject;
-    Result.SetString(ValueField, AValue.AsType<TUUID>.ToString);
+    Result.SetString(ValueField, GetUUIDString(AValue));
     Exit;
   end;
 
@@ -1108,13 +1125,13 @@ begin
 
     if (Field.FieldType.Handle = TypeInfo(TGUID)) or (FieldValue.TypeInfo = TypeInfo(TGUID)) then
     begin
-      Result.SetString(FieldName, GUIDToString(FieldValue.AsType<TGUID>));
+      Result.SetString(FieldName, GetGUIDString(FieldValue));
       Continue;
     end;
 
     if (Field.FieldType.Handle = TypeInfo(TUUID)) or (FieldValue.TypeInfo = TypeInfo(TUUID)) then
     begin
-      Result.SetString(FieldName, FieldValue.AsType<TUUID>.ToString);
+      Result.SetString(FieldName, GetUUIDString(FieldValue));
       Continue;
     end;
 
@@ -1270,7 +1287,8 @@ begin
         Break;
       end;
 
-    PropValue := Prop.GetValue(Obj);
+    var Handler := TReflection.GetHandler(Obj.ClassInfo, Prop.Name);
+    PropValue := Handler.GetValue(Pointer(Obj));
 
 
     // Smart Properties Support: Unwrap Prop<T>
@@ -1319,9 +1337,9 @@ begin
       tkRecord:
         begin
           if PropValue.TypeInfo = TypeInfo(TGUID) then
-            Result.SetString(PropName, GUIDToString(PropValue.AsType<TGUID>))
+            Result.SetString(PropName, GetGUIDString(PropValue))
           else if PropValue.TypeInfo = TypeInfo(TUUID) then
-            Result.SetString(PropName, PropValue.AsType<TUUID>.ToString)
+            Result.SetString(PropName, GetUUIDString(PropValue))
           else
           begin
             var NestedRecord := SerializeRecord(PropValue);
@@ -1424,9 +1442,9 @@ begin
     tkRecord:
       begin
         if AValue.TypeInfo = TypeInfo(TGUID) then
-          Result.SetString(ValueField, GUIDToString(AValue.AsType<TGUID>))
+          Result.SetString(ValueField, GetGUIDString(AValue))
         else if AValue.TypeInfo = TypeInfo(TUUID) then
-          Result.SetString(ValueField, AValue.AsType<TUUID>.ToString)
+          Result.SetString(ValueField, GetUUIDString(AValue))
         else
           // Replace result with serialized record
           // Note: ValueToJson returns Object. If SerializeRecord returns Object, we are good.
@@ -1660,7 +1678,7 @@ begin
 
     var ActualRttiType: TRttiType;
     if Assigned(InstObj) then
-      ActualRttiType := TRttiContext.Create.GetType(InstObj.ClassType)
+      ActualRttiType := TReflection.Context.GetType(InstObj.ClassType)
     else
       ActualRttiType := RttiType;
 
@@ -1797,7 +1815,7 @@ begin
 
     var ActualRttiType: TRttiType;
     if Assigned(InstObj) then
-      ActualRttiType := TRttiContext.Create.GetType(InstObj.ClassType)
+      ActualRttiType := TReflection.Context.GetType(InstObj.ClassType)
     else
       ActualRttiType := RttiType;
 
@@ -1930,9 +1948,9 @@ begin
           Result.Add(GetEnumName(ElementType, ElementValue.AsOrdinal));
       tkRecord:
         if ElementType = TypeInfo(TGUID) then
-          Result.Add(GUIDToString(ElementValue.AsType<TGUID>))
+          Result.Add(GetGUIDString(ElementValue))
         else if ElementType = TypeInfo(TUUID) then
-          Result.Add(ElementValue.AsType<TUUID>.ToString)
+          Result.Add(GetUUIDString(ElementValue))
         else
           Result.Add(SerializeRecord(ElementValue));
       tkClass:
@@ -1995,9 +2013,9 @@ begin
       case ElementValue.TypeInfo.Kind of
         tkRecord:
           if ElementValue.TypeInfo = TypeInfo(TGUID) then
-            Result.Add(GUIDToString(ElementValue.AsType<TGUID>))
+            Result.Add(GetGUIDString(ElementValue))
           else if ElementValue.TypeInfo = TypeInfo(TUUID) then
-            Result.Add(ElementValue.AsType<TUUID>.ToString)
+            Result.Add(GetUUIDString(ElementValue))
           else
             Result.Add(SerializeRecord(ElementValue));
         tkClass:
@@ -2049,9 +2067,9 @@ begin
         case ElementValue.TypeInfo.Kind of
           tkRecord:
             if ElementValue.TypeInfo = TypeInfo(TGUID) then
-              Result.Add(GUIDToString(ElementValue.AsType<TGUID>))
+              Result.Add(GetGUIDString(ElementValue))
             else if ElementValue.TypeInfo = TypeInfo(TUUID) then
-              Result.Add(ElementValue.AsType<TUUID>.ToString)
+              Result.Add(GetUUIDString(ElementValue))
             else
               Result.Add(SerializeRecord(ElementValue));
           tkClass:

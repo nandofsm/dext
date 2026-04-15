@@ -1,4 +1,4 @@
-﻿{***************************************************************************}
+{***************************************************************************}
 {                                                                           }
 {           Dext Framework                                                  }
 {                                                                           }
@@ -47,6 +47,9 @@ type
 
 implementation
 
+uses
+  Dext.Core.Reflection;
+
 { TConfigurationBinder }
 
 class function TConfigurationBinder.Bind<T>(Configuration: IConfiguration): T;
@@ -63,23 +66,19 @@ end;
 class function TConfigurationBinder.Get<T>(Configuration: IConfiguration): T;
 var
   Val: TValue;
-  Ctx: TRttiContext;
 begin
-  Ctx := TRttiContext.Create;
-  Val := GetValue(Configuration, Ctx.GetType(TypeInfo(T)), '');
+  Val := GetValue(Configuration, TReflection.Context.GetType(TypeInfo(T)), '');
   Result := Val.AsType<T>;
 end;
 
 class procedure TConfigurationBinder.Bind(Configuration: IConfiguration; Instance: TObject);
 var
-  Ctx: TRttiContext;
   RttiType: TRttiType;
 begin
   if Instance = nil then
     Exit;
     
-  Ctx := TRttiContext.Create;
-  RttiType := Ctx.GetType(Instance.ClassType);
+  RttiType := TReflection.Context.GetType(Instance.ClassType);
   BindInternal(Configuration, Instance, RttiType);
 end;
 

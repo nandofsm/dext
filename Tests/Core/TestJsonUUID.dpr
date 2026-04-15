@@ -4,6 +4,7 @@
 
 uses
   Dext.MM,
+  Dext.Utils,
   System.SysUtils,
   Dext.Types.UUID,
   Dext.Json,
@@ -162,6 +163,7 @@ begin
 end;
 
 begin
+  SetConsoleCharSet;
   try
     WriteLn('═══════════════════════════════════════════════════════════');
     WriteLn('  Dext.Json + TUUID Integration Test');
@@ -197,4 +199,5 @@ begin
       ExitCode := 1;
     end;
   end;
+  ConsolePause;
 end.

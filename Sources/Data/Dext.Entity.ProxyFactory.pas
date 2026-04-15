@@ -71,7 +71,6 @@ end;
 procedure TLazyProxyInterceptor.Intercept(const Invocation: IInvocation);
 var
   Instance: TObject;
-  Ctx: TRttiContext;
   RType: TRttiType;
   RField: TRttiField;
 
@@ -94,9 +93,8 @@ begin
   begin
     // If we are already intercepting, it means Invocation.Proceed is causing recursion.
     // In this case, we MUST access the field directly to break the loop.
-    Ctx := TRttiContext.Create;
     try
-      RType := Ctx.GetType(Instance.ClassType);
+      RType := TReflection.Context.GetType(Instance.ClassType);
       if RType <> nil then
       begin
         RField := GetBackingField(RType, FPropName);
@@ -109,8 +107,8 @@ begin
             RField.SetValue(Instance, Invocation.Arguments[0]);
         end;
       end;
-    finally
-      Ctx.Free;
+    except
+      raise;
     end;
     Exit;
   end;
@@ -128,9 +126,8 @@ begin
       end;
 
       // Access the field directly. This is safer and faster for Lazy properties.
-      Ctx := TRttiContext.Create;
       try
-        RType := Ctx.GetType(Instance.ClassType);
+        RType := TReflection.Context.GetType(Instance.ClassType);
         if RType <> nil then
         begin
           RField := GetBackingField(RType, FPropName);
@@ -141,8 +138,8 @@ begin
         end
         else
           Invocation.Proceed;
-      finally
-        Ctx.Free;
+      except
+        raise;
       end;
     finally
       GInsideIntercept := False;
@@ -158,7 +155,6 @@ class function TEntityProxyFactory.NeedsProxy(AParam: PTypeInfo; AContext: IDbCo
 var
   Map: TEntityMap;
   Prop: TPropertyMap;
-  Ctx: TRttiContext;
   RType: TRttiType;
   RProp: TRttiProperty;
 begin
@@ -169,13 +165,12 @@ begin
   // Explicitly marked as Proxy, or ANY property is lazy
   if Map.IsProxy then Exit(True);
   
-  Ctx := TRttiContext.Create;
   try
     for Prop in Map.Properties.Values do
     begin
       if Prop.IsLazy then
       begin
-         RType := Ctx.GetType(Map.EntityType);
+         RType := TReflection.Context.GetType(Map.EntityType);
          if RType = nil then Continue;
          
          RProp := RType.GetProperty(Prop.PropertyName);
@@ -184,8 +179,8 @@ begin
            Exit(True);
       end;
     end;
-  finally
-    Ctx.Free;
+  except
+    raise;
   end;
 end;
 
@@ -205,7 +200,6 @@ var
   Interceptors: IList<IInterceptor>;
   Map: TEntityMap;
   Prop: TPropertyMap;
-  Ctx: TRttiContext;
   RType: TRttiType;
   RProp: TRttiProperty;
 begin
@@ -214,9 +208,8 @@ begin
     Exit(nil);
 
   Interceptors := TCollections.CreateList<IInterceptor>;
-  Ctx := TRttiContext.Create;
   try
-    RType := Ctx.GetType(TypeInfo(T));
+    RType := TReflection.Context.GetType(TypeInfo(T));
     for Prop in Map.Properties.Values do
     begin
       if Prop.IsLazy then
@@ -226,8 +219,8 @@ begin
           Interceptors.Add(TLazyProxyInterceptor.Create(ALoader, Prop.PropertyName));
       end;
     end;
-  finally
-    Ctx.Free;
+  except
+    raise;
   end;
   
   if Interceptors.Count = 0 then
@@ -242,7 +235,6 @@ var
   Map: TEntityMap;
   Prop: TPropertyMap;
   Proxy: TClassProxy;
-  Ctx: TRttiContext;
   RType: TRttiType;
   RProp: TRttiProperty;
   Loader: ILazyLoader;
@@ -254,9 +246,8 @@ begin
   Interceptors := TCollections.CreateList<IInterceptor>;
   Loader := TDextLazyLoader.Create(AContext);
   
-  Ctx := TRttiContext.Create;
   try
-    RType := Ctx.GetType(TypeInfo(T));
+    RType := TReflection.Context.GetType(TypeInfo(T));
     for Prop in Map.Properties.Values do
     begin
       if Prop.IsLazy then
@@ -267,8 +258,8 @@ begin
           Interceptors.Add(TLazyProxyInterceptor.Create(Loader, Prop.PropertyName));
       end;
     end;
-  finally
-    Ctx.Free;
+  except
+    raise;
   end;
     
   // DbSet IdentityMap manages the entity lifetime, so Proxy should NOT own the instance.

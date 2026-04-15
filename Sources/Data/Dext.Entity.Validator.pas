@@ -29,13 +29,13 @@ type
 implementation
 
 uses
-  System.StrUtils;
+  System.StrUtils,
+  Dext.Core.Reflection;
 
 { TEntityValidator }
 
 class procedure TEntityValidator.Validate(const AEntity: TObject; const AMap: TEntityMap);
 var
-  Ctx: TRttiContext;
   Typ: TRttiType;
   Prop: TRttiProperty;
   Val: TValue;
@@ -48,12 +48,10 @@ var
 begin
   if AEntity = nil then Exit;
 
-  Ctx := TRttiContext.Create;
-  try
-    Typ := Ctx.GetType(AEntity.ClassType);
-    if Typ = nil then Exit;
+  Typ := TReflection.Context.GetType(AEntity.ClassType);
+  if Typ = nil then Exit;
 
-    for Prop in Typ.GetProperties do
+  for Prop in Typ.GetProperties do
     begin
       // Skip non-readable properties
       if not Prop.IsReadable then Continue;
@@ -126,9 +124,7 @@ begin
         end;
       end;
     end;
-  finally
-    Ctx.Free;
-  end;
+  ;
 end;
 
 end.

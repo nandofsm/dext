@@ -1,4 +1,4 @@
-﻿{***************************************************************************}
+{***************************************************************************}
 {                                                                           }
 {           Dext Framework                                                  }
 {                                                                           }
@@ -32,6 +32,7 @@ uses
   System.Rtti,
   System.TypInfo,
   Dext.Collections,
+  Dext.Core.Reflection,
   System.RegularExpressions;
 
 type
@@ -141,24 +142,18 @@ implementation
 
 class function TValidator.GetFieldValue(const AValue: TValue): TValue;
 var
-  Ctx: TRttiContext;
   RType: TRttiType;
   Field: TRttiField;
 begin
   Result := AValue;
   if AValue.Kind = tkRecord then
   begin
-    Ctx := TRttiContext.Create;
-    try
-      RType := Ctx.GetType(AValue.TypeInfo);
-      if (RType <> nil) and (RType is TRttiRecordType) then
-      begin
-        Field := TRttiRecordType(RType).GetField('FValue');
-        if Field <> nil then
-          Result := Field.GetValue(AValue.GetReferenceToRawData);
-      end;
-    finally
-      Ctx.Free;
+    RType := TReflection.Context.GetType(AValue.TypeInfo);
+    if (RType <> nil) and (RType is TRttiRecordType) then
+    begin
+      Field := TRttiRecordType(RType).GetField('FValue');
+      if Field <> nil then
+        Result := Field.GetValue(AValue.GetReferenceToRawData);
     end;
   end;
 end;
@@ -328,7 +323,6 @@ end;
 
 class function TValidator.Validate(const AValue: TValue): TValidationResult;
 var
-  Context: TRttiContext;
   RttiType: TRttiType;
   Field: TRttiField;
   Prop: TRttiProperty;
@@ -342,53 +336,48 @@ begin
   if AValue.IsEmpty then
     Exit;
 
-  Context := TRttiContext.Create;
-  try
-    RttiType := Context.GetType(AValue.TypeInfo);
-    if RttiType = nil then Exit;
+  RttiType := TReflection.Context.GetType(AValue.TypeInfo);
+  if RttiType = nil then Exit;
 
-    if RttiType.IsInstance then
-      Instance := AValue.AsObject
-    else
-      Instance := AValue.GetReferenceToRawData;
+  if RttiType.IsInstance then
+    Instance := AValue.AsObject
+  else
+    Instance := AValue.GetReferenceToRawData;
 
-    // Validate Fields
-    for Field in RttiType.GetFields do
+  // Validate Fields
+  for Field in RttiType.GetFields do
+  begin
+    FieldValue := Field.GetValue(Instance);
+    
+    for Attr in Field.GetAttributes do
     begin
-      FieldValue := Field.GetValue(Instance);
-      
-      for Attr in Field.GetAttributes do
+      if Attr is ValidationAttribute then
       begin
-        if Attr is ValidationAttribute then
+        ValidationAttr := ValidationAttribute(Attr);
+        if not ValidationAttr.IsValid(FieldValue) then
         begin
-          ValidationAttr := ValidationAttribute(Attr);
-          if not ValidationAttr.IsValid(FieldValue) then
-          begin
-            Result.AddError(Field.Name, ValidationAttr.GetErrorMessage(Field.Name));
-          end;
+          Result.AddError(Field.Name, ValidationAttr.GetErrorMessage(Field.Name));
         end;
       end;
     end;
+  end;
 
-    // Validate Properties
-    for Prop in RttiType.GetProperties do
+  // Validate Properties
+  for Prop in RttiType.GetProperties do
+  begin
+    FieldValue := Prop.GetValue(Instance);
+    
+    for Attr in Prop.GetAttributes do
     begin
-      FieldValue := Prop.GetValue(Instance);
-      
-      for Attr in Prop.GetAttributes do
+      if Attr is ValidationAttribute then
       begin
-        if Attr is ValidationAttribute then
+        ValidationAttr := ValidationAttribute(Attr);
+        if not ValidationAttr.IsValid(FieldValue) then
         begin
-          ValidationAttr := ValidationAttribute(Attr);
-          if not ValidationAttr.IsValid(FieldValue) then
-          begin
-            Result.AddError(Prop.Name, ValidationAttr.GetErrorMessage(Prop.Name));
-          end;
+          Result.AddError(Prop.Name, ValidationAttr.GetErrorMessage(Prop.Name));
         end;
       end;
     end;
-  finally
-    Context.Free;
   end;
 end;
 

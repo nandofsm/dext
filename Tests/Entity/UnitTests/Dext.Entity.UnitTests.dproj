@@ -122,6 +122,7 @@
         <DCCReference Include="Dext.Entity.ReportedIssues.Tests.pas"/>
         <DCCReference Include="Dext.Entity.Scaffolding.Tests.pas"/>
         <DCCReference Include="Dext.Entity.Migrations.Tests.pas"/>
+        <DCCReference Include="Dext.Entity.SnakeCaseFk.Tests.pas"/>
         <BuildConfiguration Include="Base">
             <Key>Base</Key>
         </BuildConfiguration>

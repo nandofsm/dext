@@ -1,4 +1,4 @@
-﻿{***************************************************************************}
+{***************************************************************************}
 {                                                                           }
 {           Dext Framework                                                  }
 {                                                                           }
@@ -37,7 +37,8 @@ uses
   Dext.Core.Span,
   Dext.Json.Utf8,
   Dext.Core.DateUtils,
-  Dext.Types.UUID;
+  Dext.Types.UUID,
+  Dext.Core.Reflection;
 
 type
   EUtf8SerializationException = class(Exception);
@@ -83,7 +84,6 @@ end;
 
 class function TUtf8JsonSerializer.GetRecordInfo(AType: PTypeInfo): TJsonRecordInfo;
 var
-  Ctx: TRttiContext;
   RType: TRttiType;
   Field: TRttiField;
   FldInfo: TJsonFieldInfo;
@@ -92,33 +92,28 @@ begin
   if TUtf8JsonSerializerCache.Cache.TryGetValue(AType, Result) then
     Exit;
 
-  Ctx := TRttiContext.Create;
-  try
-    RType := Ctx.GetType(AType);
-    if RType = nil then Exit;
+  RType := TReflection.Context.GetType(AType);
+  if RType = nil then Exit;
 
-    for Field in RType.GetFields do
+  for Field in RType.GetFields do
+  begin
+    FldInfo.NameBytes := TEncoding.UTF8.GetBytes(Field.Name);
+    FldInfo.Offset := Field.Offset;
+    if Field.FieldType <> nil then
     begin
-      FldInfo.NameBytes := TEncoding.UTF8.GetBytes(Field.Name);
-      FldInfo.Offset := Field.Offset;
-      if Field.FieldType <> nil then
-      begin
-        FldInfo.TypeKind := Field.FieldType.TypeKind;
-        FldInfo.TypeInfo := Field.FieldType.Handle;
-      end
-      else
-      begin
-        FldInfo.TypeKind := tkUnknown;
-        FldInfo.TypeInfo := nil;
-      end;
-      Fields.Add(FldInfo);
+      FldInfo.TypeKind := Field.FieldType.TypeKind;
+      FldInfo.TypeInfo := Field.FieldType.Handle;
+    end
+    else
+    begin
+      FldInfo.TypeKind := tkUnknown;
+      FldInfo.TypeInfo := nil;
     end;
-
-    Result.Fields := Fields.ToArray;
-    TUtf8JsonSerializerCache.Cache.Add(AType, Result);
-  finally
-    Ctx.Free;
+    Fields.Add(FldInfo);
   end;
+
+  Result.Fields := Fields.ToArray;
+  TUtf8JsonSerializerCache.Cache.Add(AType, Result);
 end;
 
 class function TUtf8JsonSerializer.Deserialize<T>(const AData: TByteSpan): T;

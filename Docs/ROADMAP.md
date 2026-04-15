@@ -79,5 +79,8 @@ Status | Tarefa | Spec | Descrição
 - [ ] **GraphQL**: Camada nativa para exposição de grafos de dados.
 - [ ] **Microservices Mesh**: Service discovery e Load Balancing nativo.
 
+- HTTP Server nativo IOCP, EPOLL, Kqueue
+- UI Nativo com Skia
+
 ---
 *Last update: April 14, 2026*

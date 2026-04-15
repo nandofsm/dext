@@ -371,6 +371,7 @@ implementation
 uses
   System.TypInfo,
   System.Variants,
+  Dext.Core.Reflection,
   Dext.Specifications.Evaluator,
   Dext.Specifications.OrderBy,
   Dext.Entity.Joining,
@@ -648,7 +649,6 @@ end;
 function TFluentQuery<T>.Select<TResult>(const AProp: TPropExpression): TFluentQuery<TResult>;
 var
   LPropName: string;
-  LCtx: TRttiContext;
   LTyp: TRttiType;
   LProp: TRttiProperty;
 begin
@@ -657,15 +657,11 @@ begin
   if FSpecification <> nil then
     FSpecification.Select(LPropName);
 
-  LCtx := TRttiContext.Create;
-  try
-    LTyp := LCtx.GetType(TypeInfo(T));
-    if LTyp = nil then raise Exception.Create('Could not get RTTI for type');
-    LProp := LTyp.GetProperty(LPropName);
-    if LProp = nil then
-      raise Exception.CreateFmt('Property "%s" not found on class', [LPropName]);
-  finally
-  end;
+  LTyp := TReflection.Context.GetType(TypeInfo(T));
+  if LTyp = nil then raise Exception.Create('Could not get RTTI for type');
+  LProp := LTyp.GetProperty(LPropName);
+  if LProp = nil then
+    raise Exception.CreateFmt('Property "%s" not found on class', [LPropName]);
 
   if LProp = nil then exit(Default(TFluentQuery<TResult>));
 
@@ -689,42 +685,36 @@ class function TFluentQuery<T>.CreatePropsSelector(const AProperties: TArray<str
 begin
   Result := TFunc<T, T>(function(const Source: T): T
     var
-      Ctx: TRttiContext;
       Typ: TRttiType;
       Prop: TRttiProperty;
       Val: TValue;
       ObjSource, ObjDest: TObject;
       PropName: string;
     begin
-      Ctx := TRttiContext.Create;
-      try
-        Typ := Ctx.GetType(TypeInfo(T));
-        if Typ.TypeKind = tkClass then
-        begin
-           ObjDest := Typ.AsInstance.MetaclassType.Create;
-           try
-             ObjSource := TValue.From<T>(Source).AsObject;
-             for PropName in AProperties do
-             begin
-               Prop := Typ.GetProperty(PropName);
-               if Prop <> nil then
-               begin
-                 Val := Prop.GetValue(ObjSource);
-                 if Prop.IsWritable then
-                   Prop.SetValue(ObjDest, Val);
-               end;
-             end;
-             Result := TValue.From<TObject>(ObjDest).AsType<T>;
-           except
-             ObjDest.Free; // Free on error
-             raise;
-           end;
-        end
-        else
-          Result := Source; // Non-class types are returned as-is
-      finally
-        Ctx.Free;
-      end;
+      Typ := TReflection.Context.GetType(TypeInfo(T));
+      if Typ.IsInstance then
+      begin
+        ObjDest := Typ.AsInstance.MetaclassType.Create;
+        try
+          ObjSource := TValue.From<T>(Source).AsObject;
+          for PropName in AProperties do
+          begin
+            Prop := Typ.GetProperty(PropName);
+            if Prop <> nil then
+            begin
+              Val := Prop.GetValue(ObjSource);
+              if Prop.IsWritable then
+                Prop.SetValue(ObjDest, Val);
+            end;
+          end;
+          Result := TValue.From<TObject>(ObjDest).AsType<T>;
+        except
+          ObjDest.Free;
+          raise;
+        end;
+      end
+      else
+        Result := Source;
     end);
 end;
 
@@ -995,13 +985,11 @@ var
 begin
   OuterSelector := TFunc<T, TKey>(function(const Item: T): TKey
     var
-      Ctx: TRttiContext;
       Obj: TObject;
       Prop: TRttiProperty;
     begin
       Obj := TValue.From<T>(Item).AsObject;
-      Ctx := TRttiContext.Create;
-      Prop := Ctx.GetType(Obj.ClassType).GetProperty(AOuterKeyProp);
+      Prop := TReflection.Context.GetType(Obj.ClassType).GetProperty(AOuterKeyProp);
       if Prop = nil then
         raise Exception.CreateFmt('Property "%s" not found on outer type', [AOuterKeyProp]);
       Result := Prop.GetValue(Obj).AsType<TKey>;
@@ -1009,13 +997,11 @@ begin
     
   InnerSelector := TFunc<TInner, TKey>(function(const Item: TInner): TKey
     var
-      Ctx: TRttiContext;
       Obj: TObject;
       Prop: TRttiProperty;
     begin
       Obj := TValue.From<TInner>(Item).AsObject;
-      Ctx := TRttiContext.Create;
-      Prop := Ctx.GetType(Obj.ClassType).GetProperty(AInnerKeyProp);
+      Prop := TReflection.Context.GetType(Obj.ClassType).GetProperty(AInnerKeyProp);
       if Prop = nil then
         raise Exception.CreateFmt('Property "%s" not found on inner type', [AInnerKeyProp]);
       Result := Prop.GetValue(Obj).AsType<TKey>;
@@ -1217,8 +1203,7 @@ begin
   
   if Prop = nil then
   begin
-    var Ctx := TRttiContext.Create;
-    var Typ := Ctx.GetType(TypeInfo(T));
+    var Typ := TReflection.Context.GetType(TypeInfo(T));
     if Typ <> nil then
       Prop := Typ.GetProperty(APropertyName);
   end;
@@ -1288,8 +1273,7 @@ begin
     
   if Prop = nil then
   begin
-    var Ctx := TRttiContext.Create;
-    var Typ := Ctx.GetType(TypeInfo(T));
+    var Typ := TReflection.Context.GetType(TypeInfo(T));
     if Typ <> nil then
       Prop := Typ.GetProperty(APropertyName);
   end;
@@ -1368,8 +1352,7 @@ begin
   
   if Prop = nil then
   begin
-    var Ctx := TRttiContext.Create;
-    var Typ := Ctx.GetType(TypeInfo(T));
+    var Typ := TReflection.Context.GetType(TypeInfo(T));
     if Typ <> nil then
       Prop := Typ.GetProperty(APropertyName);
   end;
@@ -1455,8 +1438,7 @@ begin
   
   if Prop = nil then
   begin
-    var Ctx := TRttiContext.Create;
-    var Typ := Ctx.GetType(TypeInfo(T));
+    var Typ := TReflection.Context.GetType(TypeInfo(T));
     if Typ <> nil then
       Prop := Typ.GetProperty(APropertyName);
   end;
@@ -1543,8 +1525,7 @@ begin
     
   if Prop = nil then
   begin
-    var Ctx := TRttiContext.Create;
-    var Typ := Ctx.GetType(TypeInfo(T));
+    var Typ := TReflection.Context.GetType(TypeInfo(T));
     if Typ <> nil then
       Prop := Typ.GetProperty(APropertyName);
   end;

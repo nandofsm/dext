@@ -1,4 +1,4 @@
-{***************************************************************************}
+﻿{***************************************************************************}
 {                                                                           }
 {           Dext Framework                                                  }
 {                                                                           }
@@ -565,15 +565,12 @@ end;
 
 procedure TEntityMap.DiscoverAttributes;
 var
-  Ctx: TRttiContext;
   Typ: TRttiType;
   Attr: TCustomAttribute;
   Prop: TRttiProperty;
   PropMap: TPropertyMap;
 begin
-  Ctx := TRttiContext.Create;
-  try
-    Typ := Ctx.GetType(FEntityType);
+  Typ := TReflection.Context.GetType(FEntityType);
     if Typ = nil then Exit;
 
     for Attr in Typ.GetAttributes do
@@ -783,9 +780,6 @@ begin
             PropMap.IsLazy := True;
       end;
     end;
-  finally
-    Ctx.Free;
-  end;
 end;
 
 destructor TEntityMap.Destroy;
@@ -1623,32 +1617,26 @@ end;
 function TModelBuilder.FindMapByDiscriminator(ABaseType: PTypeInfo; const AValue: Variant): TEntityMap;
 var
   Map: TEntityMap;
-  Ctx: TRttiContext;
   Typ, BaseTyp: TRttiType;
   LList: TArray<TEntityMap>;
 begin
   Result := nil;
   LList := GetMaps; // Thread-safe snapshot
   
-  Ctx := TRttiContext.Create;
-  try
-    BaseTyp := Ctx.GetType(ABaseType);
-    if BaseTyp = nil then Exit;
+  BaseTyp := TReflection.Context.GetType(ABaseType);
+  if BaseTyp = nil then Exit;
     
-    for Map in LList do
+  for Map in LList do
+  begin
+    if (Map.DiscriminatorValue <> Null) and (Map.DiscriminatorValue = AValue) then
     begin
-      if (Map.DiscriminatorValue <> Null) and (Map.DiscriminatorValue = AValue) then
-      begin
-         Typ := Ctx.GetType(Map.EntityType);
-         if (Typ <> nil) and (Typ is TRttiInstanceType) and (BaseTyp is TRttiInstanceType) then
-         begin
-           if TRttiInstanceType(Typ).MetaclassType.InheritsFrom(TRttiInstanceType(BaseTyp).MetaclassType) then
-             Exit(Map);
-         end;
-      end;
+       Typ := TReflection.Context.GetType(Map.EntityType);
+       if (Typ <> nil) and (Typ is TRttiInstanceType) and (BaseTyp is TRttiInstanceType) then
+       begin
+         if TRttiInstanceType(Typ).MetaclassType.InheritsFrom(TRttiInstanceType(BaseTyp).MetaclassType) then
+           Exit(Map);
+       end;
     end;
-  finally
-    Ctx.Free;
   end;
 end;
 

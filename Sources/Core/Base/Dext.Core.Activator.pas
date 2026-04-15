@@ -76,7 +76,6 @@ type
     /// <summary>Returns the global shared RTTI context.</summary>
     class function GetRttiContext: TRttiContext;
   private
-    class var FRttiContext: TRttiContext;
     class var FDefaultImplementations: IDictionary<TClass, TClass>;
     class var FInterfaceDefaultImpl: IDictionary<PTypeInfo, TClass>;
     class constructor Create;
@@ -88,13 +87,13 @@ type
 implementation
 
 uses
-  System.Classes;
+  System.Classes,
+  Dext.Core.Reflection;
 
 { TActivator }
 
 class constructor TActivator.Create;
 begin
-  FRttiContext := TRttiContext.Create;
   FDefaultImplementations := TCollections.CreateDictionary<TClass, TClass>;
   FInterfaceDefaultImpl := TCollections.CreateDictionary<PTypeInfo, TClass>;
   // Default framework mappings
@@ -103,14 +102,13 @@ end;
 
 class destructor TActivator.Destroy;
 begin
-  FRttiContext.Free;
   FDefaultImplementations := nil;
   FInterfaceDefaultImpl := nil;
 end;
 
 class function TActivator.GetRttiContext: TRttiContext;
 begin
-  Result := FRttiContext;
+  Result := TReflection.Context;
 end;
 
 class procedure TActivator.RegisterDefault(ABase: TClass; AImpl: TClass);

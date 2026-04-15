@@ -427,9 +427,17 @@ begin
        else if AValue.TypeInfo = TypeInfo(TTime) then
          Result := TimeToStr(AValue.AsType<TTime>)
        else if AValue.TypeInfo = TypeInfo(TGUID) then
-         Result := GUIDToString(AValue.AsType<TGUID>)
+       begin
+         var G: TGUID;
+         AValue.ExtractRawData(@G);
+         Result := GUIDToString(G);
+       end
        else if AValue.TypeInfo = TypeInfo(TUUID) then
-         Result := AValue.AsType<TUUID>.ToString
+       begin
+         var U: TUUID;
+         AValue.ExtractRawData(@U);
+         Result := U.ToString;
+       end
        else
          Result := AValue.ToString;
        Exit;

@@ -92,8 +92,10 @@ begin
   Services.AddLogging(
     procedure(Builder: ILoggingBuilder)
     begin
-      Builder.AddConsole;
-      Builder.SetMinimumLevel(TLogLevel.Debug);
+        Builder
+          .SetMinimumLevel(TLogLevel.Debug)
+          .AddConsole
+          .AddTelemetry;
     end);
 
   { --- Standard Dext Scoped DbContext with Physical SQLite DB --- }

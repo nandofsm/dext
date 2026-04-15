@@ -57,8 +57,6 @@ type
   ///   Bridge that routes telemetry events to the logging system.
   /// </summary>
   TLoggingTelemetryObserver = class(TInterfacedObject, ITelemetryObserver)
-  private class var
-    FIsSubscribed: Boolean;
   private
     FLogger: ILogger;
   public

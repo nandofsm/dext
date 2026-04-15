@@ -47,6 +47,9 @@ type
   end;
 
 implementation
+    
+uses
+  Dext.Core.Reflection;
 
 type
   TEvaluatorVisitor = class(TInterfacedObject, IExpressionVisitor)
@@ -54,7 +57,6 @@ type
     FObject: TObject;
     FDict: TDictionary<string, Variant>;
     FResult: Boolean;
-    FCtx: TRttiContext;
     
     function GetPropertyValue(const APropertyName: string): TValue;
     function ResolveValue(const AExpression: IExpression): TValue;
@@ -105,14 +107,12 @@ constructor TEvaluatorVisitor.Create(AObject: TObject);
 begin
   FObject := AObject;
   FDict := nil;
-  FCtx := TRttiContext.Create;
 end;
 
 constructor TEvaluatorVisitor.Create(ADict: TDictionary<string, Variant>);
 begin
   FObject := nil;
   FDict := ADict;
-  FCtx := TRttiContext.Create;
 end;
 
 function TEvaluatorVisitor.GetPropertyValue(const APropertyName: string): TValue;
@@ -132,7 +132,7 @@ begin
   end
   else if FObject <> nil then
   begin
-    Typ := FCtx.GetType(FObject.ClassType);
+    Typ := TReflection.Context.GetType(FObject.ClassType);
     Prop := Typ.GetProperty(APropertyName);
     
     if Prop = nil then
@@ -173,7 +173,7 @@ begin
   // Unwrap Smart Types (Prop<T>)
   if (Val.Kind = tkRecord) and string(Val.TypeInfo.Name).StartsWith('Prop<') then
   begin
-    var ValueField := FCtx.GetType(Val.TypeInfo).GetField('FValue');
+    var ValueField := TReflection.Context.GetType(Val.TypeInfo).GetField('FValue');
     if ValueField <> nil then
       Val := ValueField.GetValue(Val.GetReferenceToRawData);
   end;

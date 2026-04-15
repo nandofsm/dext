@@ -12,6 +12,7 @@ uses
   Dext.OpenAPI.Types,
   Dext.OpenAPI.Attributes,
   Dext.Web.Interfaces,
+  Dext.Core.Reflection,
   Dext.Json;
 
 type
@@ -522,7 +523,6 @@ end;
 
 function TOpenAPIGenerator.GetSchemaName(ATypeInfo: PTypeInfo): string;
 var
-  Ctx: TRttiContext;
   Typ: TRttiType;
   Attr: TCustomAttribute;
 begin
@@ -531,69 +531,63 @@ begin
     Result := Result.Substring(1); // Standard Delphi convention TUser -> User
     
   // Check for override
-  Ctx := TRttiContext.Create;
-  try
-    Typ := Ctx.GetType(ATypeInfo);
-    if Assigned(Typ) then
+  Typ := TReflection.Context.GetType(ATypeInfo);
+  if Assigned(Typ) then
+  begin
+    for Attr in Typ.GetAttributes do
     begin
-      for Attr in Typ.GetAttributes do
+      if Attr is SwaggerSchemaAttribute then
       begin
-        if Attr is SwaggerSchemaAttribute then
-        begin
-          if SwaggerSchemaAttribute(Attr).Title <> '' then
-            Exit(SwaggerSchemaAttribute(Attr).Title);
-        end;
+        if SwaggerSchemaAttribute(Attr).Title <> '' then
+          Exit(SwaggerSchemaAttribute(Attr).Title);
       end;
     end;
-  finally
-    Ctx.Free;
   end;
 end;
 
 function TOpenAPIGenerator.TypeToSchema(ATypeInfo: PTypeInfo): TOpenAPISchema;
 var
-  RttiContext: TRttiContext;
+  SchemaName: string;
+  DefinitionSchema: TOpenAPISchema;
+  PropName: string;
   RttiType: TRttiType;
   Field: TRttiField;
   Prop: TRttiProperty;
   FieldSchema: TOpenAPISchema;
   ArrayType: TRttiDynamicArrayType;
   ElementType: TRttiType;
-  SchemaName: string;
-  DefinitionSchema: TOpenAPISchema;
-  PropName: string;
+  LTypeName: string;
+  ValueProp: TRttiProperty;
+  ValueField: TRttiField;
+  ShouldIgnore: Boolean;
+  Attr: TCustomAttribute;
 begin
   // Handle complex types (Record/Class) with References
   if (ATypeInfo.Kind in [tkRecord, tkMRecord, tkClass]) then
   begin
     // Special handling for Dext Smart Types (Prop<T>) - Unwrap value
-    var LTypeName := string(ATypeInfo.Name);
+    LTypeName := string(ATypeInfo.Name);
     if (ATypeInfo.Kind in [tkRecord, tkMRecord]) and 
        (LTypeName.Contains('Prop<')) then
     begin
-      RttiContext := TRttiContext.Create;
-      try
-        RttiType := RttiContext.GetType(ATypeInfo);
-        if Assigned(RttiType) then
+      RttiType := TReflection.Context.GetType(ATypeInfo);
+      if Assigned(RttiType) then
+      begin
+        // For SmartTypes, we want to return the schema of the inner 'Value' property/field
+        ValueProp := RttiType.GetProperty('Value');
+        if Assigned(ValueProp) then
         begin
-          // For SmartTypes, we want to return the schema of the inner 'Value' property/field
-          var ValueProp := RttiType.GetProperty('Value');
-          if Assigned(ValueProp) then
-          begin
-            Result := TypeToSchema(ValueProp.PropertyType.Handle);
-            Exit;
-          end;
-          
-          // Fallback to FValue field if property not found
-          var ValueField := RttiType.GetField('FValue');
-          if Assigned(ValueField) then
-          begin
-            Result := TypeToSchema(ValueField.FieldType.Handle);
-            Exit;
-          end;
+          Result := TypeToSchema(ValueProp.PropertyType.Handle);
+          Exit;
         end;
-      finally
-        RttiContext.Free;
+        
+        // Fallback to FValue field if property not found
+        ValueField := RttiType.GetField('FValue');
+        if Assigned(ValueField) then
+        begin
+          Result := TypeToSchema(ValueField.FieldType.Handle);
+          Exit;
+        end;
       end;
     end;
 
@@ -627,65 +621,60 @@ begin
     FDefinitions.Add(SchemaName, DefinitionSchema);
     
     // Now populate the definition (recursively)
-    RttiContext := TRttiContext.Create;
-    try
-      RttiType := RttiContext.GetType(ATypeInfo);
-      if Assigned(RttiType) then
+    RttiType := TReflection.Context.GetType(ATypeInfo);
+    if Assigned(RttiType) then
+    begin
+      ProcessTypeAttributes(RttiType, DefinitionSchema);
+      
+      // Fields
+      for Field in RttiType.GetFields do
       begin
-        ProcessTypeAttributes(RttiType, DefinitionSchema);
-        
-        // Fields
-        for Field in RttiType.GetFields do
+        if Field.Visibility in [mvPublic, mvPublished] then
         begin
-          if Field.Visibility in [mvPublic, mvPublished] then
-          begin
-            var ShouldIgnore: Boolean;
-            FieldSchema := TypeToSchema(Field.FieldType.Handle);
-            ProcessFieldAttributes(Field, FieldSchema, ShouldIgnore);
-            
-            PropName := Field.Name;
-            for var Attr in Field.GetAttributes do
-              if Attr is SwaggerPropertyAttribute then
-                   if SwaggerPropertyAttribute(Attr).Name <> '' then
-                      PropName := SwaggerPropertyAttribute(Attr).Name;
+          ShouldIgnore := False;
+          FieldSchema := TypeToSchema(Field.FieldType.Handle);
+          ProcessFieldAttributes(Field, FieldSchema, ShouldIgnore);
+          
+          PropName := Field.Name;
+          for Attr in Field.GetAttributes do
+            if Attr is SwaggerPropertyAttribute then
+                 if SwaggerPropertyAttribute(Attr).Name <> '' then
+                    PropName := SwaggerPropertyAttribute(Attr).Name;
 
-            if (not ShouldIgnore) and (not DefinitionSchema.Properties.ContainsKey(PropName)) then
-              DefinitionSchema.Properties.Add(PropName, FieldSchema)
-            else
-              FieldSchema.Free;
-          end;
+          if (not ShouldIgnore) and (not DefinitionSchema.Properties.ContainsKey(PropName)) then
+            DefinitionSchema.Properties.Add(PropName, FieldSchema)
+          else
+            FieldSchema.Free;
         end;
-        
-        // Properties
-        if ATypeInfo.Kind = tkClass then
+      end;
+      
+      // Properties
+      if ATypeInfo.Kind = tkClass then
+      begin
+        for Prop in RttiType.GetProperties do
         begin
-          for Prop in RttiType.GetProperties do
+          if (Prop.Visibility in [mvPublic, mvPublished]) and Prop.IsReadable then
           begin
-            if (Prop.Visibility in [mvPublic, mvPublished]) and Prop.IsReadable then
-            begin
-               var ShouldIgnore: Boolean;
-               
-               PropName := Prop.Name;
-               for var Attr in Prop.GetAttributes do
-                  if Attr is SwaggerPropertyAttribute then
-                       if SwaggerPropertyAttribute(Attr).Name <> '' then
-                          PropName := SwaggerPropertyAttribute(Attr).Name;
+             ShouldIgnore := False;
+             
+             PropName := Prop.Name;
+             for Attr in Prop.GetAttributes do
+                if Attr is SwaggerPropertyAttribute then
+                     if SwaggerPropertyAttribute(Attr).Name <> '' then
+                        PropName := SwaggerPropertyAttribute(Attr).Name;
 
-               if not DefinitionSchema.Properties.ContainsKey(PropName) then
-               begin
-                  FieldSchema := TypeToSchema(Prop.PropertyType.Handle);
-                  ProcessFieldAttributes(Prop, FieldSchema, ShouldIgnore);
-                  if not ShouldIgnore then
-                    DefinitionSchema.Properties.Add(PropName, FieldSchema)
-                  else
-                    FieldSchema.Free;
-               end;
-            end;
+             if not DefinitionSchema.Properties.ContainsKey(PropName) then
+             begin
+                FieldSchema := TypeToSchema(Prop.PropertyType.Handle);
+                ProcessFieldAttributes(Prop, FieldSchema, ShouldIgnore);
+                if not ShouldIgnore then
+                  DefinitionSchema.Properties.Add(PropName, FieldSchema)
+                else
+                  FieldSchema.Free;
+             end;
           end;
         end;
       end;
-    finally
-      RttiContext.Free;
     end;
     
     // Return reference to the newly created definition
@@ -753,18 +742,13 @@ begin
     tkDynArray:
     begin
       Result.DataType := odtArray;
-      RttiContext := TRttiContext.Create;
-      try
-        RttiType := RttiContext.GetType(ATypeInfo);
-        if Assigned(RttiType) and (RttiType is TRttiDynamicArrayType) then
-        begin
-          ArrayType := TRttiDynamicArrayType(RttiType);
-          ElementType := ArrayType.ElementType;
-          if Assigned(ElementType) then
-            Result.Items := TypeToSchema(ElementType.Handle);
-        end;
-      finally
-        RttiContext.Free;
+      RttiType := TReflection.Context.GetType(ATypeInfo);
+      if Assigned(RttiType) and (RttiType is TRttiDynamicArrayType) then
+      begin
+        ArrayType := TRttiDynamicArrayType(RttiType);
+        ElementType := ArrayType.ElementType;
+        if Assigned(ElementType) then
+          Result.Items := TypeToSchema(ElementType.Handle);
       end;
     end;
   end;

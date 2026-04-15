@@ -263,6 +263,7 @@ implementation
 
 uses
   System.Variants,
+  Dext.Core.Reflection,
   Dext.Core.ValueConverters,
   Dext.Json;
 
@@ -311,7 +312,7 @@ var
   Guid: TGUID;
   U: TUUID;
 begin
-  Guid := AValue.AsType<TGUID>;
+  AValue.ExtractRawData(@Guid);
   // Convert to TUUID for proper Big-Endian string representation (no braces)
   U := TUUID.FromGUID(Guid);
   Result := U.ToString; // Returns 'xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx' (lowercase, no braces)
@@ -331,7 +332,7 @@ begin
   else if AValue.TypeInfo = TypeInfo(TGUID) then
   begin
     // FireDAC returns TGUID directly - use as-is (byte-order is consistent)
-    Guid := AValue.AsType<TGUID>;
+    AValue.ExtractRawData(@Guid);
     if FSwapEndianness then
       Guid := DoSwap(Guid);
     TValue.Make(@Guid, TypeInfo(TGUID), Result);
@@ -381,7 +382,7 @@ function TUuidConverter.ToDatabase(const AValue: TValue; ADialect: TDatabaseDial
 var
   U: TUUID;
 begin
-  U := AValue.AsType<TUUID>;
+  AValue.ExtractRawData(@U);
   Result := U.ToString; // Canonical string
 end;
 
@@ -401,7 +402,7 @@ begin
   begin
     // FireDAC returns TGUID when reading PostgreSQL uuid columns
     // The raw bytes in TGUID memory are correct (Big-Endian) - extract them directly
-    G := AValue.AsType<TGUID>;
+    AValue.ExtractRawData(@G);
     Move(G, Bytes[0], 16);
     // Format as canonical UUID string from raw bytes
     GuidStr := LowerCase(Format('%2.2x%2.2x%2.2x%2.2x-%2.2x%2.2x-%2.2x%2.2x-%2.2x%2.2x-%2.2x%2.2x%2.2x%2.2x%2.2x%2.2x',
@@ -835,7 +836,6 @@ end;
 
 function TPropConverter.CanConvert(ATypeInfo: PTypeInfo): Boolean;
 var
-  Ctx: TRttiContext;
   Typ: TRttiType;
   TypeName: string;
 begin
@@ -853,54 +853,42 @@ begin
     Exit(True);
 
   // Fallback for aliased types: look for FValue field
-  Ctx := TRttiContext.Create;
-  try
-    Typ := Ctx.GetType(ATypeInfo);
-    if (Typ <> nil) and (Typ.TypeKind = tkRecord) then
-      Result := Typ.GetField('FValue') <> nil;
-  finally
-    Ctx.Free;
-  end;
+  Typ := TReflection.Context.GetType(ATypeInfo);
+  if (Typ <> nil) and (Typ.TypeKind = tkRecord) then
+    Result := Typ.GetField('FValue') <> nil;
 end;
 
 function TPropConverter.ToDatabase(const AValue: TValue; ADialect: TDatabaseDialect): TValue;
 var
-  Ctx: TRttiContext;
   Typ: TRttiType;
   Field: TRttiField;
   ValPropType: PTypeInfo;
   InnerConverter: ITypeConverter;
 begin
   if AValue.IsEmpty then Exit(TValue.Empty);
-  Ctx := TRttiContext.Create;
-  try
-    Typ := Ctx.GetType(AValue.TypeInfo);
-    // Use Field 'FValue' instead of Property 'Value' to avoid potential RTTI property access issues on generic records
-    Field := Typ.GetField('FValue');
+  Typ := TReflection.Context.GetType(AValue.TypeInfo);
+  // Use Field 'FValue' instead of Property 'Value' to avoid potential RTTI property access issues on generic records
+  Field := Typ.GetField('FValue');
+  
+  if Field <> nil then
+  begin
+    ValPropType := Field.FieldType.Handle;
+    Result := Field.GetValue(AValue.GetReferenceToRawData);
     
-    if Field <> nil then
+    // Recursive conversion
+    if not Result.IsEmpty then
     begin
-      ValPropType := Field.FieldType.Handle;
-      Result := Field.GetValue(AValue.GetReferenceToRawData);
-      
-      // Recursive conversion
-      if not Result.IsEmpty then
-      begin
-        InnerConverter := TTypeConverterRegistry.Instance.GetConverter(ValPropType);
-        if InnerConverter <> nil then
-          Result := InnerConverter.ToDatabase(Result, ADialect);
-      end;
-    end
-    else
-      Result := AValue;
-  finally
-    Ctx.Free;
-  end;
+      InnerConverter := TTypeConverterRegistry.Instance.GetConverter(ValPropType);
+      if InnerConverter <> nil then
+        Result := InnerConverter.ToDatabase(Result, ADialect);
+    end;
+  end
+  else
+    Result := AValue;
 end;
 
 function TPropConverter.FromDatabase(const AValue: TValue; ATypeInfo: PTypeInfo): TValue;
 var
-  Ctx: TRttiContext;
   Typ: TRttiType;
   Field: TRttiField;
   ValPropType: PTypeInfo;
@@ -910,11 +898,9 @@ begin
   // Zero-init record memory to avoid garbage in managed interface/string fields
   FillChar(Result.GetReferenceToRawData^, ATypeInfo.TypeData.RecSize, 0);
   
-  Ctx := TRttiContext.Create;
-  try
-    Typ := Ctx.GetType(ATypeInfo);
-    Field := Typ.GetField('FValue');
-  
+  Typ := TReflection.Context.GetType(ATypeInfo);
+  Field := Typ.GetField('FValue');
+
   if Field <> nil then
   begin
     ValPropType := Field.FieldType.Handle;
@@ -929,23 +915,18 @@ begin
       
     Field.SetValue(Result.GetReferenceToRawData, UnwrappedValue);
   end;
-  finally
-    Ctx.Free;
-  end;
 end;
 
 { TStringsConverter }
 
 function TStringsConverter.CanConvert(ATypeInfo: PTypeInfo): Boolean;
 var
-  Ctx: TRttiContext;
   Typ: TRttiType;
 begin
   Result := False;
   if (ATypeInfo <> nil) and (ATypeInfo.Kind = tkClass) then
   begin
-    Ctx := TRttiContext.Create;
-    Typ := Ctx.GetType(ATypeInfo);
+    Typ := TReflection.Context.GetType(ATypeInfo);
     if Typ is TRttiInstanceType then
       Result := TRttiInstanceType(Typ).MetaclassType.InheritsFrom(TStrings);
   end;
@@ -962,7 +943,6 @@ end;
 function TStringsConverter.FromDatabase(const AValue: TValue; ATypeInfo: PTypeInfo): TValue;
 var
   Strings: TStrings;
-  Ctx: TRttiContext;
   Typ: TRttiType;
   LClass: TClass;
   LConstructor: TRttiMethod;
@@ -970,8 +950,7 @@ begin
   if AValue.IsEmpty or (AValue.ToString = '') then
     Exit(TValue.From<TStrings>(nil));
 
-  Ctx := TRttiContext.Create;
-  Typ := Ctx.GetType(ATypeInfo);
+  Typ := TReflection.Context.GetType(ATypeInfo);
   if Typ is TRttiInstanceType then
   begin
     LClass := TRttiInstanceType(Typ).MetaclassType;
@@ -981,7 +960,7 @@ begin
 
     // Use RTTI to find and call the constructor
     // We get the type of the concrete class to find its 'Create' method
-    LConstructor := Ctx.GetType(LClass).GetMethod('Create');
+    LConstructor := TReflection.Context.GetType(LClass).GetMethod('Create');
     if (LConstructor <> nil) and (LConstructor.IsConstructor) then
     begin
        Strings := LConstructor.Invoke(LClass, []).AsObject as TStrings;

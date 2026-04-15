@@ -189,7 +189,9 @@ uses
   Dext.Web.Results,
   Dext.Json.Utf8,
   Dext.Auth.Identity,
-  Dext.Collections.Base;
+  Dext.Collections.Base,
+  System.JSON,
+  Dext.Logging.Telemetry;
 
 { TDataApiOptions }
 
@@ -440,21 +442,15 @@ end;
 
 function TDataApiHandler.ResolvePropertyName(const ASnakeName: string): string;
 var
-  Ctx: TRttiContext;
   Typ: TRttiType;
   Prop: TRttiProperty;
 begin
   Result := '';
-  Ctx := TRttiContext.Create;
-  try
-    Typ := Ctx.GetType(FEntityClass);
-    for Prop in Typ.GetProperties do
-    begin
-       if SameText(Prop.Name, ASnakeName) then Exit(Prop.Name);
-       if SameText(ASnakeName.Replace('_', ''), Prop.Name) then Exit(Prop.Name);
-    end;
-  finally
-    Ctx.Free;
+  Typ := TReflection.Context.GetType(FEntityClass);
+  for Prop in Typ.GetProperties do
+  begin
+     if SameText(Prop.Name, ASnakeName) then Exit(Prop.Name);
+     if SameText(ASnakeName.Replace('_', ''), Prop.Name) then Exit(Prop.Name);
   end;
 end;
 
@@ -581,9 +577,20 @@ begin
       StringStream.Free;
     end;
 
-    Entity := TDextJson.Deserialize(FEntityClass.ClassInfo, JsonString, GetJsonSettings).AsObject;
+    var TelemetryPayload := TJSONObject.Create;
+    TelemetryPayload.AddPair('Entity', FEntityClass.ClassName);
+    TelemetryPayload.AddPair('Action', 'Deserialization');
+    TDiagnosticSource.Instance.Write('DataApi.ModelBinding.Start', TelemetryPayload, 'API');
+
+    var DeserializedValue := TDextJson.Deserialize(FEntityClass.ClassInfo, JsonString, GetJsonSettings);
+    Entity := DeserializedValue.AsObject;
     if Entity = nil then
       raise Exception.Create('Could not deserialize request body.');
+
+    var TelemetryComplete := TJSONObject.Create;
+    TelemetryComplete.AddPair('Entity', FEntityClass.ClassName);
+    TelemetryComplete.AddPair('Action', 'Tracking');
+    TDiagnosticSource.Instance.Write('DataApi.ModelBinding.Complete', TelemetryComplete, 'API');
 
     DbCtx.DataSet(FEntityClass.ClassInfo).Add(Entity);
     DbCtx.SaveChanges;
@@ -714,40 +721,34 @@ end;
 
 class procedure TDataApi.MapAll(const ABuilder: IApplicationBuilder);
 var
-  LContext: TRttiContext;
   LType: TRttiType;
   LAttr: DataApiAttribute;
   LPath: string;
 begin
-  LContext := TRttiContext.Create;
-  try
-    for LType in LContext.GetTypes do
+  for LType in TReflection.Context.GetTypes do
+  begin
+    if LType.IsInstance and (LType.AsInstance.MetaclassType <> nil) and 
+       not LType.Name.EndsWith('Helper') then
     begin
-      if LType.IsInstance and (LType.AsInstance.MetaclassType <> nil) and 
-         not LType.Name.EndsWith('Helper') then
+      LAttr := nil;
+      for var LAttribute in LType.GetAttributes do
       begin
-        LAttr := nil;
-        for var LAttribute in LType.GetAttributes do
+        if LAttribute.ClassName.Contains('DataApi') then
         begin
-          if LAttribute.ClassName.Contains('DataApi') then
-          begin
-            LAttr := DataApiAttribute(LAttribute);
-            Break;
-          end;
-        end;
-
-        if LAttr <> nil then
-        begin
-          LPath := LAttr.Route;
-          if LPath = '' then
-            LPath := TDataApiNaming.GetDefaultPath(LType.Handle);
-            
-          TDataApiHandler.Map(ABuilder, LType.AsInstance.MetaclassType, LPath, nil, nil);
+          LAttr := DataApiAttribute(LAttribute);
+          Break;
         end;
       end;
+
+      if LAttr <> nil then
+      begin
+        LPath := LAttr.Route;
+        if LPath = '' then
+          LPath := TDataApiNaming.GetDefaultPath(LType.Handle);
+          
+        TDataApiHandler.Map(ABuilder, LType.AsInstance.MetaclassType, LPath, nil, nil);
+      end;
     end;
-  finally
-    LContext.Free;
   end;
 end;
 

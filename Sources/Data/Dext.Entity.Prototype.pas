@@ -77,6 +77,7 @@ type
 implementation
 
 uses
+  Dext.Core.Reflection,
   Dext.Entity.Core,
   Dext.Entity.Mapping;
 
@@ -112,7 +113,6 @@ end;
 
 class function Prototype.CreatePrototype(ATypeInfo: PTypeInfo): TObject;
 var
-  Ctx: TRttiContext;
   Typ: TRttiType;
   PropInfo: IPropInfo;
   InstancePtr: Pointer;
@@ -120,46 +120,41 @@ var
   EntityMap: TEntityMap;
   PropMap: TPropertyMap;
 begin
-  Ctx := TRttiContext.Create;
-  try
-    Typ := Ctx.GetType(ATypeInfo);
-    if (Typ = nil) or (Typ.TypeKind <> tkClass) then
-      raise Exception.Create('Prototype.Entity<T> only supports class types.');
+  Typ := TReflection.Context.GetType(ATypeInfo);
+  if (Typ = nil) or (Typ.TypeKind <> tkClass) then
+    raise Exception.Create('Prototype.Entity<T> only supports class types.');
 
-    // Create Instance - Prefer default constructor if available
-    Result := Typ.AsInstance.MetaclassType.Create;
-    InstancePtr := Result;
+  // Create Instance - Prefer default constructor if available
+  Result := Typ.AsInstance.MetaclassType.Create;
+  InstancePtr := Result;
 
-    EntityMap := TModelBuilder.Instance.GetMap(ATypeInfo);
-    if EntityMap <> nil then
+  EntityMap := TModelBuilder.Instance.GetMap(ATypeInfo);
+  if EntityMap <> nil then
+  begin
+    for PropMap in EntityMap.Properties.Values do
     begin
-      for PropMap in EntityMap.Properties.Values do
+      // 1. Inject IPropInfo (Metadata for SQL generation)
+      // CRITICAL: We use MetadataOffset (FInfo interface) instead of FieldOffset (Boolean flag).
+      if PropMap.MetadataOffset <> -1 then
       begin
-        // 1. Inject IPropInfo (Metadata for SQL generation)
-        // CRITICAL: We use MetadataOffset (FInfo interface) instead of FieldOffset (Boolean flag).
-        if PropMap.MetadataOffset <> -1 then
-        begin
-          ColumnName := PropMap.ColumnName;
-          if ColumnName = '' then ColumnName := PropMap.PropertyName;
+        ColumnName := PropMap.ColumnName;
+        if ColumnName = '' then ColumnName := PropMap.PropertyName;
 
-          PropInfo := TPropInfo.Create(PropMap.ColumnName, PropMap.PropertyName);
-          // Manually AddRef since we're storing it in raw memory as a raw pointer
-          // This prevents the interface from being freed when this scope ends.
-          PropInfo._AddRef;
-          PPointer(NativeInt(InstancePtr) + PropMap.MetadataOffset)^ := Pointer(PropInfo);
-        end;
+        PropInfo := TPropInfo.Create(PropMap.ColumnName, PropMap.PropertyName);
+        // Manually AddRef since we're storing it in raw memory as a raw pointer
+        // This prevents the interface from being freed when this scope ends.
+        PropInfo._AddRef;
+        PPointer(NativeInt(InstancePtr) + PropMap.MetadataOffset)^ := Pointer(PropInfo);
+      end;
 
-        // 2. Inject Sub-Prototypes (Recursive Drill-down Support)
-        if (PropMap.FieldValueOffset <> -1) and (PropMap.PropertyType <> nil) and 
-           (PropMap.PropertyType.Kind = tkClass) then
-        begin
-           // We use the non-generic Entity call which handles the cache and recursion
-           PPointer(NativeInt(InstancePtr) + PropMap.FieldValueOffset)^ := Entity(PropMap.PropertyType);
-        end;
+      // 2. Inject Sub-Prototypes (Recursive Drill-down Support)
+      if (PropMap.FieldValueOffset <> -1) and (PropMap.PropertyType <> nil) and 
+         (PropMap.PropertyType.Kind = tkClass) then
+      begin
+         // We use the non-generic Entity call which handles the cache and recursion
+         PPointer(NativeInt(InstancePtr) + PropMap.FieldValueOffset)^ := Entity(PropMap.PropertyType);
       end;
     end;
-  finally
-    Ctx.Free;
   end;
 end;
 

@@ -47,6 +47,7 @@ uses
   Dext.Core.SmartTypes,
   Dext.Types.Nullable,
   Dext.Types.UUID,
+  Dext.Core.Reflection,
   Dext.Collections.Base;
 
 type
@@ -1434,7 +1435,6 @@ end;
 
 function ShouldObjectHelper.HaveProperty(const PropertyName: string): ShouldProperty;
 var
-  Ctx: TRttiContext;
   RttiType: TRttiType;
   Prop: TRttiProperty;
   Val: TValue;
@@ -1442,18 +1442,13 @@ begin
   if Self.FValue = nil then
     Self.Fail(Format('Cannot check property "%s" on nil object', [PropertyName]));
     
-  Ctx := TRttiContext.Create;
-  try
-    RttiType := Ctx.GetType(Self.FValue.ClassType);
-    Prop := RttiType.GetProperty(PropertyName);
-    if Prop = nil then
-      Self.Fail(Format('Object of type %s does not have property "%s"', [Self.FValue.ClassName, PropertyName]));
+  RttiType := TReflection.Context.GetType(Self.FValue.ClassType);
+  Prop := RttiType.GetProperty(PropertyName);
+  if Prop = nil then
+    Self.Fail(Format('Object of type %s does not have property "%s"', [Self.FValue.ClassName, PropertyName]));
 
-    Val := Prop.GetValue(Self.FValue);
-    Result := ShouldProperty.Create(Self, PropertyName, Val);
-  finally
-    Ctx.Free;
-  end;
+  Val := Prop.GetValue(Self.FValue);
+  Result := ShouldProperty.Create(Self, PropertyName, Val);
 end;
 
 (*
@@ -1468,7 +1463,6 @@ end;
 
 function ShouldObjectHelper.HavePropertyValue(const PropertyName: string; const ExpectedValue: TValue): ShouldObject;
 var
-  Ctx: TRttiContext;
   RttiType: TRttiType;
   Prop: TRttiProperty;
   Field: TRttiField;
@@ -1478,49 +1472,45 @@ begin
   if Self.FValue = nil then
     Self.Fail(Format('Cannot check property "%s" on nil object', [PropertyName]));
     
-  Ctx := TRttiContext.Create;
-  try
-    RttiType := Ctx.GetType(Self.FValue.ClassType);
-    
-    // Try property first
-    Prop := RttiType.GetProperty(PropertyName);
-    if Prop <> nil then
-    begin
-      ActualValue := Prop.GetValue(Self.FValue);
-    end
-    else
-    begin
-      // Try field with F prefix (for SmartTypes like FName, FAge)
-      Field := RttiType.GetField('F' + PropertyName);
-      if Field = nil then
-        Field := RttiType.GetField(PropertyName); // Try without prefix
-        
-      if Field = nil then
-        Self.Fail(Format('Object of type %s does not have property or field "%s"', 
-          [Self.FValue.ClassName, PropertyName]));
-          
-      ActualValue := Field.GetValue(Self.FValue);
+  RttiType := TReflection.Context.GetType(Self.FValue.ClassType);
+  
+  // Try property first
+  Prop := RttiType.GetProperty(PropertyName);
+  if Prop <> nil then
+  begin
+    ActualValue := Prop.GetValue(Self.FValue);
+  end
+  else
+  begin
+    // Try field with F prefix (for SmartTypes like FName, FAge)
+    Field := RttiType.GetField('F' + PropertyName);
+    if Field = nil then
+      Field := RttiType.GetField(PropertyName); // Try without prefix
       
-      // If it's a Prop<T> Smart Type, extract the inner FValue
-      if (ActualValue.Kind = tkRecord) and string(ActualValue.TypeInfo.Name).StartsWith('Prop<') then
-      begin
-        var RecType := Ctx.GetType(ActualValue.TypeInfo).AsRecord;
-        var ValueField := RecType.GetField('FValue');
-        if ValueField <> nil then
-          ActualValue := ValueField.GetValue(ActualValue.GetReferenceToRawData);
-      end;
+    if Field = nil then
+      Self.Fail(Format('Object of type %s does not have property or field "%s"', 
+        [Self.FValue.ClassName, PropertyName]));
+        
+    ActualValue := Field.GetValue(Self.FValue);
+    
+    // If it's a Prop<T> Smart Type, extract the inner FValue
+    if (ActualValue.Kind = tkRecord) and string(ActualValue.TypeInfo.Name).StartsWith('Prop<') then
+    begin
+      var RecType := TReflection.Context.GetType(ActualValue.TypeInfo).AsRecord;
+      var ValueField := RecType.GetField('FValue');
+      if ValueField <> nil then
+        ActualValue := ValueField.GetValue(ActualValue.GetReferenceToRawData);
     end;
-    
-    // Compare values using extracted strings
-    ActualStr := ActualValue.ToString;
-    ExpectedStr := ExpectedValue.ToString;
-    
-    if ActualStr <> ExpectedStr then
-      Self.Fail(Format('Property "%s" expected value "%s" but was "%s"', 
-        [PropertyName, ExpectedStr, ActualStr]));
-  finally
-    Ctx.Free;
   end;
+  
+  // Compare values using extracted strings
+  ActualStr := ActualValue.ToString;
+  ExpectedStr := ExpectedValue.ToString;
+  
+  if ActualStr <> ExpectedStr then
+    Self.Fail(Format('Property "%s" expected value "%s" but was "%s"', 
+      [PropertyName, ExpectedStr, ActualStr]));
+
   Result := Self;
 end;
 
@@ -1543,7 +1533,6 @@ end;
 function ShouldObjectHelper.HaveValue<T>(const PropertyMetadata: T;
   ExpectedValue: T): ShouldObject;
 var
-  Ctx: TRttiContext;
   RecType: TRttiRecordType;
   InfoField: TRttiField;
   MetaValue, InfoValue: TValue;
@@ -1551,32 +1540,27 @@ var
   PropName: string;
 begin
   // Use RTTI to extract property name from any Prop<T> SmartType
-  Ctx := TRttiContext.Create;
-  try
-    MetaValue := TValue.From<T>(PropertyMetadata);
-    
-    // Verify it's a Prop<T> record
-    if not string(MetaValue.TypeInfo.Name).StartsWith('Prop<') then
-      Self.Fail('HaveValue<T> requires a Smart Property type (Prop<T>).');
-    
-    RecType := Ctx.GetType(MetaValue.TypeInfo).AsRecord;
-    InfoField := RecType.GetField('FInfo');
-    
-    if InfoField = nil then
-      Self.Fail('HaveValue<T>: Could not find FInfo field in SmartType.');
-    
-    InfoValue := InfoField.GetValue(MetaValue.GetReferenceToRawData);
-    
-    if InfoValue.IsEmpty or (InfoValue.AsInterface = nil) then
-      Self.Fail('HaveValue<T> requires a Smart Property prototype (use Prototype.Entity<T>).');
-    
-    PropInfo := InfoValue.AsType<IPropInfo>;
-    PropName := PropInfo.PropertyName;
-    
-    Result := HavePropertyValue(PropName, TValue.From<T>(ExpectedValue));
-  finally
-    Ctx.Free;
-  end;
+  MetaValue := TValue.From<T>(PropertyMetadata);
+  
+  // Verify it's a Prop<T> record
+  if not string(MetaValue.TypeInfo.Name).StartsWith('Prop<') then
+    Self.Fail('HaveValue<T> requires a Smart Property type (Prop<T>).');
+  
+  RecType := TReflection.Context.GetType(MetaValue.TypeInfo).AsRecord;
+  InfoField := RecType.GetField('FInfo');
+  
+  if InfoField = nil then
+    Self.Fail('HaveValue<T>: Could not find FInfo field in SmartType.');
+  
+  InfoValue := InfoField.GetValue(MetaValue.GetReferenceToRawData);
+  
+  if InfoValue.IsEmpty or (InfoValue.AsInterface = nil) then
+    Self.Fail('HaveValue<T> requires a Smart Property prototype (use Prototype.Entity<T>).');
+  
+  PropInfo := InfoValue.AsType<IPropInfo>;
+  PropName := PropInfo.PropertyName;
+  
+  Result := HavePropertyValue(PropName, TValue.From<T>(ExpectedValue));
 end;
 
 { ShouldProperty }

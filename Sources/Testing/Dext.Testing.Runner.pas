@@ -207,7 +207,6 @@ type
   /// </summary>
   TTestRunner = class
   private
-    class var FContext: TRttiContext;
     class var FFixtures: IList<TTestFixtureInfo>;
     class var FSummary: TTestSummary;
     class var FFilter: TTestFilter;
@@ -455,7 +454,7 @@ uses
   Dext.Logging,
   Dext.Logging.Global,
   Dext.Testing.Report,
-  Dext.Types.UUID,
+  Dext.Core.Reflection,
   Dext.Utils;
 
 const
@@ -656,12 +655,7 @@ begin
   FFixtures.Clear;
   FSummary.Reset;
 
-  FContext := TRttiContext.Create;
-  try
-    DiscoverFixtures;
-  finally
-    // Context is kept for execution
-  end;
+  DiscoverFixtures;
 end;
 
 class procedure TTestRunner.DiscoverFixtures;
@@ -670,7 +664,7 @@ var
   Attr: TCustomAttribute;
   Fixture: TTestFixtureInfo;
 begin
-  for RttiType in FContext.GetTypes do
+  for RttiType in TReflection.Context.GetTypes do
   begin
     if not (RttiType is TRttiInstanceType) then
       Continue;
@@ -1024,7 +1018,7 @@ begin
     for SourceAttr in SourceAttrs do
     begin
       if SourceAttr.SourceType <> nil then
-        SourceType := FContext.GetType(SourceAttr.SourceType)
+        SourceType := TReflection.Context.GetType(SourceAttr.SourceType)
       else
         SourceType := Method.Parent;
 
@@ -1105,7 +1099,7 @@ begin
     for SourceAttr in SourceAttrs do
     begin
       if SourceAttr.SourceType <> nil then
-        SourceType := FContext.GetType(SourceAttr.SourceType)
+        SourceType := TReflection.Context.GetType(SourceAttr.SourceType)
       else
         SourceType := Method.Parent;
 
@@ -1751,7 +1745,6 @@ begin
   end;
 
   FListeners := nil;
-  FContext := Default(TRttiContext);
   FDiscoveryMode := False;
   FSelectedTests := nil;
 end;
@@ -1769,8 +1762,7 @@ begin
     if Fixture.FixtureClass = AClass then
       Exit;
 
-  FContext := TRttiContext.Create;
-  RttiType := FContext.GetType(AClass);
+  RttiType := TReflection.Context.GetType(AClass);
 
   if RttiType = nil then
   begin

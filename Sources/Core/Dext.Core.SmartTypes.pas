@@ -276,8 +276,9 @@ function GetSmartValue(const AValue: TValue; const ATypeName: string): string;
 implementation
 
 uses
+  Dext.Core.ValueConverters,
   Dext.Specifications.OrderBy,
-  Dext.Core.ValueConverters;
+  Dext.Types.UUID;
 
 { TPropInfo }
 
@@ -304,18 +305,29 @@ end;
 
 function GetSmartValue(const AValue: TValue; const ATypeName: string): string;
 var
-  Ctx: TRttiContext;
   RecType: TRttiRecordType;
   ValueField: TRttiField;
   InnerVal: TValue;
 begin
   // Check if it's a record type that might be Prop<T>
-  if (AValue.Kind = tkRecord) and ATypeName.StartsWith('Prop<') then
+  if AValue.Kind = tkRecord then
   begin
-    // It's a Smart Type - extract FValue field
-    Ctx := TRttiContext.Create;
-    try
-      RecType := Ctx.GetType(AValue.TypeInfo).AsRecord;
+    if SameText(ATypeName, 'TUUID') then
+    begin
+      var U: TUUID;
+      AValue.ExtractRawData(@U);
+      Exit(U.ToString);
+    end
+    else if SameText(ATypeName, 'TGUID') then
+    begin
+      var G: TGUID;
+      AValue.ExtractRawData(@G);
+      Exit(GUIDToString(G));
+    end
+    else if ATypeName.StartsWith('Prop<') then
+    begin
+      // It's a Smart Type - extract FValue field
+      RecType := TReflection.Context.GetType(AValue.TypeInfo).AsRecord;
       ValueField := RecType.GetField('FValue');
       if ValueField <> nil then
       begin
@@ -323,8 +335,6 @@ begin
         Result := InnerVal.ToString;
         Exit;
       end;
-    finally
-      Ctx.Free;
     end;
   end;
   // Default: use TValue.ToString
@@ -342,7 +352,7 @@ end;
 class function BooleanExpression.FromRuntime(const AValue: Boolean): BooleanExpression;
 begin
   Result.FRuntimeValue := AValue;
-  Result.FExpression := TConstantExpression.Create(AValue);
+  Result.FExpression := nil;
 end;
 
 class operator BooleanExpression.Implicit(const Value: BooleanExpression): Boolean;

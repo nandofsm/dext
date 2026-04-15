@@ -70,7 +70,7 @@ type
     FOwnsValue: Boolean; // Added flag
     
     procedure LoadValue;
-    procedure LoadManyToMany(Prop: TRttiProperty; const PropMap: TPropertyMap; const Ctx: TRttiContext);
+    procedure LoadManyToMany(Prop: TRttiProperty; const PropMap: TPropertyMap);
     
     // ILazy implementation
     function GetIsValueCreated: Boolean;
@@ -84,6 +84,7 @@ type
 implementation
 
 uses
+  Dext.Core.Reflection,
   Dext.Entity.Context;
 
 { Helper Functions }
@@ -91,7 +92,7 @@ uses
 /// <summary>
 ///   Unwraps Nullable<T> values and validates if FK is valid (non-zero for integers, non-empty for strings)
 /// </summary>
-function TryUnwrapAndValidateFK(var AValue: TValue; AContext: TRttiContext): Boolean;
+function TryUnwrapAndValidateFK(var AValue: TValue): Boolean;
 var
   Helper: TNullableHelper;
   Instance: Pointer;
@@ -131,7 +132,6 @@ end;
 
 class procedure TLazyInjector.Inject(AContext: IDbContext; AEntity: TObject);
 var
-  Ctx: TRttiContext;
   Typ: TRttiType;
   Field: TRttiField;
   Map: TEntityMap;
@@ -140,33 +140,26 @@ begin
   Map := TEntityMap(IDbContext(AContext).GetMapping(AEntity.ClassInfo));
   if Map = nil then Exit;
 
-  Ctx := TRttiContext.Create;
-  try
-    Typ := Ctx.GetType(AEntity.ClassType);
-    if Typ = nil then Exit;
+  Typ := TReflection.Context.GetType(AEntity.ClassType);
+  if Typ = nil then Exit;
 
-    // 1. Handle Explicit Lazy<T> (Attributes or Implicit)
-    for Field in Typ.GetFields do
+  // 1. Handle Explicit Lazy<T> (Attributes or Implicit)
+  for Field in Typ.GetFields do
+  begin
+    // Use Contains to handle qualified names like Dext.Types.Lazy.Lazy<T>
+    if (Field.FieldType.TypeKind = tkRecord) and Field.FieldType.Name.Contains('Lazy<') then
     begin
-      // Use Contains to handle qualified names like Dext.Types.Lazy.Lazy<T>
-      if (Field.FieldType.TypeKind = tkRecord) and Field.FieldType.Name.Contains('Lazy<') then
-      begin
-        InjectField(AContext, AEntity, Field);
-      end;
+      InjectField(AContext, AEntity, Field);
     end;
-    
-    // 2. Handle Fluent Mapping IsLazy (For future Auto-Proxies)
-    for PropMap in Map.Properties.Values do
+  end;
+  
+  // 2. Handle Fluent Mapping IsLazy (For future Auto-Proxies)
+  for PropMap in Map.Properties.Values do
+  begin
+    if PropMap.IsLazy and not PropMap.PropertyName.StartsWith('Lazy<') then
     begin
-      if PropMap.IsLazy and not PropMap.PropertyName.StartsWith('Lazy<') then
-      begin
-        // If it's a class but not Lazy<T>, it's a candidate for Auto-Proxying
-        // For now, we only support Lazy<T> because Auto-Proxies require TClassProxy at instantiation time.
-        // But we can check if it's already a Proxy.
-      end;
+      // If it's a class but not Lazy<T>, it's a candidate for Auto-Proxying
     end;
-  finally
-    Ctx.Free;
   end;
 end;
 
@@ -294,40 +287,33 @@ end;
 
 function TLazyLoader.GetTargetType: PTypeInfo;
 var
-  Ctx: TRttiContext;
   Prop: TRttiProperty;
 begin
-  Ctx := TRttiContext.Create;
-  try
-    Prop := Ctx.GetType(FEntity.ClassType).GetProperty(FPropName);
-    if Prop <> nil then
+  Prop := TReflection.Context.GetType(FEntity.ClassType).GetProperty(FPropName);
+  if Prop <> nil then
+  begin
+    // Extract inner type from Lazy<T>
+    var TypeName := Prop.PropertyType.Name;
+    if TypeName.StartsWith('Lazy<') then
     begin
-      // Extract inner type from Lazy<T>
-      var TypeName := Prop.PropertyType.Name;
-      if TypeName.StartsWith('Lazy<') then
+      var StartPos := Pos('<', TypeName);
+      var EndPos := Pos('>', TypeName);
+      if (StartPos > 0) and (EndPos > StartPos) then
       begin
-        var StartPos := Pos('<', TypeName);
-        var EndPos := Pos('>', TypeName);
-        if (StartPos > 0) and (EndPos > StartPos) then
-        begin
-          var ItemTypeName := Copy(TypeName, StartPos + 1, EndPos - StartPos - 1);
-          var ItemType := Ctx.FindType(ItemTypeName);
-          if ItemType <> nil then
-            Exit(ItemType.Handle);
-        end;
+        var ItemTypeName := Copy(TypeName, StartPos + 1, EndPos - StartPos - 1);
+        var ItemType := TReflection.Context.FindType(ItemTypeName);
+        if ItemType <> nil then
+          Exit(ItemType.Handle);
       end;
-      Result := Prop.PropertyType.Handle;
-    end
-    else
-      Result := nil;
-  finally
-    Ctx.Free;
-  end;
+    end;
+    Result := Prop.PropertyType.Handle;
+  end
+  else
+    Result := nil;
 end;
 
 procedure TLazyLoader.LoadValue;
 var
-  Ctx: TRttiContext;
   Prop: TRttiProperty;
   FKName: string;
   Attr: TCustomAttribute;
@@ -359,13 +345,12 @@ var
 begin
   if FLoaded then Exit;
   
-  Ctx := TRttiContext.Create;
   try
     try
       if FIsCollection then
     begin
         // Load Collection
-        Prop := Ctx.GetType(FEntity.ClassType).GetProperty(FPropName);
+        Prop := TReflection.Context.GetType(FEntity.ClassType).GetProperty(FPropName);
         if Prop = nil then Exit;
         
         // Check if this is a Many-to-Many relationship
@@ -374,7 +359,7 @@ begin
         begin
           if (PropMap.Relationship = rtManyToMany) and (PropMap.JoinTableName <> '') then
           begin
-            LoadManyToMany(Prop, PropMap, Ctx);
+            LoadManyToMany(Prop, PropMap);
             FLoaded := True;
             Exit;
           end;
@@ -396,7 +381,7 @@ begin
         if (StartPos > 0) and (EndPos > StartPos) then
         begin
             ItemTypeName := Copy(TypeName, StartPos + 1, EndPos - StartPos - 1);
-            ItemType := Ctx.FindType(ItemTypeName);
+            ItemType := TReflection.Context.FindType(ItemTypeName);
             
             if ItemType <> nil then
             begin
@@ -462,14 +447,14 @@ begin
                              GenericTypeName := Copy(GenericTypeName, SPos + 1, EPos - SPos - 1);
                          end;
                          
-                         var IntfType := Ctx.FindType(GenericTypeName);
+                         var IntfType := TReflection.Context.FindType(GenericTypeName);
                          if IntfType <> nil then
                            AddMethod := IntfType.GetMethod('Add')
                          else
                            AddMethod := nil;
                       end
                       else
-                        AddMethod := Ctx.GetType(ListObj.ClassType).GetMethod('Add');
+                        AddMethod := TReflection.Context.GetType(ListObj.ClassType).GetMethod('Add');
                         
                       if AddMethod = nil then
                         Exit;
@@ -512,7 +497,7 @@ begin
                               var SPos := Pos('<', LTypeName);
                               var EPos := Length(LTypeName);
                               if (SPos > 0) then
-                                LIntfType := Ctx.FindType(Copy(LTypeName, SPos + 1, EPos - SPos - 1));
+                                LIntfType := TReflection.Context.FindType(Copy(LTypeName, SPos + 1, EPos - SPos - 1));
                            end
                            else
                               LIntfType := Prop.PropertyType;
@@ -522,10 +507,6 @@ begin
                               Supports(ListObj, TRttiInterfaceType(LIntfType).GUID, ListIntf) then
                            begin
                               TValue.Make(@ListIntf, LIntfType.Handle, FValue);
-                           end
-                           else
-                           begin
-                              FValue := TValue.From<IInterface>(ListIntf);
                            end;
                            FOwnsValue := False;
                         end
@@ -547,16 +528,16 @@ begin
     begin
         // Load Reference
         FKPropName := FPropName + 'Id';
-        FKProp := Ctx.GetType(FEntity.ClassType).GetProperty(FKPropName);
+        FKProp := TReflection.Context.GetType(FEntity.ClassType).GetProperty(FKPropName);
         
         if FKProp <> nil then
         begin
             FKVal := FKProp.GetValue(FEntity);
             
             // Unwrap Nullable<T> and validate FK value
-            if TryUnwrapAndValidateFK(FKVal, Ctx) then
+            if TryUnwrapAndValidateFK(FKVal) then
             begin
-                Prop := Ctx.GetType(FEntity.ClassType).GetProperty(FPropName);
+                Prop := TReflection.Context.GetType(FEntity.ClassType).GetProperty(FPropName);
                 TypeName := Prop.PropertyType.Name;
                 
                 // Extract inner type from Lazy<T>
@@ -567,7 +548,7 @@ begin
                   if (StartPos > 0) and (EndPos > StartPos) then
                   begin
                     ItemTypeName := Copy(TypeName, StartPos + 1, EndPos - StartPos - 1);
-                    ItemType := Ctx.FindType(ItemTypeName);
+                    ItemType := TReflection.Context.FindType(ItemTypeName);
                     if ItemType <> nil then
                       TargetType := ItemType.Handle
                     else
@@ -600,11 +581,11 @@ begin
     end;
   end;
 finally
-  Ctx.Free;
+  // Context is global
 end;
 end;
 
-procedure TLazyLoader.LoadManyToMany(Prop: TRttiProperty; const PropMap: TPropertyMap; const Ctx: TRttiContext);
+procedure TLazyLoader.LoadManyToMany(Prop: TRttiProperty; const PropMap: TPropertyMap);
 var
   AddMethod: TRttiMethod;
   Cmd: IDbCommand;
@@ -662,14 +643,14 @@ begin
     if (StartPos > 0) then
     begin
         SearchName := Copy(TypeName, StartPos + 1, EndPos - StartPos - 1);
-        IntfType := Ctx.FindType(SearchName);
+        IntfType := TReflection.Context.FindType(SearchName);
     end;
   end;
 
   if (IntfType = nil) and (SearchName <> '') then 
   begin
     // Robust fallback: search all types for matching name or qualified name
-    for var T in Ctx.GetTypes do
+    for var T in TReflection.Context.GetTypes do
        if (T.TypeKind = tkInterface) and (SameText(T.Name, SearchName) or SameText(T.QualifiedName, SearchName)) then
        begin
           IntfType := T;
@@ -687,11 +668,11 @@ begin
      if (StartPos > 0) and (EndPos > StartPos) then
      begin
         ItemTypeName := Copy(IntfName, StartPos + 1, EndPos - StartPos - 1);
-        ItemType := Ctx.FindType(ItemTypeName);
+        ItemType := TReflection.Context.FindType(ItemTypeName);
         
         if ItemType = nil then
         begin
-          for var T in Ctx.GetTypes do
+          for var T in TReflection.Context.GetTypes do
             if SameText(T.Name, ItemTypeName) or SameText(T.QualifiedName, ItemTypeName) then
             begin
                ItemType := T;
@@ -802,7 +783,7 @@ begin
     end
     else
     begin
-       var ListRtti := Ctx.GetType(ListObj.ClassType);
+       var ListRtti := TReflection.Context.GetType(ListObj.ClassType);
        AddMethod := ListRtti.GetMethod('Add');
        if AddMethod = nil then
          for var m in ListRtti.GetMethods do

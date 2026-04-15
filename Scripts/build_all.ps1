@@ -1,0 +1,84 @@
+# build_all.ps1 - Orchestrates the build of the entire Dext Framework
+# Replaces build_framework.bat, build_framework_x64.bat, and build_framework_linux.bat.
+#
+# USAGE:
+#   .\build_all.ps1 [-Platform Win32|Win64|Linux64] [-Config Debug|Release] [-Clean]
+#
+# EXAMPLES:
+#   .\build_all.ps1                   # Win32 Debug (Default)
+#   .\build_all.ps1 -Platform Win64    # Win64 Debug
+#   .\build_all.ps1 -Platform Linux64  # Linux64 Debug
+#   .\build_all.ps1 -Config Release    # Win32 Release
+
+param(
+    [ValidateSet("Win32", "Win64", "Linux64")]
+    [string]$Platform = "Win32",
+    
+    [ValidateSet("Debug", "Release")]
+    [string]$Config = "Debug",
+    
+    [switch]$Clean
+)
+
+$PSScriptRoot = Split-Path -Parent $MyInvocation.MyCommand.Definition
+if (-not $PSScriptRoot) { $PSScriptRoot = Get-Location }
+
+# 1. Setup Environment from set_env.ps1
+$env:DEXT_PROJECT_TYPE = "Framework"
+. "$PSScriptRoot\set_env.ps1" -Platform $Platform -Config $Config
+
+Write-Host "==========================================" -ForegroundColor Cyan
+Write-Host "Building Dext Framework ($Platform $Config)" -ForegroundColor Cyan
+Write-Host "==========================================" -ForegroundColor Cyan
+
+# 2. Build via groupproj (Preferred for dependency order)
+$GroupProj = Join-Path $env:DEXT "Sources\DextFramework.groupproj"
+
+if (-not (Test-Path $GroupProj)) {
+    Write-Error "DextFramework.groupproj not found in Sources directory."
+    exit 1
+}
+
+if ($Clean) {
+    Write-Host "`n[CLEAN] Cleaning project group..." -ForegroundColor Yellow
+    msbuild "$GroupProj" /t:Clean /p:Configuration=$env:BUILD_CONFIG /p:Platform=$env:PLATFORM /v:minimal /nologo
+}
+
+Write-Host "`n[BUILD] Compiling project group..." -ForegroundColor Yellow
+$MSBuildArgs = @(
+    $GroupProj,
+    "/t:Build",
+    "/p:Configuration=$env:BUILD_CONFIG",
+    "/p:Platform=$env:PLATFORM",
+    "/p:DCC_DcuOutput=`"$env:OUTPUT_PATH`"",
+    "/p:DCC_BplOutput=`"$env:COMMON_BPL_OUTPUT`"",
+    "/p:DCC_DcpOutput=`"$env:COMMON_DCP_OUTPUT`"",
+    "/v:minimal",
+    "/nologo"
+)
+
+$Stopwatch = [System.Diagnostics.Stopwatch]::StartNew()
+& msbuild @MSBuildArgs
+$BuildExitCode = $LASTEXITCODE
+$Stopwatch.Stop()
+
+# 3. Post-Build: Rename CLI Tool if it exists in the output
+if ($BuildExitCode -eq 0) {
+    $DextToolExe = Join-Path $env:OUTPUT_PATH "DextTool.exe"
+    if (Test-Path $DextToolExe) {
+         Write-Host "`n[POST] Renaming DextTool.exe to dext.exe" -ForegroundColor Gray
+         Move-Item -Path $DextToolExe -Destination (Join-Path $env:OUTPUT_PATH "dext.exe") -Force
+    }
+}
+
+Write-Host "`n==========================================" -ForegroundColor Cyan
+if ($BuildExitCode -eq 0) {
+    Write-Host "BUILD SUCCESSFUL" -ForegroundColor Green
+    Write-Host "Time: $([math]::Round($Stopwatch.Elapsed.TotalSeconds, 1))s" -ForegroundColor Gray
+    Write-Host "Output: $env:OUTPUT_PATH" -ForegroundColor Gray
+} else {
+    Write-Host "BUILD FAILED" -ForegroundColor Red
+}
+Write-Host "==========================================" -ForegroundColor Cyan
+
+exit $BuildExitCode

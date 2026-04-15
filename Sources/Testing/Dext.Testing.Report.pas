@@ -187,7 +187,7 @@ constructor TJUnitReporter.Create;
 begin
   inherited Create;
   FTestSuites := TCollections.CreateList<TTestSuiteReport>(True);
-  FCurrentTestCases := TCollections.CreateList<TTestCaseReport>(True);
+  FCurrentTestCases := TCollections.CreateList<TTestCaseReport>(False);
 end;
 
 destructor TJUnitReporter.Destroy;
@@ -321,7 +321,7 @@ constructor TJsonReporter.Create;
 begin
   inherited Create;
   FTestSuites := TCollections.CreateList<TTestSuiteReport>(True);
-  FCurrentTestCases := TCollections.CreateList<TTestCaseReport>(True);
+  FCurrentTestCases := TCollections.CreateList<TTestCaseReport>(False);
 end;
 
 destructor TJsonReporter.Destroy;
@@ -415,7 +415,7 @@ end;
 constructor TSonarQubeReporter.Create;
 begin
   inherited Create;
-  FTestCases := TCollections.CreateList<TTestCaseReport>(True);
+  FTestCases := TCollections.CreateList<TTestCaseReport>(False);
 end;
 
 destructor TSonarQubeReporter.Destroy;
@@ -485,7 +485,7 @@ constructor TXUnitReporter.Create;
 begin
   inherited Create;
   FTestSuites := TCollections.CreateList<TTestSuiteReport>(True);
-  FCurrentTestCases := TCollections.CreateList<TTestCaseReport>(True);
+  FCurrentTestCases := TCollections.CreateList<TTestCaseReport>(False);
 end;
 
 destructor TXUnitReporter.Destroy;
@@ -581,7 +581,7 @@ constructor TTRXReporter.Create;
 begin
   inherited Create;
   FTestSuites := TCollections.CreateList<TTestSuiteReport>(True);
-  FCurrentTestCases := TCollections.CreateList<TTestCaseReport>(True);
+  FCurrentTestCases := TCollections.CreateList<TTestCaseReport>(False);
   System.SysUtils.CreateGUID(FRunId);
   FStartTime := Now;
   FRunName := 'Dext Test Run';
@@ -650,7 +650,7 @@ constructor THTMLReporter.Create;
 begin
   inherited Create;
   FTestSuites := TCollections.CreateList<TTestSuiteReport>(True);
-  FCurrentTestCases := TCollections.CreateList<TTestCaseReport>(True);
+  FCurrentTestCases := TCollections.CreateList<TTestCaseReport>(False);
   FReportTitle := 'Dext Test Report';
 end;
 

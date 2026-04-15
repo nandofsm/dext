@@ -146,8 +146,6 @@ type
     function Member(const APropName: string): IPropertyEntry;
   end;
 
-
-
   /// <summary>
   ///   TDbContext is the heart of the Dext ORM, implementing the Unit of Work pattern.
   ///   It manages the database connection, transactions, change tracking, and 
@@ -274,7 +272,7 @@ uses
 /// <summary>
 ///   Unwraps Nullable<T> values and validates if FK is valid (non-zero for integers, non-empty for strings)
 /// </summary>
-function TryUnwrapAndValidateFK(var AValue: TValue; AContext: TRttiContext): Boolean;
+function TryUnwrapAndValidateFK(var AValue: TValue): Boolean;
 var
   RType: TRttiType;
   TypeName: string;
@@ -288,7 +286,7 @@ begin
   // Handle Nullable<T> unwrapping
   if AValue.Kind = tkRecord then
   begin
-    RType := AContext.GetType(AValue.TypeInfo);
+    RType := TReflection.Context.GetType(AValue.TypeInfo);
     if RType <> nil then
     begin
       TypeName := RType.Name;
@@ -345,7 +343,6 @@ begin
     Result := True; // For other types like GUID, assume valid if not empty
 end;
 
-
 { TDbContext }
 
 type
@@ -367,7 +364,7 @@ begin
   FModelCache := TCollections.CreateDictionary<TClass, TModelBuilder>(True);
   // TLightweightMREW is a record
 end;
- 
+
  class destructor TDbContext.Destroy;
 begin
   FModelCache := nil;
@@ -545,15 +542,12 @@ end;
 
 procedure TDbContext.PreloadDbSets;
 var
-  ctx : TRttiContext;
   typ : TRttiType;
   props :  TArray<TRttiProperty>;
   Prop : TRttiProperty;
 begin
-   Ctx := TRttiContext.Create;
-   try
-     Typ := Ctx.GetType(self.classtype);
-     Props := Typ.GetProperties;
+   Typ := TReflection.Context.GetType(self.classtype);
+   Props := Typ.GetProperties;
      for Prop in Props do
      begin
        // ignore any properties that are [NotMapped].
@@ -587,12 +581,9 @@ begin
              finally
                Val := TValue.Empty;
              end;
-          end;
-        end;
-      end;
-   finally
-      Ctx.free;
-   end;
+         end;
+       end;
+     end;
 end;
 
 function TDbContext.GetMapping(AType: PTypeInfo): TObject;
@@ -753,27 +744,26 @@ begin
   ApplyTenantConfig(True);
   Nodes := TCollections.CreateList<TEntityNode>(True);
   Created := TCollections.CreateList<PTypeInfo>;
-  if FCache.Count = 0 then
-    PreloadDBSets;
+  try
+    if FCache.Count = 0 then
+      PreloadDBSets;
     
   // Ensure all entities registered in the ModelBuilder (via Fluent API or attributes) 
   // are also present in the cache for schema creation.
   for var Map in ModelBuilder.GetMaps do
     DataSet(Map.EntityType);
-  Ctx := TRttiContext.Create;
-  try
-    // 1. Build Dependency Graph
-    for Pair in FCache do
-    begin
-      if not Supports(Pair.Value, IDbSet, DbSet) then Continue;
-      
-      Node := TEntityNode.Create;
-      Node.TypeInfo := Pair.Key;
-      Node.DbSet := DbSet;
-      Nodes.Add(Node);
-      
-      // Analyze Dependencies
-      Typ := Ctx.GetType(Pair.Key);
+  // 1. Build Dependency Graph
+  for Pair in FCache do
+  begin
+    if not Supports(Pair.Value, IDbSet, DbSet) then Continue;
+    
+    Node := TEntityNode.Create;
+    Node.TypeInfo := Pair.Key;
+    Node.DbSet := DbSet;
+    Nodes.Add(Node);
+    
+    // Analyze Dependencies
+    Typ := TReflection.Context.GetType(Pair.Key);
       if Typ = nil then Continue;
       
       for Prop in Typ.GetProperties do
@@ -843,17 +833,12 @@ begin
             else
             begin
               // Fallback to Attribute or Naming Strategy if Mapping doesn't specify TableName
-              var RContext := TRttiContext.Create;
-              try
-                var RType := RContext.GetType(Node.TypeInfo);
-                if RType <> nil then
-                begin
-                  var TableAttr := RType.GetAttribute<TableAttribute>;
-                  if TableAttr <> nil then
-                    TableName := TableAttr.Name;
-                end;
-              finally
-                RContext.Free;
+              var RType := TReflection.Context.GetType(Node.TypeInfo);
+              if RType <> nil then
+              begin
+                var TableAttr := RType.GetAttribute<TableAttribute>;
+                if TableAttr <> nil then
+                  TableName := TableAttr.Name;
               end;
               
               if TableName = '' then
@@ -919,7 +904,6 @@ begin
   finally
     Created := nil;
     Nodes := nil;
-    Ctx.Free;
   end;
 end;
 
@@ -1109,7 +1093,6 @@ end;
 
 procedure TDbContext.ExecuteProcedure(const ADto: TObject);
 var
-  Ctx: TRttiContext;
   Typ: TRttiType;
   ProcAttr: StoredProcedureAttribute;
   ProcName: string;
@@ -1120,11 +1103,10 @@ var
   PropList: IList<TRttiProperty>;
   i: Integer;
 begin
-  Ctx := TRttiContext.Create;
   ParamNames := TCollections.CreateList<string>;
   PropList := TCollections.CreateList<TRttiProperty>;
   try
-    Typ := Ctx.GetType(ADto.ClassType);
+    Typ := TReflection.Context.GetType(ADto.ClassType);
     ProcAttr := Typ.GetAttribute<StoredProcedureAttribute>;
     if ProcAttr <> nil then
       ProcName := ProcAttr.Name
@@ -1172,7 +1154,6 @@ begin
   finally
     ParamNames := nil;
     PropList := nil;
-    Ctx.Free;
   end;
 end;
 
@@ -1313,17 +1294,12 @@ begin
   end
   else
   begin
-    var Ctx := TRttiContext.Create;
-    try
-      var Typ := Ctx.GetType(FEntity.ClassType);
-      var Prop := Typ.GetProperty(FPropName);
-      if Prop <> nil then
-        Result := Prop.GetValue(Pointer(FEntity))
-      else
-        Result := TValue.Empty;
-    finally
-      Ctx.Free;
-    end;
+    var Typ := TReflection.Context.GetType(FEntity.ClassType);
+    var Prop := Typ.GetProperty(FPropName);
+    if Prop <> nil then
+      Result := Prop.GetValue(Pointer(FEntity))
+    else
+      Result := TValue.Empty;
   end;
 end;
 
@@ -1338,17 +1314,12 @@ begin
   end
   else
   begin
-    var Ctx := TRttiContext.Create;
-    try
-      var Typ := Ctx.GetType(FEntity.ClassType);
-      var Prop := Typ.GetProperty(FPropName);
-      if Prop <> nil then
-      begin
-        Prop.SetValue(Pointer(FEntity), AValue);
-        SetIsModified(True);
-      end;
-    finally
-      Ctx.Free;
+    var Typ := TReflection.Context.GetType(FEntity.ClassType);
+    var Prop := Typ.GetProperty(FPropName);
+    if Prop <> nil then
+    begin
+      Prop.SetValue(Pointer(FEntity), AValue);
+      SetIsModified(True);
     end;
   end;
 end;
@@ -1386,7 +1357,6 @@ end;
 
 procedure TCollectionEntry.Load;
 var
-  Ctx: TRttiContext;
   Typ: TRttiType;
   Prop: TRttiProperty;
   Val: TValue;
@@ -1395,9 +1365,7 @@ var
   IsInterface: Boolean;
   ListType: TRttiType;
 begin
-  Ctx := TRttiContext.Create;
-  try
-    Typ := Ctx.GetType(FParent.ClassType);
+  Typ := TReflection.Context.GetType(FParent.ClassType);
   Prop := Typ.GetProperty(FPropName);
   if Prop = nil then
     raise Exception.CreateFmt('Property %s not found on %s', [FPropName, Typ.Name]);
@@ -1424,7 +1392,7 @@ begin
     if not Val.TryAsType<TObject>(ListObj) or (ListObj = nil) then
       raise Exception.Create('Collection must be initialized before loading.');
     
-    ListType := Ctx.GetType(ListObj.ClassType);
+    ListType := TReflection.Context.GetType(ListObj.ClassType);
   end;
   
   // Find Add method
@@ -1445,7 +1413,7 @@ begin
   
   // Find FK on Child pointing to Parent
   var FKName := '';
-  var ChildTyp := Ctx.GetType(ChildClass);
+  var ChildTyp := TReflection.Context.GetType(ChildClass);
   var CProp: TRttiProperty;
   var Attr: TCustomAttribute;
   
@@ -1517,10 +1485,7 @@ begin
       else
         AddMethod.Invoke(ListObj, [ChildObj]);
     end;
-  finally
-    Ctx.Free;
   end;
-end;
 
 { TReferenceEntry }
 
@@ -1534,7 +1499,6 @@ end;
 
 procedure TReferenceEntry.Load;
 var
-  Ctx: TRttiContext;
   Typ: TRttiType;
   Prop: TRttiProperty;
   ChildType: TRttiType;
@@ -1546,8 +1510,7 @@ var
   ChildObj: TObject;
   Attr: TCustomAttribute;
 begin
-  Ctx := TRttiContext.Create;
-  Typ := Ctx.GetType(FParent.ClassType);
+  Typ := TReflection.Context.GetType(FParent.ClassType);
   Prop := Typ.GetProperty(FPropName);
   if Prop = nil then
     raise Exception.CreateFmt('Property %s not found on %s', [FPropName, Typ.Name]);
@@ -1582,7 +1545,7 @@ begin
   FKVal := FKProp.GetValue(Pointer(FParent));
   
   // Unwrap Nullable<T> and validate FK value
-  if not TryUnwrapAndValidateFK(FKVal, Ctx) then Exit;
+  if not TryUnwrapAndValidateFK(FKVal) then Exit;
 
   
   // Find Child

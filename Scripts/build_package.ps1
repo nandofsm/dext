@@ -104,41 +104,11 @@ function Get-LatestDelphiVersion {
 function Initialize-DelphiEnvironment {
     param([string]$Version)
 
-    if ([string]::IsNullOrEmpty($Version)) {
-        $DelphiInfo = Get-LatestDelphiVersion
-        if ($null -eq $DelphiInfo) {
-            Write-Err "Could not auto-detect Delphi version"
-            exit 1
-        }
-        $Version = $DelphiInfo.Version
-        $DelphiPath = $DelphiInfo.RootDir
-    } else {
-        $DelphiPath = "C:\Program Files (x86)\Embarcadero\Studio\$Version"
-    }
-
-    $RSVars = Join-Path $DelphiPath "bin\rsvars.bat"
-    if (-not (Test-Path $RSVars)) {
-        Write-Err "rsvars.bat not found at: $RSVars"
-        exit 1
-    }
-
-    Write-Detail "  Delphi $Version at $DelphiPath"
-
-    # Execute rsvars.bat and capture environment variables
-    $tempFile = [System.IO.Path]::GetTempFileName()
-    cmd /c "`"$RSVars`" && set > `"$tempFile`"" 2>$null
-
-    Get-Content $tempFile | ForEach-Object {
-        if ($_ -match "^(.*?)=(.*)$") {
-            Set-Item -Path "env:$($matches[1])" -Value $matches[2]
-        }
-    }
-    Remove-Item $tempFile -ErrorAction SilentlyContinue
-
-    # Return version info for output path calculation
+    . "$ScriptDir\set_env.ps1" -DelphiVersion $Version -Platform $env:PLATFORM -Config $env:BUILD_CONFIG
+    
     return [PSCustomObject]@{
-        Version    = $Version
-        DelphiPath = $DelphiPath
+        Version    = $env:PRODUCT_VERSION
+        DelphiPath = $env:BDS
     }
 }
 

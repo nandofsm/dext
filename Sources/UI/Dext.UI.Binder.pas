@@ -90,7 +90,6 @@ type
     FDispatch: TProc<TMsg>;
     FBindings: IList<TBindingInfo>;
     FWirings: IList<TEventWiring>;
-    FContext: TRttiContext;
     FModel: Pointer; // Pointer to the current model instance
     
     procedure DiscoverBindings;
@@ -118,6 +117,7 @@ type
 implementation
 
 uses
+  Dext.Core.Reflection,
   System.Variants;
 
 { TMVUBinder<TModel, TMsg> }
@@ -129,7 +129,6 @@ begin
   FDispatch := ADispatch;
   FBindings := TCollections.CreateList<TBindingInfo>;
   FWirings := TCollections.CreateList<TEventWiring>;
-  FContext := TRttiContext.Create;
   
   DiscoverBindings;
   DiscoverEventsWiring;
@@ -138,7 +137,6 @@ end;
 destructor TMVUBinder<TModel, TMsg>.Destroy;
 begin
   // FWirings and FBindings are ARC
-  FContext.Free;
   inherited;
 end;
 
@@ -150,7 +148,7 @@ var
   Binding: TBindingInfo;
   Control: TControl;
 begin
-  RttiType := FContext.GetType(FFrame.ClassType);
+  RttiType := TReflection.Context.GetType(FFrame.ClassType);
   if RttiType = nil then Exit;
   
   for Field in RttiType.GetFields do
@@ -231,7 +229,7 @@ var
   Wiring: TEventWiring;
   Control: TControl;
 begin
-  RttiType := FContext.GetType(FFrame.ClassType);
+  RttiType := TReflection.Context.GetType(FFrame.ClassType);
   if RttiType = nil then Exit;
   
   for Field in RttiType.GetFields do
@@ -479,7 +477,7 @@ begin
   begin
     if CurrentValue.IsEmpty then Exit(TValue.Empty);
     
-    RttiType := FContext.GetType(CurrentValue.TypeInfo);
+    RttiType := TReflection.Context.GetType(CurrentValue.TypeInfo);
     if RttiType = nil then Exit(TValue.Empty);
 
     Instance := nil;
@@ -487,7 +485,7 @@ begin
     begin
       Instance := CurrentValue.AsObject;
       if Instance <> nil then
-        RttiType := FContext.GetType(Instance.ClassType);
+        RttiType := TReflection.Context.GetType(Instance.ClassType);
     end;
 
     // Try field
@@ -534,7 +532,7 @@ begin
   begin
     // Fast path for top-level properties
     CurrentValue := TValue.From<TModel>(Model);
-    RttiType := FContext.GetType(CurrentValue.TypeInfo);
+    RttiType := TReflection.Context.GetType(CurrentValue.TypeInfo);
     if RttiType = nil then Exit;
 
     Instance := nil;
@@ -562,7 +560,7 @@ begin
   CurrentValue := TValue.From<TModel>(Model);
   for I := 0 to High(Parts) - 1 do
   begin
-    RttiType := FContext.GetType(CurrentValue.TypeInfo);
+    RttiType := TReflection.Context.GetType(CurrentValue.TypeInfo);
     if RttiType = nil then Exit;
     
     Instance := nil;
@@ -584,7 +582,7 @@ begin
 
   // Final part
   if CurrentValue.IsEmpty then Exit;
-  RttiType := FContext.GetType(CurrentValue.TypeInfo);
+  RttiType := TReflection.Context.GetType(CurrentValue.TypeInfo);
   Instance := nil;
   if RttiType.IsInstance then
     Instance := CurrentValue.AsObject;

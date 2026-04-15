@@ -15,6 +15,17 @@ uses
 
 type
   TCustomAttributeClass = class of TCustomAttribute;
+  
+  /// <summary>
+  ///   Abstraction for property access to minimize RTTI overhead.
+  /// </summary>
+  IPropertyHandler = interface
+    ['{6A8B9B0D-1E2F-3A4B-5C6D-7E8F9A0B1C2D}']
+    function GetValue(Instance: Pointer): TValue;
+    procedure SetValue(Instance: Pointer; const Value: TValue);
+    function GetMember: TRttiMember;
+    property Member: TRttiMember read GetMember;
+  end;
 
   /// <summary>
   ///   Indicates that a record type is a Dext Smart Property.
@@ -53,6 +64,13 @@ type
     /// <summary>RTTI field that stores the raw value (FValue).</summary>
     ValueField: TRttiField;
     constructor Create(AType: PTypeInfo);
+    destructor Destroy; override;
+  private
+    FHandlers: IDictionary<string, IPropertyHandler>;
+    function GetHandlers: IDictionary<string, IPropertyHandler>;
+  public
+    function GetHandler(const APropName: string): IPropertyHandler;
+    property Handlers: IDictionary<string, IPropertyHandler> read GetHandlers;
   end;
 
   /// <summary>
@@ -81,7 +99,20 @@ type
     class function GetFieldPtr(Instance: TObject; const FieldName: string): Pointer; static;
     class function NormalizeFieldName(const AFieldName: string): string; static;
     class function GetCollectionItemType(AType: PTypeInfo): TClass; static;
+    class function GetHandler(AType: PTypeInfo; const APropName: string): IPropertyHandler; static;
     class property Context: TRttiContext read FContext;
+  end;
+
+  TPropertyHandler = class(TInterfacedObject, IPropertyHandler)
+  private
+    FMember: TRttiMember;
+  protected
+    function GetMember: TRttiMember;
+  public
+    constructor Create(AMember: TRttiMember);
+    function GetValue(Instance: Pointer): TValue;
+    procedure SetValue(Instance: Pointer; const Value: TValue);
+    property Member: TRttiMember read GetMember;
   end;
 
 implementation
@@ -91,6 +122,56 @@ uses
   Dext.Core.ValueConverters,
   Dext.DI.Core;
 
+{ TPropertyHandler }
+ 
+constructor TPropertyHandler.Create(AMember: TRttiMember);
+begin
+  inherited Create;
+  FMember := AMember;
+end;
+ 
+function TPropertyHandler.GetMember: TRttiMember;
+begin
+  Result := FMember;
+end;
+ 
+function TPropertyHandler.GetValue(Instance: Pointer): TValue;
+begin
+  if FMember is TRttiProperty then
+    Result := TRttiProperty(FMember).GetValue(Instance)
+  else if FMember is TRttiField then
+    Result := TRttiField(FMember).GetValue(Instance)
+  else
+    Result := TValue.Empty;
+end;
+ 
+procedure TPropertyHandler.SetValue(Instance: Pointer; const Value: TValue);
+var
+  TargetType: PTypeInfo;
+  Converted: TValue;
+begin
+  TargetType := nil;
+  if FMember is TRttiProperty then
+    TargetType := TRttiProperty(FMember).PropertyType.Handle
+  else if FMember is TRttiField then
+    TargetType := TRttiField(FMember).FieldType.Handle;
+
+  Converted := TValueConverter.Convert(Value, TargetType);
+  
+  // Align TypeInfo pointers for identical record types across DCU boundaries
+  if (Converted.TypeInfo <> TargetType) and (Converted.TypeInfo <> nil) and (TargetType <> nil) and
+     (Converted.TypeInfo.Kind = tkRecord) and (TargetType.Kind = tkRecord) and
+     SameText(string(Converted.TypeInfo.Name), string(TargetType.Name)) then
+  begin
+    TValue.Make(Converted.GetReferenceToRawData, TargetType, Converted);
+  end;
+
+  if FMember is TRttiProperty then
+    TRttiProperty(FMember).SetValue(Instance, Converted)
+  else if FMember is TRttiField then
+    TRttiField(FMember).SetValue(Instance, Converted);
+end;
+ 
 { TRttiObjectHelper }
 
 function TRttiObjectHelper.GetAttribute<T>: T;
@@ -239,8 +320,37 @@ begin
             else if SameText(LInnerTypeName, 'Boolean') or SameText(LInnerTypeName, 'System.Boolean') then InnerType := TypeInfo(Boolean)
             else if SameText(LInnerTypeName, 'Double') or SameText(LInnerTypeName, 'System.Double') then InnerType := TypeInfo(Double)
             else if SameText(LInnerTypeName, 'TDateTime') or SameText(LInnerTypeName, 'System.TDateTime') then InnerType := TypeInfo(TDateTime);
-          end;
         end;
+      end;
+    end;
+  end;
+end;
+
+destructor TTypeMetadata.Destroy;
+begin
+  FHandlers := nil;
+  inherited;
+end;
+
+function TTypeMetadata.GetHandlers: IDictionary<string, IPropertyHandler>;
+begin
+  if FHandlers = nil then
+    FHandlers := TCollections.CreateDictionary<string, IPropertyHandler>(True);
+  Result := FHandlers;
+end;
+
+function TTypeMetadata.GetHandler(const APropName: string): IPropertyHandler;
+begin
+  if not GetHandlers.TryGetValue(APropName, Result) then
+  begin
+    var Member: TRttiMember := RttiType.GetProperty(APropName);
+    if Member = nil then
+      Member := RttiType.GetField(APropName);
+      
+    if Member <> nil then
+    begin
+      Result := TPropertyHandler.Create(Member);
+      FHandlers.Add(APropName, Result);
     end;
   end;
 end;
@@ -275,6 +385,11 @@ begin
   end;
 end;
 
+class function TReflection.GetHandler(AType: PTypeInfo; const APropName: string): IPropertyHandler;
+begin
+  Result := GetMetadata(AType).GetHandler(APropName);
+end;
+
 class procedure TReflection.SetValue(AInstance: Pointer; AMember: TRttiMember; const AValue: TValue);
 var
   TargetType: PTypeInfo;
@@ -307,6 +422,15 @@ begin
   end;
 
   var Converted := TValueConverter.Convert(AValue, TargetType);
+  
+  // Align TypeInfo pointers for identical record types to avoid EInvalidCast across DCU boundaries
+  if (Converted.TypeInfo <> TargetType) and (Converted.TypeInfo <> nil) and (TargetType <> nil) and 
+     (Converted.TypeInfo.Kind = tkRecord) and (TargetType.Kind = tkRecord) and
+     SameText(string(Converted.TypeInfo.Name), string(TargetType.Name)) then
+  begin
+    TValue.Make(Converted.GetReferenceToRawData, TargetType, Converted);
+  end;
+
   if AMember is TRttiProperty then TRttiProperty(AMember).SetValue(AInstance, Converted)
   else if AMember is TRttiField then TRttiField(AMember).SetValue(AInstance, Converted);
 end;
@@ -559,6 +683,7 @@ var
   LTMark: Integer;
 begin
   Result := nil;
+  
   if AType = nil then Exit;
   
   LTypeName := string(AType.Name);

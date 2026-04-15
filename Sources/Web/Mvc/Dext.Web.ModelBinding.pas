@@ -222,11 +222,12 @@ uses
   Dext.Core.Span,
   Dext.Entity.Attributes,
   Dext.Json.Utf8.Serializer,
-  Dext.Core.Activator;
+  Dext.Core.Activator,
+  Dext.Core.Reflection;
 
 function GetWebSharedRttiContext: TRttiContext;
 begin
-  Result := TActivator.GetRttiContext;
+  Result := TReflection.Context;
 end;
 
 { BindingAttribute }

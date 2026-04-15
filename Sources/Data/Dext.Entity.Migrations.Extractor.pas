@@ -58,21 +58,10 @@ var
   Table: TSnapshotTable;
   PropMap: TPropertyMap;
   Col: TSnapshotColumn;
-  RContext: TRttiContext;
   RType: TRttiType;
   RProp: TRttiProperty;
   
   // Helper to get all maps
-  // Since TModelBuilder doesn't expose an iterator for maps, we might need to rely on 
-  // registered entities if we had a list, or we need to modify TModelBuilder to expose Maps.
-  // For now, let's assume we can access FMaps via RTTI or we add a property to TModelBuilder.
-  // Wait, TModelBuilder has FMaps private.
-  // We should add a property `Maps` to TModelBuilder in Dext.Entity.Mapping.pas.
-  // But I can't modify it right now easily without breaking things or recompiling everything.
-  // Let's use RTTI to access FMaps for now to avoid changing core interface if possible,
-  // OR better: Update TModelBuilder to expose Maps. It's a reasonable change.
-  // Let's update TModelBuilder first.
-  
   // Assuming TModelBuilder has a Maps property (I will add it).
   Maps: TArray<TEntityMap>; 
 begin
@@ -88,81 +77,76 @@ begin
   // I will add `GetMaps` to TModelBuilder.
   Maps := ModelBuilder.GetMaps; 
   
-  RContext := TRttiContext.Create;
-  try
-    for Map in Maps do
+  for Map in Maps do
+  begin
+    Table := TSnapshotTable.Create;
+    Table.Name := Map.TableName;
+    
+    RType := TReflection.Context.GetType(Map.EntityType);
+    
+    // If TableName is empty, check Attribute
+    if Table.Name = '' then
     begin
-      Table := TSnapshotTable.Create;
-      Table.Name := Map.TableName;
-      
-      RType := RContext.GetType(Map.EntityType);
-      
-      // If TableName is empty, check Attribute
-      if Table.Name = '' then
-      begin
-         var Attr := RType.GetAttribute<TableAttribute>;
-         if Attr <> nil then
-           Table.Name := Attr.Name;
-      end;
-
-      // If still empty, derive from Class Name
-      if Table.Name = '' then
-      begin
-        // Simple pluralization or just class name
-        Table.Name := String(Map.EntityType.Name).Substring(1); // Remove 'T'
-      end;
-      
-      // Iterate Properties
-      for RProp in RType.GetProperties do
-      begin
-        // Skip non-mapped properties?
-        // We need to check if it's mapped.
-        // If Fluent Mapping exists, use it.
-        // If Attributes exist, use them.
-        // Default convention: Map all public read/write properties.
-        
-        if (RProp.Visibility < mvPublic) then Continue;
-        
-        // Check for [NotMapped] or Ignore()
-        if Map.Properties.TryGetValue(RProp.Name, PropMap) then
-        begin
-          if PropMap.IsIgnored then Continue;
-        end;
-        
-        // Create Column
-        Col := TSnapshotColumn.Create;
-        Col.Name := RProp.Name;
-        
-        // Apply Mapping Overrides
-        if PropMap <> nil then
-        begin
-          if PropMap.ColumnName <> '' then Col.Name := PropMap.ColumnName;
-          Col.IsPrimaryKey := PropMap.IsPK;
-          Col.IsIdentity := PropMap.IsAutoInc;
-          Col.IsNullable := not PropMap.IsRequired;
-          Col.Length := PropMap.MaxLength;
-          Col.Precision := PropMap.Precision;
-          Col.Scale := PropMap.Scale;
-        end;
-        
-        // Apply Attributes (if not overridden by Fluent)
-        // Note: TEntityMap usually aggregates attributes during building, 
-        // but if it doesn't, we check here.
-        // Let's assume TEntityMap is the source of truth.
-        
-        // Determine Type
-        // Use Dialect to map Delphi Type to SQL Type
-        // Note: We need PTypeInfo.
-        // TRttiProperty.PropertyType.Handle gives PTypeInfo.
-        Col.ColumnType := AContext.Dialect.GetColumnType(RProp.PropertyType.Handle, Col.IsIdentity);
-        
-        Table.Columns.Add(Col);
-      end;
-      
-      Result.Tables.Add(Table);
+       var Attr := RType.GetAttribute<TableAttribute>;
+       if Attr <> nil then
+         Table.Name := Attr.Name;
     end;
-  finally
-    RContext.Free;
+
+    // If still empty, derive from Class Name
+    if Table.Name = '' then
+    begin
+      // Simple pluralization or just class name
+      Table.Name := String(Map.EntityType.Name).Substring(1); // Remove 'T'
+    end;
+    
+    // Iterate Properties
+    for RProp in RType.GetProperties do
+    begin
+      // Skip non-mapped properties?
+      // We need to check if it's mapped.
+      // If Fluent Mapping exists, use it.
+      // If Attributes exist, use them.
+      // Default convention: Map all public read/write properties.
+      
+      if (RProp.Visibility < mvPublic) then Continue;
+      
+      // Check for [NotMapped] or Ignore()
+      if Map.Properties.TryGetValue(RProp.Name, PropMap) then
+      begin
+        if PropMap.IsIgnored then Continue;
+      end;
+      
+      // Create Column
+      Col := TSnapshotColumn.Create;
+      Col.Name := RProp.Name;
+      
+      // Apply Mapping Overrides
+      if PropMap <> nil then
+      begin
+        if PropMap.ColumnName <> '' then Col.Name := PropMap.ColumnName;
+        Col.IsPrimaryKey := PropMap.IsPK;
+        Col.IsIdentity := PropMap.IsAutoInc;
+        Col.IsNullable := not PropMap.IsRequired;
+        Col.Length := PropMap.MaxLength;
+        Col.Precision := PropMap.Precision;
+        Col.Scale := PropMap.Scale;
+      end;
+      
+      // Apply Attributes (if not overridden by Fluent)
+      // Note: TEntityMap usually aggregates attributes during building, 
+      // but if it doesn't, we check here.
+      // Let's assume TEntityMap is the source of truth.
+      
+      // Determine Type
+      // Use Dialect to map Delphi Type to SQL Type
+      // Note: We need PTypeInfo.
+      // TRttiProperty.PropertyType.Handle gives PTypeInfo.
+      Col.ColumnType := AContext.Dialect.GetColumnType(RProp.PropertyType.Handle, Col.IsIdentity);
+      
+      Table.Columns.Add(Col);
+    end;
+    
+    Result.Tables.Add(Table);
   end;
 end;
 

@@ -101,7 +101,6 @@ type
   TSQLColumnMapper<T: class> = class(TInterfacedObject, ISQLColumnMapper)
   private
     FNamingStrategy: INamingStrategy;
-    FRttiContext: TRttiContext;
   public
     constructor Create(ANamingStrategy: INamingStrategy = nil);
     destructor Destroy; override;
@@ -112,8 +111,8 @@ type
   TSQLGeneratorHelper = class
   public
     class function GetCascadeSQL(AAction: TCascadeAction): string;
-    class function GetColumnNameForProperty(ATyp: TRttiType; const APropName: string): string;
-    class function GetRelatedTableAndPK(ACtx: TRttiContext; AClass: TClass; out ATable, APK: string): Boolean;
+    class function GetColumnNameForProperty(ATyp: TRttiType; const APropName: string; ANamingStrategy: INamingStrategy = nil): string;
+    class function GetRelatedTableAndPK(AClass: TClass; out ATable, APK: string; ANamingStrategy: INamingStrategy = nil): Boolean;
   end;
 
   /// <summary>
@@ -140,7 +139,6 @@ type
     FParamCount: Integer;
     FMap: TEntityMap;
     FNamingStrategy: INamingStrategy;
-    FRttiContext: TRttiContext;
     // Properties to control filtering
     FIgnoreQueryFilters: Boolean;
     FOnlyDeleted: Boolean;
@@ -326,7 +324,7 @@ begin
   end;
 end;
 
-class function TSQLGeneratorHelper.GetColumnNameForProperty(ATyp: TRttiType; const APropName: string): string;
+class function TSQLGeneratorHelper.GetColumnNameForProperty(ATyp: TRttiType; const APropName: string; ANamingStrategy: INamingStrategy): string;
 var
   P: TRttiProperty;
   A: TCustomAttribute;
@@ -339,25 +337,35 @@ begin
     begin
       if A is ColumnAttribute then Exit(ColumnAttribute(A).Name);
     end;
+    
+    if (Result = APropName) and (ANamingStrategy <> nil) then
+      Result := ANamingStrategy.GetColumnName(P);
   end;
 end;
 
-class function TSQLGeneratorHelper.GetRelatedTableAndPK(ACtx: TRttiContext; AClass: TClass; out ATable, APK: string): Boolean;
+class function TSQLGeneratorHelper.GetRelatedTableAndPK(AClass: TClass; out ATable, APK: string; ANamingStrategy: INamingStrategy): Boolean;
 var
   RTyp: TRttiType;
   RProp: TRttiProperty;
   RAttr, SubAttr: TCustomAttribute;
 begin
   Result := False;
-  RTyp := ACtx.GetType(AClass);
+  RTyp := TReflection.Context.GetType(AClass);
   if RTyp = nil then Exit;
   
   // Table Name
   ATable := RTyp.Name;
+  var HasTableAttr := False;
   for RAttr in RTyp.GetAttributes do
     if RAttr is TableAttribute then
+    begin
       ATable := TableAttribute(RAttr).Name;
+      HasTableAttr := True;
+    end;
       
+  if (not HasTableAttr) and (ANamingStrategy <> nil) then
+    ATable := ANamingStrategy.GetTableName(AClass);
+
   // PK
   for RProp in RTyp.GetProperties do
   begin
@@ -366,10 +374,18 @@ begin
       if RAttr is PrimaryKeyAttribute then
       begin
         APK := RProp.Name;
+        var HasColAttr := False;
         // Check for Column Attribute on PK
         for SubAttr in RProp.GetAttributes do
           if SubAttr is ColumnAttribute then
+          begin
             APK := ColumnAttribute(SubAttr).Name;
+            HasColAttr := True;
+          end;
+          
+        if (not HasColAttr) and (ANamingStrategy <> nil) then
+          APK := ANamingStrategy.GetColumnName(RProp);
+          
         Exit(True);
       end;
     end;
@@ -380,9 +396,17 @@ begin
   if RProp <> nil then
   begin
     APK := 'Id';
+    var HasColAttr := False;
     for RAttr in RProp.GetAttributes do
       if RAttr is ColumnAttribute then
+      begin
         APK := ColumnAttribute(RAttr).Name;
+        HasColAttr := True;
+      end;
+      
+    if (not HasColAttr) and (ANamingStrategy <> nil) then
+       APK := ANamingStrategy.GetColumnName(RProp);
+       
     Exit(True);
   end;
 end;
@@ -529,19 +553,14 @@ begin
           // Inline unwrap for Smart Types (same logic as TSQLGenerator.TryUnwrapSmartValue)
           if PVal.Kind = tkRecord then
           begin
-            var URttiCtx := TRttiContext.Create;
-            try
-              var URType := URttiCtx.GetType(PVal.TypeInfo);
-              if URType <> nil then
-              begin
-                var UFValue := URType.GetField('FValue');
-                if (UFValue <> nil) and
-                   (URType.Name.Contains('Prop<') or URType.Name.Contains('TProp') or
-                    (URType.Name.EndsWith('Type') and (URType.TypeKind = tkRecord))) then
-                  PVal := UFValue.GetValue(PVal.GetReferenceToRawData);
-              end;
-            finally
-              URttiCtx.Free;
+            var URType := TReflection.Context.GetType(PVal.TypeInfo);
+            if URType <> nil then
+            begin
+              var UFValue := URType.GetField('FValue');
+              if (UFValue <> nil) and
+                 (URType.Name.Contains('Prop<') or URType.Name.Contains('TProp') or
+                  (URType.Name.EndsWith('Type') and (URType.TypeKind = tkRecord))) then
+                PVal := UFValue.GetValue(PVal.GetReferenceToRawData);
             end;
           end;
 
@@ -761,12 +780,10 @@ constructor TSQLColumnMapper<T>.Create(ANamingStrategy: INamingStrategy);
 begin
   inherited Create;
   FNamingStrategy := ANamingStrategy;
-  FRttiContext := TRttiContext.Create;
 end;
 
 destructor TSQLColumnMapper<T>.Destroy;
 begin
-  FRttiContext.Free;
   inherited;
 end;
 
@@ -778,7 +795,7 @@ var
   PropMap: TPropertyMap;
 begin
   Result := AName;
-  Typ := FRttiContext.GetType(T);
+  Typ := TReflection.Context.GetType(T);
   Prop := Typ.GetProperty(AName);
   if Prop <> nil then
   begin
@@ -832,14 +849,12 @@ begin
   FParams := TCollections.CreateDictionary<string, TValue>;
   FParamTypes := TCollections.CreateDictionary<string, TFieldType>;
   FParamCount := 0;
-  FRttiContext := TRttiContext.Create;
 end;
 
 destructor TSQLGenerator<T>.Destroy;
 begin
   FParams := nil;
   FParamTypes := nil;
-  FRttiContext.Free;
   inherited;
 end;
 
@@ -859,7 +874,7 @@ begin
   else
   begin
     Result := '';
-    Typ := FRttiContext.GetType(T);
+    Typ := TReflection.Context.GetType(T);
     
     // Check TableAttribute
     for Attr in Typ.GetAttributes do
@@ -913,7 +928,7 @@ begin
   NotDeletedVal := False;
   TargetPropType := nil;
   
-  Typ := FRttiContext.GetType(T);
+  Typ := TReflection.Context.GetType(T);
   if Typ = nil then Exit;
   
   // 1. Check Fluent Mapping
@@ -1169,7 +1184,7 @@ begin
   FParams.Clear;
   FParamTypes.Clear;
   FParamCount := 0;
-  Typ := FRttiContext.GetType(T);
+  Typ := TReflection.Context.GetType(T);
   SBCols := TStringBuilder.Create;
   SBVals := TStringBuilder.Create;
   try
@@ -1378,7 +1393,7 @@ var
   IsAutoInc, IsMapped, First: Boolean;
   PropMap: TPropertyMap;
 begin
-  Typ := FRttiContext.GetType(T);
+  Typ := TReflection.Context.GetType(T);
   
   SBCols := TStringBuilder.Create;
   SBVals := TStringBuilder.Create;
@@ -1468,7 +1483,7 @@ begin
   FParamTypes.Clear;
   FParamCount := 0;
   
-  Typ := FRttiContext.GetType(T);
+  Typ := TReflection.Context.GetType(T);
   
   SBSet := TStringBuilder.Create;
   SBWhere := TStringBuilder.Create;
@@ -1734,7 +1749,7 @@ begin
   FParams.Clear;
   FParamCount := 0;
   
-  Typ := FRttiContext.GetType(T);
+  Typ := TReflection.Context.GetType(T);
   
   SBWhere := TStringBuilder.Create;
   try
@@ -1885,7 +1900,7 @@ begin
     if Length(SelectedCols) > 0 then
     begin
       // Custom projection - translate property names to column names
-      Typ := FRttiContext.GetType(T);
+      Typ := TReflection.Context.GetType(T);
       
       for i := 0 to High(SelectedCols) do
       begin
@@ -1927,7 +1942,7 @@ begin
     else
     begin
       // Select all mapped columns
-      Typ := FRttiContext.GetType(T);
+      Typ := TReflection.Context.GetType(T);
       First := True;
       
       for Prop in Typ.GetProperties do
@@ -2018,7 +2033,7 @@ begin
         
         SortCol := OrderBy[i].GetPropertyName;
         // Lookup column name (simplified)
-        Typ := FRttiContext.GetType(T);
+        Typ := TReflection.Context.GetType(T);
         P := Typ.GetProperty(SortCol);
         if P <> nil then
         begin
@@ -2105,7 +2120,7 @@ begin
     SB.Append('SELECT ');
 
     // Select all mapped columns
-    Typ := FRttiContext.GetType(T);
+    Typ := TReflection.Context.GetType(T);
     First := True;
 
     for Prop in Typ.GetProperties do
@@ -2289,7 +2304,7 @@ begin
   PKCols := TCollections.CreateList<string>;
   FKConstraints := TCollections.CreateList<string>;
   try
-    Typ := FRttiContext.GetType(T);
+    Typ := TReflection.Context.GetType(T);
     First := True;
     HasAutoInc := False;
     
@@ -2320,6 +2335,10 @@ begin
         if PropMap.IsRequired then IsRequired := True;
       end;
 
+      // Naming Strategy fallback (apply early so ForeignKey logic uses normalized names)
+      if (ColName = Prop.Name) and (FNamingStrategy <> nil) then
+         ColName := FNamingStrategy.GetColumnName(Prop);
+
       // Class/Interface detection as a safety net (unless explicitly mapped via attributes/mapping)
       if IsMapped and (PropMap = nil) and (Prop.PropertyType.TypeKind in [tkClass, tkInterface]) then
         IsMapped := False;
@@ -2343,7 +2362,7 @@ begin
              if (Prop.PropertyType.TypeKind = tkClass) then
              begin
                 // Pattern A: [ForeignKey('RequesterId')] property Requester: TUser
-                LLocalCol := TSQLGeneratorHelper.GetColumnNameForProperty(Typ, LFKPropName);
+                LLocalCol := TSQLGeneratorHelper.GetColumnNameForProperty(Typ, LFKPropName, FNamingStrategy);
                 LRelatedTargetType := Prop.PropertyType;
              end
              else
@@ -2359,7 +2378,7 @@ begin
 
              if (LRelatedTargetType <> nil) and 
                 // logic below renamed to use LRelatedTargetType
-                TSQLGeneratorHelper.GetRelatedTableAndPK(FRttiContext, LRelatedTargetType.AsInstance.MetaclassType, RelatedTable, RelatedPK) then
+                TSQLGeneratorHelper.GetRelatedTableAndPK(LRelatedTargetType.AsInstance.MetaclassType, RelatedTable, RelatedPK, FNamingStrategy) then
              begin
                  LConstraint := Format('FOREIGN KEY (%s) REFERENCES %s (%s)', 
                    [FDialect.QuoteIdentifier(LLocalCol), 
@@ -2383,9 +2402,6 @@ begin
         end;
       end;
 
-      // Final fallback to naming strategy
-      if (ColName = Prop.Name) and (FNamingStrategy <> nil) then
-         ColName := FNamingStrategy.GetColumnName(Prop);
       
       if not IsMapped then Continue;
       

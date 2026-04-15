@@ -42,6 +42,7 @@ uses
   System.Classes,
   System.Rtti,
   System.SysUtils,
+  System.TypInfo,
   Dext.Collections,
   Dext.Collections.Stack,
   Dext.Collections.Dict,
@@ -148,6 +149,7 @@ type
 implementation
 
 uses
+  Dext.Core.Reflection,
   Dext.Collections.Extensions;
 
 { TRouteBuilder }
@@ -246,7 +248,6 @@ end;
 
 function TNavigator.CreateView(ViewClass: TClass): TObject;
 var
-  RttiContext: TRttiContext;
   RttiType: TRttiType;
   RttiMethod: TRttiMethod;
 begin
@@ -257,39 +258,34 @@ begin
   end;
   
   // Fallback: Create via RTTI
-  RttiContext := TRttiContext.Create;
-  try
-    RttiType := RttiContext.GetType(ViewClass);
-    if RttiType = nil then
-      raise Exception.CreateFmt('Cannot create view: %s not found', [ViewClass.ClassName]);
-      
-    // Look for parameterless constructor
-    for RttiMethod in RttiType.GetMethods do
+  RttiType := TReflection.Context.GetType(ViewClass);
+  if RttiType = nil then
+    raise Exception.CreateFmt('Cannot create view: %s not found', [ViewClass.ClassName]);
+    
+  // Look for parameterless constructor
+  for RttiMethod in RttiType.GetMethods do
+  begin
+    if RttiMethod.IsConstructor and (Length(RttiMethod.GetParameters) = 0) then
     begin
-      if RttiMethod.IsConstructor and (Length(RttiMethod.GetParameters) = 0) then
+      Result := RttiMethod.Invoke(ViewClass, []).AsObject;
+      Exit;
+    end;
+  end;
+  
+  // Look for constructor with TComponent parameter (common for Forms/Frames)
+  for RttiMethod in RttiType.GetMethods do
+  begin
+    if RttiMethod.IsConstructor and (Length(RttiMethod.GetParameters) = 1) then
+    begin
+      if RttiMethod.GetParameters[0].ParamType.Handle = TypeInfo(TComponent) then
       begin
-        Result := RttiMethod.Invoke(ViewClass, []).AsObject;
+        Result := RttiMethod.Invoke(ViewClass, [nil]).AsObject;
         Exit;
       end;
     end;
-    
-    // Look for constructor with TComponent parameter (common for Forms/Frames)
-    for RttiMethod in RttiType.GetMethods do
-    begin
-      if RttiMethod.IsConstructor and (Length(RttiMethod.GetParameters) = 1) then
-      begin
-        if RttiMethod.GetParameters[0].ParamType.Handle = TypeInfo(TComponent) then
-        begin
-          Result := RttiMethod.Invoke(ViewClass, [nil]).AsObject;
-          Exit;
-        end;
-      end;
-    end;
-    
-    raise Exception.CreateFmt('No suitable constructor found for: %s', [ViewClass.ClassName]);
-  finally
-    RttiContext.Free;
   end;
+  
+  raise Exception.CreateFmt('No suitable constructor found for: %s', [ViewClass.ClassName]);
 end;
 
 function TNavigator.FindRouteByClass(ViewClass: TClass): TRouteInfo;
