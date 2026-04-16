@@ -1,5 +1,8 @@
 # S07 — High-Performance Reflection: Análise e Plano de Refactoring
 
+> **Status:** ✅ **Finalized** — April 16, 2026  
+> Todas as 5 fases implementadas, testadas e integradas ao branch `main`.
+
 ## 1. Estado Atual: Inventário Completo de RTTI no Dext
 
 ### 1.1 Contextos RTTI Existentes (Duplicação)
@@ -230,57 +233,91 @@ Para erradicar qualquer possibilidade de concorrência destrutiva, as seguintes 
 
 ## 6. Fase 5 — Implementação Concluída
 
-**Status:** ✅ Implementado e verificado em `dee8b6b`
+**Status:** ✅ Implementado, verificado e otimizado · *April 16, 2026*
 
 ### 6.1 Mudanças em `Dext.Core.Reflection.pas` — `TTypeMetadata`
 
 | Ponto | Antes | Depois |
 |---|---|---|
-| `FHandlers` / `FSnakeMap` lazy-init | Sem proteção — AV sob carga paralela | `TMREWSync` com double-checked locking |
-| `GetHandler` | Escrita em dicionário sem lock | BeginRead → miss → BeginWrite + re-check |
-| `GetHandlerBySnakeCase` | Idem | BeginRead → miss → BeginWrite preenche mapa inteiro |
+| `FHandlers` / `FSnakeMap` lazy-init | Sem proteção — AV sob carga paralela | `TMREWSync` com double-checked locking e lock-free fast path |
+| `GetHandler` (steady state) | `BeginRead + TryGetValue + EndRead` | **Zero locks** — `FHandlersReady=1` → acesso direto |
+| `GetHandlerBySnakeCase` | Inicialização parcial sem lock | Popula mapa inteiro em único `BeginWrite`, marca `FHandlersReady` e `FSnakeReady` via `TInterlocked` |
 | `GetPropertyHandlers` | Crash se `RttiType = nil` | Guard `if RttiType <> nil` |
+| `GetDefaultValue` | Stub hardcoded (retornava zero sempre) | Lê `DefaultValueAttribute` via RTTI por nome de classe, extrai `FValue: Variant`, converte via `CastFromString` |
+| `CastFromString (TDateTime)` | `StrToDateTimeDef` com locale do sistema (AV em pt-BR) | Parser ISO 8601 direto com `EncodeDate`/`EncodeTime` → fallback locale |
 
-**Padrão adotado:** `TMREWSync` (Multi-Read Exclusive-Write Synchronizer) — ideal para a proporção de acessos (centenas de leituras × poucas inicializações por tipo).
-
+**Padrão definitivo — Lock-Free Fast Path:**
 ```delphi
-// Fast path (shared lock)
-FLock.BeginRead;
-try
-  if (FHandlers <> nil) and FHandlers.TryGetValue(APropName, Result) then Exit;
-finally
-  FLock.EndRead;
+// Lock-free fast path (steady state — zero overhead)
+if FHandlersReady = 1 then
+begin
+  FHandlers.TryGetValue(APropName, Result);
+  Exit;
 end;
 
-// Slow path (exclusive lock + double-check)
+// Slow path (somente no warm-up — exclusive lock + double-check)
 FLock.BeginWrite;
 try
   if FHandlers = nil then
     FHandlers := TCollections.CreateDictionary<string, IPropertyHandler>(True);
   if FHandlers.TryGetValue(APropName, Result) then Exit;
   // ... populate ...
+  TInterlocked.Exchange(FHandlersReady, 1); // memory barrier
 finally
   FLock.EndWrite;
 end;
 ```
+> `TInterlocked.Exchange` garante a barreira de memória necessária para que `FHandlersReady = 1` seja visível a todas as threads **após** o dicionário estar completo.
 
 ### 6.2 Mudanças em `Dext.Core.Activator.pas` — `TActivator`
 
-| Cache | Operação protegida |
-|---|---|
-| `FConstructorCache` | `TryGetValue` (leitura) + `AddOrSetValue` (escrita) via `TCriticalSection FLock` |
-| `FHybridConstructorCache` | Idem |
+| Cache | Leitura (steady state) | Escrita (warm-up) |
+|---|---|---|
+| `FConstructorCache` | `FLock.BeginRead` / `EndRead` (não-bloqueante para N leitores) | `FLock.BeginWrite` / `EndWrite` |
+| `FHybridConstructorCache` | Idem | Idem |
 
-**Padrão adotado:** `TCriticalSection` global da classe — cobre tanto leituras que precisam de atomicidade com escrita subsequente quanto escritas puras.
+**Mudança:** `TCriticalSection` → `TMREWSync`
+- Reads concorrentes já não se bloqueiam mutuamente
+- Writes exclusivos apenas durante a resolução do primeiro construtor por classe
 
-### 6.3 Resultado do Teste de Estresse
+### 6.3 Bônus: `GetDefaultValue` + ISO 8601 no ModelBinder
+
+Dois comportamentos implementados como parte do processo de correção de regressão:
+
+**`TReflection.GetDefaultValue`:** Antes era um stub que sempre retornava zero/vazio. Agora:
+1. Itera atributos via `AMember.GetAttributes`
+2. Detecta `DefaultValueAttribute` por nome de classe (sem dependência direta de `Dext.Entity.Attributes`)
+3. Lê o campo `FValue: Variant` via RTTI e converte com `CastFromString`
+
+**`CastFromString` (TDateTime):** Adicionado parser ISO 8601 locale-independente:
+```delphi
+// Detecta yyyy-mm-dd pelas posições do '-'
+if (Length(S) >= 10) and (S[5] = '-') and (S[8] = '-') then
+begin
+  Y := StrToInt(Copy(S, 1, 4));
+  M := StrToInt(Copy(S, 6, 2));
+  D := StrToInt(Copy(S, 9, 2));
+  DTVal := EncodeDate(Y, M, D);
+  // + EncodeTime se componente HH:mm:ss presente
+end;
+```
+Isso resolve o comportamento incorreto em sistemas com locale pt-BR (`dd/mm/yyyy`).
+
+### 6.4 Resultado dos Testes
 
 ```
+── TestParallelReflection (stress) ──────────────────────────────
 Starting Stress Tests (Wave 8 Hardened)...
-Testing Reflection (Parallel)...         ← TParallel.For x1000 em GetHandler + GetHandlerBySnakeCase
-Testing Activator (Parallel)...          ← TParallel.For x1000 em CreateInstance<TTestEntity>
+Testing Reflection (Parallel)...   ← TParallel.For x1000: GetHandler + GetHandlerBySnakeCase
+Testing Activator (Parallel)...    ← TParallel.For x1000: CreateInstance<TTestEntity>
 Stress Tests Passed 100%!
+
+── Dext.Web.UnitTests ───────────────────────────────────────────
+Total: 18  ✅ Passed: 18  ❌ Failed: 0   Pass Rate: 100%
+Incluindo: Test_BindRecord_Hybrid_With_DefaultValue
+           Test_BindQuery_Class_With_DefaultValue
+           Test_BindParameter_With_DefaultValue
 ```
 
-Executado com `TestParallelReflection` (console, Win32, Debug) sem nenhum `EAggregateException` ou `Access Violation`.
+Zero `EAggregateException` ou `Access Violation` em ambos os conjuntos de testes.
 

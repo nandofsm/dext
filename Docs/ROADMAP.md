@@ -21,9 +21,10 @@ Status | Task | Spec | Description
 ## 🔵 Wave 2: Performance & Productivity (Foundation)
 Status | Task | Spec | Description
 :---: | :--- | :---: | :---
-🔴 | **High-Perf Reflection** | [S07](Specs/S07-High-Perf-Reflection.md) | Type Handler Registry to eliminate RTTI/TValue overhead.
+✅ | **High-Perf Reflection** | [S07](Specs/S07-High-Perf-Reflection.md) | Thread-safe RTTI cache with lock-free fast paths, zero-boxing type handlers, and ISO 8601 date binding.
 ✅ | **Advanced Scaffolding** | [S01](Specs/S01-Advanced-Scaffolding.md) | New CLI template engine (`dext new`, `dext add`).
 ✅ | **Template Engine** | [S09](Specs/S09-Template-Engine.md) | Zero-dependency AST-based template engine (Razor-like).
+🔴 | **Advanced Template Engine** | [S12](Specs/S12-Template-Engine-Advanced.md) | Layouts, partials, template inheritance, 35+ filters, and Razor-parity for Delphi.
 ✅ | **Schema Migrations** | [S11](Specs/S11-Migration-Finalization.md) | Attribute-based renaming detection and CLI automation.
 🟡 | **Dext IDE Explorer** | [S05](Specs/S05-Advanced-Tooling.md) | Initial visual tool for Migrations inside the IDE.
 🟡 | **Production Middleware** | - | SPA Fallback, Forwarded Headers, and Resilience.
@@ -58,9 +59,10 @@ Status | Tarefa | Spec | Descrição
 ## 🔵 Onda 2: Performance & Produtividade (Fundação)
 Status | Tarefa | Spec | Descrição
 :---: | :--- | :---: | :---
-🔴 | **High-Perf Reflection** | [S07](Specs/S07-High-Perf-Reflection.md) | Registry de Handlers para eliminar overhead de RTTI/TValue.
+✅ | **High-Perf Reflection** | [S07](Specs/S07-High-Perf-Reflection.md) | Cache de RTTI thread-safe com fast paths lock-free, handlers sem boxing e binding ISO 8601.
 ✅ | **Scaffolding Avançado** | [S01](Specs/S01-Advanced-Scaffolding.md) | Novo motor de templates CLI (`dext new`, `dext add`).
 ✅ | **Motor de Templates** | [S09](Specs/S09-Template-Engine.md) | Motor de templates baseado em AST, zero dependência (estilo Razor).
+🔴 | **Motor de Templates Avançado** | [S12](Specs/S12-Template-Engine-Advanced.md) | Layouts, partials, herança, 35+ filtros e paridade Razor para Delphi.
 ✅ | **Migrations de Schema** | [S11](Specs/S11-Migration-Finalization.md) | Detecção de renomeação por atributos e automação CLI.
 🟡 | **Dext IDE Explorer** | [S05](Specs/S05-Advanced-Tooling.md) | Ferramenta visual inicial para Migrations na IDE.
 🟡 | **Middleware Pack** | - | SPA Fallback, Forwarded Headers e Resiliência.
@@ -83,4 +85,4 @@ Status | Tarefa | Spec | Descrição
 - UI Nativo com Skia
 
 ---
-*Last update: April 14, 2026*
+*Last update: April 16, 2026*
