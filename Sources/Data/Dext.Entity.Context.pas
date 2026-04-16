@@ -727,7 +727,6 @@ function TDbContext.EnsureCreated: Boolean;
 var
   Nodes: IList<TEntityNode>;
   Created: IList<PTypeInfo>;
-  Ctx: TRttiContext;
   Typ: TRttiType;
   Prop: TRttiProperty;
   Attr: TCustomAttribute;

@@ -32,6 +32,9 @@ type
 
 implementation
 
+uses
+  Dext.Core.Reflection;
+
 { TDataApiNaming }
 
 class function TDataApiNaming.GetEntityTag(ATypeInfo: PTypeInfo): string;
@@ -41,12 +44,8 @@ begin
   if ATypeInfo = nil then
     Exit('Entity');
 
-  LName := string(ATypeInfo.Name);
+  LName := TReflection.NormalizeFieldName(string(ATypeInfo.Name));
   
-  // Remove 'T' prefix if present
-  if LName.StartsWith('T') and (Length(LName) > 1) and LName[2].IsUpper then
-    LName := LName.Substring(1);
-
   // Simple pluralization logic (H.3/B.2)
   if LName.EndsWith('y', True) then
     Result := LName.Substring(0, Length(LName) - 1) + 'ies'
@@ -71,12 +70,8 @@ begin
   if ATypeInfo = nil then
     Exit('');
 
-  LName := string(ATypeInfo.Name);
+  LName := TReflection.NormalizeFieldName(string(ATypeInfo.Name));
   
-  // Remove 'T' prefix if present
-  if LName.StartsWith('T') and (Length(LName) > 1) and LName[2].IsUpper then
-    LName := LName.Substring(1);
-
   Result := '/api/' + LName.ToLower;
 end;
 

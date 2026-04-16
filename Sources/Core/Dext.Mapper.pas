@@ -124,9 +124,8 @@ type
 implementation
 
 uses
-  Dext.Core.Activator;
-
-{ TMemberMapping }
+  Dext.Core.Activator,
+  Dext.Core.Reflection;
 
 { TTypeMapConfigBase }
 
@@ -213,29 +212,22 @@ end;
 
 class function TMapper.Map<TSource, TDest>(const Source: TSource; AOnlyNonDefault: Boolean): TDest;
 var
-  Ctx: TRttiContext;
   RttiType: TRttiType;
   Value: TValue;
 begin
-  Ctx := TActivator.GetRttiContext;
-  try
-    RttiType := Ctx.GetType(TypeInfo(TDest));
-    if RttiType.IsInstance then
-    begin
-      Value := TRttiInstanceType(RttiType).MetaclassType.Create;
-      Value.ExtractRawData(@Result);
-    end
-    else
-      Result := Default(TDest);
-  finally
-    // No Free here, using centralized context
-  end;
+  RttiType := TReflection.Context.GetType(TypeInfo(TDest));
+  if RttiType.IsInstance then
+  begin
+    Value := TRttiInstanceType(RttiType).MetaclassType.Create;
+    Value.ExtractRawData(@Result);
+  end
+  else
+    Result := Default(TDest);
   Map<TSource, TDest>(Source, Result, AOnlyNonDefault);
 end;
 
 class procedure TMapper.Map<TSource, TDest>(const Source: TSource; var Dest: TDest; AOnlyNonDefault: Boolean);
 var
-  Ctx: TRttiContext;
   SourceType, DestType: TRttiType;
   SourceProp, DestProp: TRttiProperty;
   SourceField, DestField: TRttiField;
@@ -248,10 +240,8 @@ var
 begin
   Config := nil;
 
-  Ctx := TActivator.GetRttiContext;
-  try
-    SourceType := Ctx.GetType(TypeInfo(TSource));
-    DestType := Ctx.GetType(TypeInfo(TDest));
+  SourceType := TReflection.Context.GetType(TypeInfo(TSource));
+  DestType := TReflection.Context.GetType(TypeInfo(TDest));
 
     // Handle Source Pointer
     if SourceType.IsInstance then
@@ -382,10 +372,7 @@ begin
         end;
 
         DestField.SetValue(DstPtr, Value);
-      end;
     end;
-  finally
-    // No Free here, using centralized context
   end;
 end;
 

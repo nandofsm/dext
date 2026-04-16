@@ -50,7 +50,8 @@ uses
   Dext.Specifications.Types,
   Dext.Types.Nullable,
   Dext.Types.UUID,
-  Dext.Utils;
+  Dext.Utils,
+  Dext.Core.Reflection;
 
 type
   ISQLColumnMapper = interface
@@ -170,9 +171,12 @@ type
     property Schema: string read FSchema write FSchema;
     property NamingStrategy: INamingStrategy read FNamingStrategy write FNamingStrategy;
     
-    function GenerateInsert(const AEntity: T): string;
     function GenerateInsertTemplate(out AProps: IList<TPair<TRttiProperty, string>>): string;
+    /// <summary>Generates a parameterized INSERT statement for the entity.</summary>
+    function GenerateInsert(const AEntity: T): string;
+    /// <summary>Generates a parameterized UPDATE statement for the entity using its Primary Key.</summary>
     function GenerateUpdate(const AEntity: T): string;
+    /// <summary>Generates a parameterized DELETE statement for the entity using its Primary Key.</summary>
     function GenerateDelete(const AEntity: T): string;
     
     function GenerateSelect(const ASpec: ISpecification<T>): string; overload;
@@ -203,9 +207,6 @@ type
   end;
 
 implementation
-
-uses
-  Dext.Core.Reflection;
 
 { TSQLParamCollector }
 
@@ -350,7 +351,7 @@ var
   RAttr, SubAttr: TCustomAttribute;
 begin
   Result := False;
-  RTyp := TReflection.Context.GetType(AClass);
+  RTyp := TReflection.GetMetadata(AClass.ClassInfo).RttiType;
   if RTyp = nil then Exit;
   
   // Table Name
@@ -795,7 +796,7 @@ var
   PropMap: TPropertyMap;
 begin
   Result := AName;
-  Typ := TReflection.Context.GetType(T);
+  Typ := TReflection.GetMetadata(TypeInfo(T)).RttiType;
   Prop := Typ.GetProperty(AName);
   if Prop <> nil then
   begin
@@ -1171,34 +1172,33 @@ end;
 
 function TSQLGenerator<T>.GenerateInsert(const AEntity: T): string;
 var
-  Typ: TRttiType;
-  Prop: TRttiProperty;
-  Attr: TCustomAttribute;
   ColName, ParamName: string;
   SBCols, SBVals: TStringBuilder;
   IsAutoInc, IsMapped, First: Boolean;
   Val: TValue;
   Converter: ITypeConverter;
   PropMap: TPropertyMap;
+  Meta: TTypeMetadata;
+  Handler: IPropertyHandler;
 begin
   FParams.Clear;
   FParamTypes.Clear;
   FParamCount := 0;
-  Typ := TReflection.Context.GetType(T);
   SBCols := TStringBuilder.Create;
   SBVals := TStringBuilder.Create;
   try
     First := True;
     
-    for Prop in Typ.GetProperties do
+    Meta := TReflection.GetMetadata(TypeInfo(T));
+    for Handler in Meta.GetPropertyHandlers() do
     begin
       IsMapped := True;
-      IsAutoInc := False;
-      ColName := Prop.Name;
+      IsAutoInc := Handler.GetIsAutoInc();
+      ColName := Handler.GetColumnName();
       
       PropMap := nil;
       if FMap <> nil then
-        FMap.Properties.TryGetValue(Prop.Name, PropMap);
+        FMap.Properties.TryGetValue(Handler.GetName(), PropMap);
         
       if PropMap <> nil then
       begin
@@ -1208,43 +1208,20 @@ begin
         if PropMap.ColumnName <> '' then ColName := PropMap.ColumnName;
       end;
 
-      // Auto-detection for navigation properties (Relationships)
-      // Skip if it's a class/interface unless it has a converter (handled by PropMap being present)
-      if IsMapped and (PropMap = nil) and (Prop.PropertyType.TypeKind in [tkClass, tkInterface]) then
+      if IsMapped and (PropMap = nil) and (Handler.GetMember() is TRttiProperty) and 
+         (TRttiProperty(Handler.GetMember()).PropertyType.TypeKind in [tkClass, tkInterface]) then
         IsMapped := False;
 
-      for Attr in Prop.GetAttributes do
-      begin
-        if Attr is NotMappedAttribute then IsMapped := False;
-        
-        if (Attr is HasManyAttribute) or (Attr is BelongsToAttribute) or 
-           (Attr is HasOneAttribute) or (Attr is ManyToManyAttribute) then
-          IsMapped := False;
-
-        if Attr is JsonColumnAttribute then IsMapped := True;
-
-        if (PropMap = nil) or not PropMap.IsAutoInc then
-          if Attr is AutoIncAttribute then IsAutoInc := True;
-          
-        if (PropMap = nil) or (PropMap.ColumnName = '') then
-        begin
-          if Attr is ColumnAttribute then ColName := ColumnAttribute(Attr).Name;
-          if Attr is ForeignKeyAttribute then ColName := ForeignKeyAttribute(Attr).ColumnName;
-        end;
-
-        if Attr is DbTypeAttribute then
-        begin
-          if PropMap = nil then
-          begin
-            PropMap := TPropertyMap.Create(Prop.Name);
-            if FMap <> nil then FMap.Properties.Add(Prop.Name, PropMap);
-          end;
-          PropMap.DataType := DbTypeAttribute(Attr).DataType;
-        end;
-      end;
+      if IsMapped and Handler.GetMember().HasAttribute(NotMappedAttribute) then IsMapped := False;
       
-      if (ColName = Prop.Name) and (FNamingStrategy <> nil) then
-         ColName := FNamingStrategy.GetColumnName(Prop);
+      if IsMapped and ((Handler.GetMember().HasAttribute(HasManyAttribute)) or (Handler.GetMember().HasAttribute(BelongsToAttribute)) or 
+         (Handler.GetMember().HasAttribute(HasOneAttribute)) or (Handler.GetMember().HasAttribute(ManyToManyAttribute))) then
+        IsMapped := False;
+
+      if Handler.GetMember().HasAttribute(JsonColumnAttribute) then IsMapped := True;
+      
+      if (ColName = Handler.GetName()) and (FNamingStrategy <> nil) and (Handler.GetMember() is TRttiProperty) then
+         ColName := FNamingStrategy.GetColumnName(TRttiProperty(Handler.GetMember()));
       
       if not IsMapped or IsAutoInc then Continue;
       
@@ -1257,7 +1234,7 @@ begin
       
       SBCols.Append(FDialect.QuoteIdentifier(ColName));
       
-      Val := Prop.GetValue(Pointer(AEntity));
+      Val := Handler.GetValue(Pointer(AEntity));
 
       // Unwrap Nullable<T> and Prop<T> (Smart Type)
       TryUnwrapSmartValue(Val);
@@ -1385,32 +1362,29 @@ end;
 
 function TSQLGenerator<T>.GenerateInsertTemplate(out AProps: IList<TPair<TRttiProperty, string>>): string;
 var
-  Typ: TRttiType;
-  Prop: TRttiProperty;
-  Attr: TCustomAttribute;
   ColName: string;
   SBCols, SBVals: TStringBuilder;
   IsAutoInc, IsMapped, First: Boolean;
   PropMap: TPropertyMap;
+  Meta: TTypeMetadata;
+  Handler: IPropertyHandler;
 begin
-  Typ := TReflection.Context.GetType(T);
-  
   SBCols := TStringBuilder.Create;
   SBVals := TStringBuilder.Create;
   AProps := TCollections.CreateList<TPair<TRttiProperty, string>>;
+  First := True;
   
   try
-    First := True;
-
-    for Prop in Typ.GetProperties do
+    Meta := TReflection.GetMetadata(TypeInfo(T));
+    for Handler in Meta.GetPropertyHandlers() do
     begin
       IsMapped := True;
-      IsAutoInc := False;
-      ColName := Prop.Name;
+      IsAutoInc := Handler.GetIsAutoInc();
+      ColName := Handler.GetColumnName();
       
       PropMap := nil;
       if FMap <> nil then
-        FMap.Properties.TryGetValue(Prop.Name, PropMap);
+        FMap.Properties.TryGetValue(Handler.GetName(), PropMap);
         
       if PropMap <> nil then
       begin
@@ -1420,26 +1394,14 @@ begin
         if PropMap.ColumnName <> '' then ColName := PropMap.ColumnName;
       end;
 
-      for Attr in Prop.GetAttributes do
-      begin
-        if Attr is NotMappedAttribute then IsMapped := False;
-        
-        if (PropMap = nil) or not PropMap.IsAutoInc then
-          if Attr is AutoIncAttribute then IsAutoInc := True;
-          
-        if (PropMap = nil) or (PropMap.ColumnName = '') then
-        begin
-          if Attr is ColumnAttribute then ColName := ColumnAttribute(Attr).Name;
-          if Attr is ForeignKeyAttribute then ColName := ForeignKeyAttribute(Attr).ColumnName;
-        end;
-      end;
+      if IsMapped and Handler.GetMember().HasAttribute(NotMappedAttribute) then IsMapped := False;
       
-      if (ColName = Prop.Name) and (FNamingStrategy <> nil) then
-         ColName := FNamingStrategy.GetColumnName(Prop);
+      if (ColName = Handler.GetName()) and (FNamingStrategy <> nil) and (Handler.GetMember() is TRttiProperty) then
+         ColName := FNamingStrategy.GetColumnName(TRttiProperty(Handler.GetMember()));
       
       if not IsMapped or IsAutoInc then Continue;
       
-      AProps.Add(TPair<TRttiProperty, string>.Create(Prop, ColName));
+      AProps.Add(TPair<TRttiProperty, string>.Create(TRttiProperty(Handler.GetMember()), ColName));
       
       if not First then
       begin
@@ -1465,9 +1427,6 @@ end;
 
 function TSQLGenerator<T>.GenerateUpdate(const AEntity: T): string;
 var
-  Typ: TRttiType;
-  Prop: TRttiProperty;
-  Attr: TCustomAttribute;
   ColName, ParamName, ParamNameNew: string;
   SBSet, SBWhere: TStringBuilder;
   IsPK, IsMapped, IsVersion: Boolean;
@@ -1478,12 +1437,12 @@ var
   SQLCastStr: string;
   Converter: ITypeConverter;
   NullableHelper: TNullableHelper;
+  Meta: TTypeMetadata;
+  Handler: IPropertyHandler;
 begin
   FParams.Clear;
   FParamTypes.Clear;
   FParamCount := 0;
-  
-  Typ := TReflection.Context.GetType(T);
   
   SBSet := TStringBuilder.Create;
   SBWhere := TStringBuilder.Create;
@@ -1491,70 +1450,44 @@ begin
     FirstSet := True;
     FirstWhere := True;
     
-    for Prop in Typ.GetProperties do
+    Meta := TReflection.GetMetadata(TypeInfo(T));
+    for Handler in Meta.GetPropertyHandlers() do
     begin
       IsMapped := True;
-      IsPK := False;
-      IsVersion := False;
-      ColName := Prop.Name;
+      IsPK := Handler.GetIsPK();
+      IsVersion := Handler.GetMember().HasAttribute(VersionAttribute);
+      ColName := Handler.GetColumnName();
       
       PropMap := nil;
       if FMap <> nil then
-        FMap.Properties.TryGetValue(Prop.Name, PropMap);
+        FMap.Properties.TryGetValue(Handler.GetName(), PropMap);
         
       if PropMap <> nil then
       begin
         if PropMap.IsIgnored then IsMapped := False;
         if PropMap.IsNavigation and not PropMap.IsJsonColumn then IsMapped := False;
         if PropMap.IsPK then IsPK := True;
-        // Version not yet supported in Fluent Mapping explicitly? Assuming no for now or check map.
         if PropMap.ColumnName <> '' then ColName := PropMap.ColumnName;
       end;
 
-      // Auto-detection for navigation properties (Relationships)
-      if IsMapped and (PropMap = nil) and (Prop.PropertyType.TypeKind in [tkClass, tkInterface]) then
+      if IsMapped and (PropMap = nil) and (Handler.GetMember() is TRttiProperty) and 
+         (TRttiProperty(Handler.GetMember()).PropertyType.TypeKind in [tkClass, tkInterface]) then
         IsMapped := False;
 
-      for Attr in Prop.GetAttributes do
-      begin
-        if Attr is NotMappedAttribute then IsMapped := False;
+      if IsMapped and Handler.GetMember().HasAttribute(NotMappedAttribute) then IsMapped := False;
 
-        if (Attr is HasManyAttribute) or (Attr is BelongsToAttribute) or 
-           (Attr is HasOneAttribute) or (Attr is ManyToManyAttribute) then
-          IsMapped := False;
-
-        if Attr is JsonColumnAttribute then IsMapped := True;
-
-        if Attr is PrimaryKeyAttribute then IsPK := True;
-        if Attr is VersionAttribute then IsVersion := True; 
-        
-        if (PropMap = nil) or (PropMap.ColumnName = '') then
-        begin
-          if Attr is ColumnAttribute then ColName := ColumnAttribute(Attr).Name;
-          if Attr is ForeignKeyAttribute then ColName := ForeignKeyAttribute(Attr).ColumnName;
-        end;
-
-        if Attr is DbTypeAttribute then
-        begin
-          if PropMap = nil then
-          begin
-            PropMap := TPropertyMap.Create(Prop.Name);
-            if FMap <> nil then FMap.Properties.Add(Prop.Name, PropMap);
-          end;
-          PropMap.DataType := DbTypeAttribute(Attr).DataType;
-        end;
-      end;
-      
-      if (ColName = Prop.Name) and (FNamingStrategy <> nil) then
-         ColName := FNamingStrategy.GetColumnName(Prop);
-      
-      // Auto-detection for navigation properties (Relationships)
-      if IsMapped and (PropMap = nil) and (Prop.PropertyType.TypeKind in [tkClass, tkInterface]) then
+      if IsMapped and ((Handler.GetMember().HasAttribute(HasManyAttribute)) or (Handler.GetMember().HasAttribute(BelongsToAttribute)) or 
+         (Handler.GetMember().HasAttribute(HasOneAttribute)) or (Handler.GetMember().HasAttribute(ManyToManyAttribute))) then
         IsMapped := False;
+
+      if Handler.GetMember().HasAttribute(JsonColumnAttribute) then IsMapped := True;
+      
+      if (ColName = Handler.GetName()) and (FNamingStrategy <> nil) and (Handler.GetMember() is TRttiProperty) then
+         ColName := FNamingStrategy.GetColumnName(TRttiProperty(Handler.GetMember()));
       
       if not IsMapped then Continue;
       
-      Val := Prop.GetValue(Pointer(AEntity));
+      Val := Handler.GetValue(Pointer(AEntity));
       
       if IsVersion then
       begin

@@ -1,9 +1,10 @@
-﻿unit Dext.Core.Reflection;
+unit Dext.Core.Reflection;
 
 interface
 
 uses
   System.Character,
+  System.NetEncoding,
   System.Rtti,
   System.StrUtils,
   System.SyncObjs,
@@ -11,7 +12,8 @@ uses
   System.TypInfo,
   Dext.Collections,
   Dext.Collections.Dict,
-  Dext.Types.Lazy;
+  Dext.Types.Lazy,
+  Dext.Types.UUID;
 
 type
   TCustomAttributeClass = class of TCustomAttribute;
@@ -24,7 +26,15 @@ type
     function GetValue(Instance: Pointer): TValue;
     procedure SetValue(Instance: Pointer; const Value: TValue);
     function GetMember: TRttiMember;
+    function GetName: string;
+    function GetIsPK: Boolean;
+    function GetIsAutoInc: Boolean;
+    function GetColumnName: string;
     property Member: TRttiMember read GetMember;
+    property Name: string read GetName;
+    property IsPK: Boolean read GetIsPK;
+    property IsAutoInc: Boolean read GetIsAutoInc;
+    property ColumnName: string read GetColumnName;
   end;
 
   /// <summary>
@@ -63,14 +73,29 @@ type
     RttiType: TRttiType;
     /// <summary>RTTI field that stores the raw value (FValue).</summary>
     ValueField: TRttiField;
-    constructor Create(AType: PTypeInfo);
+    /// <summary>Indicates if the type is a collection (List).</summary>
+    IsList: Boolean;
+    /// <summary>Indicates if the type is a dictionary.</summary>
+    IsDictionary: Boolean;
+    /// <summary>The type of elements in the collection.</summary>
+    ElementType: PTypeInfo;
+    /// <summary>Normalized name of the type (no 'T' prefix).</summary>
+    NormalizedName: string;
+    constructor Create;
+    procedure Initialize(AType: PTypeInfo);
     destructor Destroy; override;
   private
     FHandlers: IDictionary<string, IPropertyHandler>;
+    FSnakeMap: IDictionary<string, IPropertyHandler>;
     function GetHandlers: IDictionary<string, IPropertyHandler>;
+    function GetSnakeMap: IDictionary<string, IPropertyHandler>;
   public
     function GetHandler(const APropName: string): IPropertyHandler;
+    function GetHandlerBySnakeCase(const ASnakeName: string): IPropertyHandler;
+    function GetPropertyHandlers: TArray<IPropertyHandler>;
     property Handlers: IDictionary<string, IPropertyHandler> read GetHandlers;
+    property SnakeMap: IDictionary<string, IPropertyHandler> read GetSnakeMap;
+    property PropertyHandlers: TArray<IPropertyHandler> read GetPropertyHandlers;
   end;
 
   /// <summary>
@@ -87,32 +112,71 @@ type
   public
     /// <summary>Gets or creates cached metadata for the specified type (Thread-Safe).</summary>
     class function GetMetadata(AType: PTypeInfo): TTypeMetadata; static;
-    class function GetValue(AInstance: TObject; const APropertyName: string): TValue; static;
-    class procedure SetValue(AInstance: Pointer; AMember: TRttiMember; const AValue: TValue); static;
-    class procedure SetValueByPath(AInstance: TObject; const APath: string; const AValue: TValue); static;
-    class function IsSmartProp(AType: PTypeInfo): Boolean; static;
-    class function GetUnderlyingType(AType: PTypeInfo): PTypeInfo; overload; static;
-    class function GetUnderlyingType(const AValue: TValue): PTypeInfo; overload; static;
-    class function TryUnwrapProp(const ASource: TValue; var ADest: TValue): Boolean; static;
-    class function TryWrapProp(var ADest: TValue; const ASource: TValue): Boolean; static;
-    class function CreateInstance(AClass: TClass): TObject; static;
-    class function GetFieldPtr(Instance: TObject; const FieldName: string): Pointer; static;
-    class function NormalizeFieldName(const AFieldName: string): string; static;
-    class function GetCollectionItemType(AType: PTypeInfo): TClass; static;
     class function GetHandler(AType: PTypeInfo; const APropName: string): IPropertyHandler; static;
+    /// <summary>Gets the value of a property or field from an instance using RTTI (supports SmartProps).</summary>
+    class function GetValue(AInstance: TObject; const APropertyName: string): TValue; static;
+    /// <summary>Sets the value of a RTTI member in an instance (supports SmartProps and auto-conversion).</summary>
+    class procedure SetValue(AInstance: Pointer; AMember: TRttiMember; const AValue: TValue); static;
+    /// <summary>Sets the value of a property using a path (e.g., 'Address.Street').</summary>
+    class procedure SetValueByPath(AInstance: TObject; const APath: string; const AValue: TValue); static;
+    /// <summary>Checks if a type represents a Dext Smart Property.</summary>
+    class function IsSmartProp(AType: PTypeInfo): Boolean; static;
+    /// <summary>Gets the underlying base type for a SmartProp (e.g., string for Prop of string).</summary>
+    class function GetUnderlyingType(AType: PTypeInfo): PTypeInfo; overload; static;
+    /// <summary>Gets the underlying base type for a TValue containing a SmartProp.</summary>
+    class function GetUnderlyingType(const AValue: TValue): PTypeInfo; overload; static;
+    /// <summary>Attempts to extract the raw value from a SmartProp or ILazy.</summary>
+    class function TryUnwrapProp(const ASource: TValue; var ADest: TValue): Boolean; static;
+    /// <summary>Attempts to wrap a raw value into a SmartProp container.</summary>
+    class function TryWrapProp(var ADest: TValue; const ASource: TValue): Boolean; static;
+    /// <summary>Instantiates a class using its default constructor.</summary>
+    class function CreateInstance(AClass: TClass): TObject; static;
+    /// <summary>Gets a raw pointer to a field inside an instance.</summary>
+    class function GetFieldPtr(Instance: TObject; const FieldName: string): Pointer; static;
+    /// <summary>Normalizes a field name by removing prefixes like 'F' or '_'.</summary>
+    class function NormalizeFieldName(const AFieldName: string): string; static;
+    /// <summary>Detects if a type represents a collection.</summary>
+    class function IsListType(AType: PTypeInfo): Boolean; static;
+    /// <summary>Gets the element type of a generic list.</summary>
+    class function GetListElementType(AType: PTypeInfo): PTypeInfo; static;
+    /// <summary>Legacy helper for collection item class types.</summary>
+    class function GetCollectionItemType(AType: PTypeInfo): TClass; static;
+    /// <summary>Enables detection of generic dictionary types.</summary>
+    class function IsDictionaryType(AType: PTypeInfo): Boolean; static;
+    /// <summary>Gets the key type of a generic dictionary.</summary>
+    class function GetDictionaryKeyType(AType: PTypeInfo): PTypeInfo; static;
+    /// <summary>Gets the value type of a generic dictionary.</summary>
+    class function GetDictionaryValueType(AType: PTypeInfo): PTypeInfo; static;
+    /// <summary>Robustly converts a string value to the specified native type.</summary>
+    class function CastFromString(const AValue: string; AType: PTypeInfo): TValue; static;
+    /// <summary>Gets the default value for a member, checking for [DefaultValue] attribute.</summary>
+    class function GetDefaultValue(AMember: TRttiObject; AType: PTypeInfo): TValue; static;
     class property Context: TRttiContext read FContext;
   end;
 
   TPropertyHandler = class(TInterfacedObject, IPropertyHandler)
   private
     FMember: TRttiMember;
+    FName: string;
+    FIsPK: Boolean;
+    FIsAutoInc: Boolean;
+    FColumnName: string;
+    procedure DiscoverMetadata;
   protected
     function GetMember: TRttiMember;
+    function GetName: string;
+    function GetIsPK: Boolean;
+    function GetIsAutoInc: Boolean;
+    function GetColumnName: string;
   public
     constructor Create(AMember: TRttiMember);
     function GetValue(Instance: Pointer): TValue;
     procedure SetValue(Instance: Pointer; const Value: TValue);
     property Member: TRttiMember read GetMember;
+    property Name: string read GetName;
+    property IsPK: Boolean read GetIsPK;
+    property IsAutoInc: Boolean read GetIsAutoInc;
+    property ColumnName: string read GetColumnName;
   end;
 
 implementation
@@ -128,11 +192,63 @@ constructor TPropertyHandler.Create(AMember: TRttiMember);
 begin
   inherited Create;
   FMember := AMember;
+  FName := AMember.Name;
+  DiscoverMetadata;
 end;
  
+procedure TPropertyHandler.DiscoverMetadata;
+var
+  Attr: TCustomAttribute;
+  AttrName: string;
+begin
+  FIsPK := False;
+  FIsAutoInc := False;
+  FColumnName := FName;
+
+  for Attr in FMember.GetAttributes do
+  begin
+    AttrName := Attr.ClassName;
+    if SameText(AttrName, 'PrimaryKeyAttribute') then
+      FIsPK := True
+    else if SameText(AttrName, 'AutoIncAttribute') then
+      FIsAutoInc := True
+    else if SameText(AttrName, 'ColumnAttribute') then
+    begin
+      // Use RTTI to get the 'Name' property of the ColumnAttribute without depending on its unit
+      var LProp := TReflection.Context.GetType(Attr.ClassType).GetProperty('Name');
+      if LProp <> nil then
+      begin
+        var LVal := LProp.GetValue(Attr).AsString;
+        if LVal <> '' then
+          FColumnName := LVal;
+      end;
+    end;
+  end;
+end;
+
 function TPropertyHandler.GetMember: TRttiMember;
 begin
   Result := FMember;
+end;
+
+function TPropertyHandler.GetName: string;
+begin
+  Result := FName;
+end;
+
+function TPropertyHandler.GetIsPK: Boolean;
+begin
+  Result := FIsPK;
+end;
+
+function TPropertyHandler.GetIsAutoInc: Boolean;
+begin
+  Result := FIsAutoInc;
+end;
+
+function TPropertyHandler.GetColumnName: string;
+begin
+  Result := FColumnName;
 end;
  
 function TPropertyHandler.GetValue(Instance: Pointer): TValue;
@@ -198,18 +314,37 @@ end;
 
 { TTypeMetadata }
 
-constructor TTypeMetadata.Create(AType: PTypeInfo);
+constructor TTypeMetadata.Create;
+begin
+  inherited Create;
+end;
+
+procedure TTypeMetadata.Initialize(AType: PTypeInfo);
+var
+  TypeName: string;
+  LGenParts: TArray<string>;
+  LTMark: Integer;
 begin
   RttiType := TReflection.FContext.GetType(AType);
   IsSmartProp := False;
+  IsLazy := False;
   IsNullable := False;
   ValueField := nil;
   HasValueField := nil;
   InnerType := nil;
+  IsList := False;
+  IsDictionary := False;
+  ElementType := nil;
+  NormalizedName := '';
 
-  if (RttiType <> nil) and (RttiType.TypeKind = tkRecord) then
+  if RttiType = nil then Exit;
+
+  TypeName := RttiType.Name;
+  NormalizedName := TReflection.NormalizeFieldName(TypeName);
+
+  // 1. Detect Smart Properties (Prop<T>, Nullable<T>, Proxy<T>)
+  if (RttiType.TypeKind = tkRecord) then
   begin
-    var TypeName := RttiType.Name;
     IsNullable := TypeName.Contains('Nullable');
     IsSmartProp := RttiType.HasAttribute(SmartPropAttribute);
 
@@ -219,108 +354,140 @@ begin
       if SameText(LFieldName, 'FValue') or SameText(LFieldName, 'Value') then
       begin
         ValueField := Field;
-        InnerType := Field.FieldType.Handle;
+        if (Field.FieldType <> nil) then
+          InnerType := Field.FieldType.Handle;
         IsSmartProp := True;
       end
       else if LFieldName.ToLower.Contains('hasvalue') or SameText(LFieldName, 'FInfo') or SameText(LFieldName, 'Info') then
         HasValueField := Field
-      else if SameText(LFieldName, 'FInstance') and (string(Field.FieldType.Handle.Name).Contains('ILazy')) then
+      else if SameText(LFieldName, 'FInstance') or ((Field.FieldType <> nil) and string(Field.FieldType.Handle.Name).Contains('ILazy')) then
       begin
         IsLazy := True;
         ValueField := Field;
+        if (InnerType = nil) and (Field.FieldType <> nil) then
+          InnerType := Field.FieldType.Handle;
       end;
     end;
 
-    // Fallback: se não encontrou via RTTI (comum em records genéricos sem metadados explícitos)
-    if not IsSmartProp then
+    // Fallback for generic records without explicit attributes
+    if not (IsSmartProp or IsLazy) then
     begin
-      var LTypeName := string(RttiType.Handle.Name);
-      if (LTypeName.Contains('Prop<') or LTypeName.Contains('Nullable<') or
-         LTypeName.Contains('Proxy<') or LTypeName.Contains('TProxy<') or
-         LTypeName.Contains('PropType')) then
-      begin
-        IsSmartProp := True;
-        
-        // Tenta encontrar o campo por convenção se o GetFields falhou
-        if ValueField = nil then
-          ValueField := RttiType.GetField('FValue');
-        if ValueField = nil then
-          ValueField := RttiType.GetField('FProxy'); // Added for Proxy<T>
-        if ValueField = nil then
-          ValueField := RttiType.GetField('Value');
-      end;
+       if (TypeName.Contains('Prop<') or TypeName.Contains('Nullable<') or
+           TypeName.Contains('Proxy<') or TypeName.Contains('TProxy<')) then
+       begin
+         IsSmartProp := True;
+         if ValueField = nil then ValueField := RttiType.GetField('FValue');
+         if ValueField = nil then ValueField := RttiType.GetField('FProxy');
+         if ValueField = nil then ValueField := RttiType.GetField('Value');
+       end
+       else if TypeName.Contains('Lazy<') then
+       begin
+         IsLazy := True;
+         if ValueField = nil then ValueField := RttiType.GetField('FInstance');
+       end;
     end;
-
-    // Se não encontrou o tipo interno via campos/propriedades, tenta via nome (último recurso)
-    if (InnerType = nil) and (IsSmartProp or IsLazy) then
+    
+    // Extraction of InnerType for generic records (Prop<T>, Lazy<T>, Nullable<T>)
+    if (InnerType = nil) or (string(InnerType.Name).Contains('ILazy')) then
     begin
-      // Try 'Value' property first (e.g. Nullable<T>)
-      var LValueProp := RttiType.GetProperty('Value');
-      if LValueProp <> nil then
-        InnerType := LValueProp.PropertyType.Handle;
-
-      if (InnerType = nil) and (ValueField <> nil) and not IsLazy then
-        InnerType := ValueField.FieldType.Handle;
-
-      if InnerType = nil then
+      LTMark := TypeName.IndexOf('<');
+      if (LTMark > 0) and TypeName.EndsWith('>') then
       begin
-        var LTypeName := string(RttiType.Handle.Name);
-        if LTypeName.Contains('<') and LTypeName.EndsWith('>') then
-        begin
-          // Tenta extrair o tipo do nome genérico: Nome<T>
-          var LTMark := LTypeName.IndexOf('<');
-          var LInnerTypeName := LTypeName.Substring(LTMark + 1, LTypeName.Length - LTMark - 2);
-          
-          // Tenta encontrar o tipo via contexto RTTI
-          var LInnerRtti := TReflection.Context.FindType(LInnerTypeName);
-          if LInnerRtti = nil then
-            LInnerRtti := TReflection.Context.FindType('System.' + LInnerTypeName);
-            
-          if LInnerRtti <> nil then
-            InnerType := LInnerRtti.Handle;
-
-          // Map common simple types if FindType fails
-          if InnerType = nil then
-          begin
-            if SameText(LInnerTypeName, 'Integer') or SameText(LInnerTypeName, 'System.Integer') then InnerType := TypeInfo(Integer)
-            else if SameText(LInnerTypeName, 'string') or SameText(LInnerTypeName, 'System.string') then InnerType := TypeInfo(string)
-            else if SameText(LInnerTypeName, 'Boolean') or SameText(LInnerTypeName, 'System.Boolean') then InnerType := TypeInfo(Boolean)
-            else if SameText(LInnerTypeName, 'Double') or SameText(LInnerTypeName, 'System.Double') then InnerType := TypeInfo(Double)
-            else if SameText(LInnerTypeName, 'TDateTime') or SameText(LInnerTypeName, 'System.TDateTime') then InnerType := TypeInfo(TDateTime)
-            else if SameText(LInnerTypeName, 'Currency') or SameText(LInnerTypeName, 'System.Currency') then InnerType := TypeInfo(Currency)
-            else if SameText(LInnerTypeName, 'Int64') or SameText(LInnerTypeName, 'System.Int64') then InnerType := TypeInfo(Int64);
-          end;
-        end;
+        var LInnerName := TypeName.Substring(LTMark + 1, TypeName.Length - LTMark - 2).Trim;
+        var LInnerRtti := TReflection.FContext.FindType(LInnerName);
+        if LInnerRtti = nil then LInnerRtti := TReflection.FContext.FindType('System.' + LInnerName);
+        if LInnerRtti <> nil then InnerType := LInnerRtti.Handle;
       end;
     end;
-  end
-  else if (RttiType <> nil) and (RttiType.TypeKind = tkInterface) then
+
+    if (InnerType = nil) and (ValueField <> nil) and (ValueField.FieldType <> nil) then
+      InnerType := ValueField.FieldType.Handle;
+  end;
+
+  // 2. Detect Collections (Inheritance and Methods)
+  if (RttiType.TypeKind in [tkClass, tkInterface]) then
   begin
-    var LTypeName := string(RttiType.Handle.Name);
-    if (LTypeName = 'ILazy') or LTypeName.Contains('ILazy<') then
+    // Check for List patterns
+    if (TypeName.Contains('IList<') or TypeName.Contains('IEnumerable<') or
+        TypeName.Contains('TList<') or TypeName.Contains('TSmartList<') or
+        TypeName.EndsWith('List')) then
     begin
-        IsLazy := True;
-        IsSmartProp := False; // Lazy is NOT a SmartProp (it doesn't have FValue: T)
-        var LTMark := LTypeName.IndexOf('<');
-        if LTMark > 0 then
-        begin
-          var LInnerTypeName := LTypeName.Substring(LTMark + 1, LTypeName.Length - LTMark - 2);
-          
-          var LInnerRtti := TReflection.Context.FindType(LInnerTypeName);
-          if LInnerRtti = nil then
-            LInnerRtti := TReflection.Context.FindType('System.' + LInnerTypeName);
-            
-          if LInnerRtti <> nil then
-            InnerType := LInnerRtti.Handle;
-  
-          if InnerType = nil then
+      IsList := True;
+    end;
+
+    // Check for Dictionary patterns
+    if TypeName.Contains('IDictionary<') or TypeName.Contains('TDictionary<') then
+    begin
+      IsDictionary := True;
+    end;
+
+    // Deep scanning for interfaces if name-based check is not enough
+    if not (IsList or IsDictionary or IsLazy) then
+    begin
+       if RttiType is TRttiInterfaceType then
+       begin
+          var Intf := TRttiInterfaceType(RttiType);
+          while Intf <> nil do
           begin
-            if SameText(LInnerTypeName, 'Integer') or SameText(LInnerTypeName, 'System.Integer') then InnerType := TypeInfo(Integer)
-            else if SameText(LInnerTypeName, 'string') or SameText(LInnerTypeName, 'System.string') then InnerType := TypeInfo(string)
-            else if SameText(LInnerTypeName, 'Boolean') or SameText(LInnerTypeName, 'System.Boolean') then InnerType := TypeInfo(Boolean)
-            else if SameText(LInnerTypeName, 'Double') or SameText(LInnerTypeName, 'System.Double') then InnerType := TypeInfo(Double)
-            else if SameText(LInnerTypeName, 'TDateTime') or SameText(LInnerTypeName, 'System.TDateTime') then InnerType := TypeInfo(TDateTime);
+            if Intf.Name.Contains('IList<') or Intf.Name.Contains('IEnumerable<') then begin IsList := True; Break; end;
+            if Intf.Name.Contains('IDictionary<') then begin IsDictionary := True; Break; end;
+            if Intf.Name.Contains('ILazy') then begin IsLazy := True; Break; end;
+            if (Intf.BaseType <> nil) and (Intf.BaseType is TRttiInterfaceType) then Intf := TRttiInterfaceType(Intf.BaseType) else Intf := nil;
+          end;
+       end
+       else if RttiType is TRttiInstanceType then
+       begin
+          for var ImplIntf in TRttiInstanceType(RttiType).GetImplementedInterfaces do
+          begin
+            if ImplIntf.Name.Contains('IList<') or ImplIntf.Name.Contains('IEnumerable<') then begin IsList := True; Break; end;
+            if ImplIntf.Name.Contains('IDictionary<') then begin IsDictionary := True; Break; end;
+            if ImplIntf.Name.Contains('ILazy') then begin IsLazy := True; Break; end;
+          end;
+       end;
+    end;
+    
+    // If discovered as Lazy, try to extract InnerType
+    if IsLazy and (InnerType = nil) then
+    begin
+       LTMark := TypeName.IndexOf('<');
+       if (LTMark > 0) and TypeName.EndsWith('>') then
+       begin
+          var LInnerName := TypeName.Substring(LTMark + 1, TypeName.Length - LTMark - 2).Trim;
+          var LInnerRtti := TReflection.FContext.FindType(LInnerName);
+          if LInnerRtti = nil then LInnerRtti := TReflection.FContext.FindType('System.' + LInnerName);
+          if LInnerRtti <> nil then InnerType := LInnerRtti.Handle;
+       end;
+       
+       if InnerType = nil then
+       begin
+          var ValProp := RttiType.GetProperty('Value');
+          if (ValProp <> nil) and (ValProp.PropertyType <> nil) then 
+            InnerType := ValProp.PropertyType.Handle;
+       end;
+    end;
+
+    // If discovered as collection, try to extract ElementType
+    if IsList or IsDictionary then
+    begin
+      LTMark := TypeName.IndexOf('<');
+      if (LTMark > 0) and TypeName.EndsWith('>') then
+      begin
+        LGenParts := TypeName.Substring(LTMark + 1, TypeName.Length - LTMark - 2).Split([',']);
+        if Length(LGenParts) > 0 then
+        begin
+          var LElementName := LGenParts[High(LGenParts)].Trim; // Last part is usually the element or value
+          var LElementRtti := TReflection.FContext.FindType(LElementName);
+          if LElementRtti = nil then LElementRtti := TReflection.FContext.FindType('System.' + LElementName);
+          if LElementRtti <> nil then ElementType := LElementRtti.Handle;
         end;
+      end;
+      
+      // Fallback: look at 'Add' method or 'Items' property
+      if ElementType = nil then
+      begin
+        var AddM := RttiType.GetMethod('Add');
+        if (AddM <> nil) and (Length(AddM.GetParameters) > 0) and (AddM.GetParameters[High(AddM.GetParameters)].ParamType <> nil) then
+          ElementType := AddM.GetParameters[High(AddM.GetParameters)].ParamType.Handle;
       end;
     end;
   end;
@@ -329,6 +496,7 @@ end;
 destructor TTypeMetadata.Destroy;
 begin
   FHandlers := nil;
+  FSnakeMap := nil;
   inherited;
 end;
 
@@ -337,6 +505,33 @@ begin
   if FHandlers = nil then
     FHandlers := TCollections.CreateDictionary<string, IPropertyHandler>(True);
   Result := FHandlers;
+end;
+
+function TTypeMetadata.GetSnakeMap: IDictionary<string, IPropertyHandler>;
+begin
+  if FSnakeMap = nil then
+    FSnakeMap := TCollections.CreateDictionary<string, IPropertyHandler>(True);
+  Result := FSnakeMap;
+end;
+
+function TTypeMetadata.GetHandlerBySnakeCase(const ASnakeName: string): IPropertyHandler;
+begin
+  if not GetSnakeMap.TryGetValue(ASnakeName, Result) then
+  begin
+    // Initial population of the snake map if empty but property handlers are known, 
+    // or just search once and cache.
+    for var Prop in RttiType.GetProperties do
+    begin
+       var LHandler := GetHandler(Prop.Name);
+       // Simple snake_case detection (this is a simplified logic for the cache)
+       // In a real app, this should match the naming strategy used.
+       var LSnake := Prop.Name.ToLower; // Basic fallback
+       if not FSnakeMap.ContainsKey(LSnake) then
+         FSnakeMap.Add(LSnake, LHandler);
+    end;
+    
+    GetSnakeMap.TryGetValue(ASnakeName, Result);
+  end;
 end;
 
 function TTypeMetadata.GetHandler(const APropName: string): IPropertyHandler;
@@ -353,6 +548,16 @@ begin
       FHandlers.Add(APropName, Result);
     end;
   end;
+end;
+
+function TTypeMetadata.GetPropertyHandlers: TArray<IPropertyHandler>;
+var
+  LHandlers: IList<IPropertyHandler>;
+begin
+  LHandlers := TCollections.CreateList<IPropertyHandler>;
+  for var Prop in RttiType.GetProperties do
+    LHandlers.Add(GetHandler(Prop.Name));
+  Result := LHandlers.ToArray;
 end;
 
 { TReflection }
@@ -375,10 +580,17 @@ class function TReflection.GetMetadata(AType: PTypeInfo): TTypeMetadata;
 begin
   FLock.Enter;
   try
-    if not FCache.TryGetValue(AType, Result) then
-    begin
-      Result := TTypeMetadata.Create(AType);
-      FCache.Add(AType, Result);
+    if FCache.TryGetValue(AType, Result) then Exit;
+
+    Result := TTypeMetadata.Create;
+    FCache.Add(AType, Result);
+    
+    try
+      Result.Initialize(AType);
+    except
+      FCache.Remove(AType);
+      Result.Free;
+      raise;
     end;
   finally
     FLock.Leave;
@@ -393,12 +605,15 @@ end;
 class procedure TReflection.SetValue(AInstance: Pointer; AMember: TRttiMember; const AValue: TValue);
 var
   TargetType: PTypeInfo;
+  Meta: TTypeMetadata;
+  Current, Converted: TValue;
 begin
   if (AInstance = nil) or (AMember = nil) then Exit;
   if AMember is TRttiProperty then TargetType := TRttiProperty(AMember).PropertyType.Handle
   else if AMember is TRttiField then TargetType := TRttiField(AMember).FieldType.Handle
   else Exit;
-  var Meta := GetMetadata(TargetType);
+
+  Meta := TReflection.GetMetadata(TargetType);
   if Meta.IsSmartProp or Meta.IsLazy then
   begin
     // Fast path: if the value is already of the target type, just set it directly
@@ -409,11 +624,11 @@ begin
       Exit;
     end;
 
-    var Current: TValue;
+    Current := TValue.Empty;
     if AMember is TRttiProperty then Current := TRttiProperty(AMember).GetValue(AInstance)
     else if AMember is TRttiField then Current := TRttiField(AMember).GetValue(AInstance);
     
-    if TryWrapProp(Current, AValue) then
+    if TReflection.TryWrapProp(Current, AValue) then
     begin
       if AMember is TRttiProperty then TRttiProperty(AMember).SetValue(AInstance, Current)
       else if AMember is TRttiField then TRttiField(AMember).SetValue(AInstance, Current);
@@ -421,12 +636,12 @@ begin
     end;
   end;
 
-  var Converted := TValueConverter.Convert(AValue, TargetType);
+  Converted := TValueConverter.Convert(AValue, TargetType);
   
   // Align TypeInfo pointers for identical record types to avoid EInvalidCast across DCU boundaries
   if (Converted.TypeInfo <> TargetType) and (Converted.TypeInfo <> nil) and (TargetType <> nil) and 
-     (Converted.TypeInfo.Kind = tkRecord) and (TargetType.Kind = tkRecord) and
-     SameText(string(Converted.TypeInfo.Name), string(TargetType.Name)) then
+     (Converted.TypeInfo^.Kind = tkRecord) and (TargetType^.Kind = tkRecord) and
+     SameText(string(Converted.TypeInfo^.Name), string(TargetType^.Name)) then
   begin
     TValue.Make(Converted.GetReferenceToRawData, TargetType, Converted);
   end;
@@ -445,7 +660,7 @@ begin
   Result := TValue.Empty;
   if AInstance = nil then Exit;
   
-  RType := FContext.GetType(AInstance.ClassType);
+  RType := TReflection.FContext.GetType(AInstance.ClassType);
   if RType = nil then Exit;
 
   // 1. Try Property
@@ -465,7 +680,7 @@ begin
       Exit;
   end;
 
-  if TryUnwrapProp(Raw, Unwrapped) then
+  if TReflection.TryUnwrapProp(Raw, Unwrapped) then
     Result := Unwrapped
   else
     Result := Raw;
@@ -486,13 +701,13 @@ begin
 
   if Length(Parts) = 1 then
   begin
-    Prop := FContext.GetType(AInstance.ClassInfo).GetProperty(Parts[0]);
+    Prop := TReflection.FContext.GetType(AInstance.ClassInfo).GetProperty(Parts[0]);
     if Prop <> nil then SetValue(Pointer(AInstance), Prop, AValue);
     Exit;
   end;
 
   // Level 1: Find the first part
-  Prop := FContext.GetType(AInstance.ClassInfo).GetProperty(Parts[0]);
+  Prop := TReflection.FContext.GetType(AInstance.ClassInfo).GetProperty(Parts[0]);
   if (Prop <> nil) and (Prop.PropertyType.TypeKind = tkClass) then
   begin
     CurObj := Prop.GetValue(Pointer(AInstance)).AsObject;
@@ -511,7 +726,8 @@ end;
 
 class function TReflection.IsSmartProp(AType: PTypeInfo): Boolean;
 begin
-  Result := GetMetadata(AType).IsSmartProp;
+  var Meta := GetMetadata(AType);
+  Result := Meta.IsSmartProp or Meta.IsLazy;
 end;
 
 class function TReflection.GetUnderlyingType(AType: PTypeInfo): PTypeInfo;
@@ -524,12 +740,13 @@ end;
 class function TReflection.GetUnderlyingType(const AValue: TValue): PTypeInfo;
 var
   LLazy: ILazy;
+  LIntf: IInterface;
 begin
   Result := nil;
   // If it's an interface, check if it's an ILazy to get TargetType without loading
   if AValue.Kind = tkInterface then
   begin
-    var LIntf := AValue.AsInterface;
+    LIntf := AValue.AsInterface;
     if (LIntf <> nil) and (LIntf.QueryInterface(ILazy, LLazy) = S_OK) then
       Exit(LLazy.TargetType);
   end;
@@ -546,6 +763,9 @@ class function TReflection.TryUnwrapProp(const ASource: TValue; var ADest: TValu
 var
   PData: Pointer;
   Unwrapped: TValue;
+  LIntf: IInterface;
+  LLazy: ILazy;
+  Meta: TTypeMetadata;
 begin
   ADest := ASource;
   Result := False;
@@ -555,8 +775,7 @@ begin
   // Direct support for ILazy interface
   if ASource.Kind = tkInterface then
   begin
-    var LIntf := ASource.AsInterface;
-    var LLazy: ILazy;
+    LIntf := ASource.AsInterface;
     if (LIntf <> nil) and (LIntf.QueryInterface(ILazy, LLazy) = S_OK) then
     begin
        Unwrapped := LLazy.Value;
@@ -574,7 +793,7 @@ begin
   // For other types, only unwrap if it is a registered SmartProp (Record or Class)
   if not (ASource.Kind in [tkRecord, tkClass]) then Exit;
 
-  var Meta := GetMetadata(ASource.TypeInfo);
+  Meta := GetMetadata(ASource.TypeInfo);
   if (Meta.IsSmartProp or Meta.IsLazy) and (Meta.ValueField <> nil) then
   begin
     PData := ASource.GetReferenceToRawData;
@@ -596,8 +815,7 @@ begin
     // If unwrapped is an ILazy interface, extract its value
     if (Unwrapped.Kind = tkInterface) then
     begin
-       var LIntf := Unwrapped.AsInterface;
-       var LLazy: ILazy;
+       LIntf := Unwrapped.AsInterface;
        if (LIntf <> nil) and (LIntf.QueryInterface(ILazy, LLazy) = S_OK) then
        begin
           Unwrapped := LLazy.Value;
@@ -617,11 +835,13 @@ end;
 class function TReflection.TryWrapProp(var ADest: TValue; const ASource: TValue): Boolean;
 var
   PData: Pointer;
+  Meta: TTypeMetadata;
+  Converted: TValue;
 begin
   Result := False;
   if ADest.TypeInfo = nil then Exit;
 
-  var Meta := GetMetadata(ADest.TypeInfo);
+  Meta := GetMetadata(ADest.TypeInfo);
   if Meta.IsSmartProp and (Meta.ValueField <> nil) then
   begin
     PData := ADest.GetReferenceToRawData;
@@ -633,7 +853,7 @@ begin
 
       if not ASource.IsEmpty then
       begin
-        var Converted := TValueConverter.Convert(ASource, Meta.InnerType);
+        Converted := TValueConverter.Convert(ASource, Meta.InnerType);
         Meta.ValueField.SetValue(PData, Converted);
       end;
       Result := True;
@@ -661,8 +881,8 @@ class function TReflection.NormalizeFieldName(const AFieldName: string): string;
 begin
   Result := AFieldName;
   
-  // Remove 'F' prefix if it exists (0-based Char.IsUpper check)
-  if (Result.Length > 1) and (Result[1] = 'F') and (Char.IsUpper(Result, 1)) then
+  // Remove 'F' or 'T' prefixes if followed by an uppercase letter (Chars is 0-indexed)
+  if (Result.Length > 1) and (Result.Chars[1].IsUpper) and ((Result.Chars[0] = 'F') or (Result.Chars[0] = 'T')) then
     Result := Result.Substring(1);
 
   // Normalize Smart Property prefixes: Lazy, Prop, Proxy, Nullable
@@ -676,32 +896,146 @@ begin
     Result := Result.Substring(8);
 end;
 
+class function TReflection.IsListType(AType: PTypeInfo): Boolean;
+begin
+  Result := GetMetadata(AType).IsList;
+end;
+
+class function TReflection.GetListElementType(AType: PTypeInfo): PTypeInfo;
+begin
+  Result := GetMetadata(AType).ElementType;
+end;
+
 class function TReflection.GetCollectionItemType(AType: PTypeInfo): TClass;
 var
-  LTypeName: string;
-  LInnerTypeName: string;
+  LElementType: PTypeInfo;
+  LRtti: TRttiType;
+begin
+  Result := nil;
+  LElementType := GetListElementType(AType);
+  if LElementType <> nil then
+  begin
+    LRtti := FContext.GetType(LElementType);
+    if LRtti is TRttiInstanceType then
+      Result := TRttiInstanceType(LRtti).MetaclassType;
+  end;
+end;
+
+class function TReflection.IsDictionaryType(AType: PTypeInfo): Boolean;
+begin
+  Result := GetMetadata(AType).IsDictionary;
+end;
+
+class function TReflection.GetDictionaryKeyType(AType: PTypeInfo): PTypeInfo;
+var
+  TypeName: string;
   LTMark: Integer;
 begin
   Result := nil;
+  if not IsDictionaryType(AType) then Exit;
   
-  if AType = nil then Exit;
-  
-  LTypeName := string(AType.Name);
-  
-  // Extract T from IList<T>, IEnumerable<T>, etc
-  LTMark := LTypeName.IndexOf('<');
-  if (LTMark > 0) and LTypeName.EndsWith('>') then
+  TypeName := string(AType^.Name);
+  LTMark := TypeName.IndexOf('<');
+  if LTMark > 0 then
   begin
-    LInnerTypeName := LTypeName.Substring(LTMark + 1, LTypeName.Length - LTMark - 2);
-    
-    // Find the type in RTTI context
-    var LInnerRtti := FContext.FindType(LInnerTypeName);
-    if LInnerRtti = nil then
-      LInnerRtti := FContext.FindType('System.' + LInnerTypeName);
-    
-    if (LInnerRtti <> nil) and (LInnerRtti.TypeKind = tkClass) then
-      Result := TRttiInstanceType(LInnerRtti).MetaclassType;
+    var LGenParts := TypeName.Substring(LTMark + 1, TypeName.Length - LTMark - 2).Split([',']);
+    if Length(LGenParts) >= 1 then
+    begin
+      var LKeyName := LGenParts[0].Trim;
+      var LRtti := FContext.FindType(LKeyName);
+      if LRtti = nil then LRtti := FContext.FindType('System.' + LKeyName);
+      if LRtti <> nil then Result := LRtti.Handle;
+    end;
   end;
+end;
+
+class function TReflection.GetDictionaryValueType(AType: PTypeInfo): PTypeInfo;
+begin
+  Result := GetListElementType(AType);
+end;
+
+class function TReflection.CastFromString(const AValue: string; AType: PTypeInfo): TValue;
+var
+  G: TGUID;
+  DecodedValue: string;
+begin
+  if AValue = '' then
+  begin
+    TValue.Make(nil, AType, Result);
+    Exit;
+  end;
+
+  // Auto URL Decode
+  DecodedValue := TNetEncoding.URL.Decode(AValue);
+
+  try
+    case AType.Kind of
+      tkInteger, tkInt64: Result := TValue.FromOrdinal(AType, StrToInt64Def(DecodedValue, 0));
+      tkFloat:
+        begin
+          if (AType = TypeInfo(TDateTime)) or (AType = TypeInfo(TDate)) or (AType = TypeInfo(TTime)) then
+          begin
+            Result := TValue.From<TDateTime>(StrToDateTimeDef(DecodedValue, 0));
+          end
+          else
+          begin
+            var F: Double;
+            if TryStrToFloat(DecodedValue, F, TFormatSettings.Invariant) then
+              Result := TValue.From<Double>(F)
+            else
+              Result := TValue.From<Double>(0);
+          end;
+        end;
+      tkString, tkLString, tkWString, tkUString: Result := TValue.From<string>(DecodedValue);
+      tkEnumeration:
+        begin
+          if AType = TypeInfo(Boolean) then
+          begin
+            var S := DecodedValue.Trim.ToLower;
+            var B := (S = 'true') or (S = '1') or (S = 'on') or (S = 'yes');
+            Result := TValue.From<Boolean>(B);
+          end
+          else
+            Result := TValue.FromOrdinal(AType, StrToIntDef(DecodedValue, 0));
+        end;
+      tkRecord:
+        begin
+          if AType = TypeInfo(TGUID) then
+          begin
+            var GuidStr := DecodedValue.Trim;
+            if GuidStr <> '' then
+            begin
+              if not GuidStr.StartsWith('{') then GuidStr := '{' + GuidStr + '}';
+              try
+                G := StringToGUID(GuidStr);
+                TValue.Make(@G, AType, Result);
+              except
+                Result := TValue.From<TGUID>(TGUID.Empty);
+              end;
+            end
+            else Result := TValue.From<TGUID>(TGUID.Empty);
+          end
+          else if AType = TypeInfo(TUUID) then
+          begin
+             var U := TUUID.FromString(DecodedValue.Trim);
+             TValue.Make(@U, AType, Result);
+          end
+          else
+            TValue.Make(nil, AType, Result);
+        end;
+      else
+        TValue.Make(nil, AType, Result);
+    end;
+  except
+    TValue.Make(nil, AType, Result);
+  end;
+end;
+
+class function TReflection.GetDefaultValue(AMember: TRttiObject; AType: PTypeInfo): TValue;
+begin
+  // Implementation note: We can expand this to check for [DefaultValue] attributes
+  // For now, return default for the type
+  TValue.Make(nil, AType, Result);
 end;
 
 end.

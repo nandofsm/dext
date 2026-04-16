@@ -40,6 +40,7 @@ uses
   Dext.Entity.Naming,
   Dext.Entity.Query,
   Dext.Core.SmartTypes, // Add SmartTypes unit
+  Dext.Core.Reflection,
   Dext.Specifications.Base,
   Dext.Specifications.Interfaces,
   Dext.Specifications.Types,
@@ -456,11 +457,11 @@ type
 /// <summary>
 ///   Unwraps Nullable<T> values and validates if FK is valid (non-zero for integers, non-empty for strings)
 /// </summary>
-function TryUnwrapAndValidateFK(var AValue: TValue; AContext: TRttiContext): Boolean;
+function TryUnwrapAndValidateFK(var AValue: TValue): Boolean;
 
 implementation
 
-function TryUnwrapAndValidateFK(var AValue: TValue; AContext: TRttiContext): Boolean;
+function TryUnwrapAndValidateFK(var AValue: TValue): Boolean;
 var
   RType: TRttiType;
   TypeName: string;
@@ -474,7 +475,7 @@ begin
   // Handle Nullable<T> unwrapping
   if AValue.Kind = tkRecord then
   begin
-    RType := AContext.GetType(AValue.TypeInfo);
+    RType := TReflection.Context.GetType(AValue.TypeInfo);
     if RType <> nil then
     begin
       TypeName := RType.Name;

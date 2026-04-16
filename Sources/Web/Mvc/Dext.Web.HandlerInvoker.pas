@@ -1,4 +1,4 @@
-﻿{***************************************************************************}
+{***************************************************************************}
 {                                                                           }
 {           Dext Framework                                                  }
 {                                                                           }
@@ -115,7 +115,8 @@ uses
   {$IFDEF DEXT_ENABLE_ENTITY}
   ,Dext.Entity.Attributes
   {$ENDIF}
-  ,Dext.Validation;
+  ,Dext.Validation
+  ,Dext.Core.Reflection;
 
 { THandlerInvoker }
 
@@ -225,7 +226,7 @@ begin
        if TValue.From<T>(Result).AsObject <> nil then
        begin
          var IsEntity := False;
-         var CtxRtti := GetWebSharedRttiContext;
+         var CtxRtti := TReflection.Context;
          try
            var Typ := CtxRtti.GetType(TypeInfo(T));
            if Typ <> nil then

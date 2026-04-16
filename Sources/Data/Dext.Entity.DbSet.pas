@@ -511,134 +511,97 @@ end;
 
 procedure TDbSet<T>.MapEntity;
 var
-  Attr: TCustomAttribute;
-  ColName: string;
+  ColName, FieldName, KeyProp: string;
   IsMapped: Boolean;
-  Prop: TRttiProperty;
   PropMap: TPropertyMap;
-  Typ: TRttiType;
-  Field: TRttiField; // Added for field mapping discovery
+  Handler: IPropertyHandler;
+  Meta: TTypeMetadata;
+  SpecTable: TableAttribute;
+  Field: TRttiField;
 begin
-  Typ := TReflection.Context.GetType(T);
+  Meta := TReflection.GetMetadata(TypeInfo(T));
   FMap := TEntityMap(FContext.GetMapping(TypeInfo(T)));
   FTableName := '';
   if (FMap <> nil) and (FMap.TableName <> '') then
     FTableName := FMap.TableName;
   if FTableName = '' then
   begin
-    for Attr in Typ.GetAttributes do
-      if Attr is TableAttribute then
-        if TableAttribute(Attr).Name <> '' then
-          FTableName := TableAttribute(Attr).Name;
+    SpecTable := Meta.RttiType.GetAttribute<TableAttribute>;
+    if (SpecTable <> nil) and (SpecTable.Name <> '') then
+      FTableName := SpecTable.Name;
   end;
   
-  // Property-based Naming Discovery fallback
   if FTableName = '' then
     FTableName := TModelBuilder.Instance.GetDiscoveryName(TypeInfo(T));
 
-  // Final fallback: Use naming strategy to derive from class name
   if FTableName = '' then
     FTableName := FContext.NamingStrategy.GetTableName(T);
-    for Prop in Typ.GetProperties do
+
+  for Handler in Meta.GetPropertyHandlers() do
+  begin
+    IsMapped := True;
+    PropMap := nil;
+    if FMap <> nil then
     begin
-      IsMapped := True;
-      PropMap := nil;
-      if FMap <> nil then
+      if FMap.Properties.TryGetValue(Handler.GetName(), PropMap) then
       begin
-        if FMap.Properties.TryGetValue(Prop.Name, PropMap) then
-        begin
-          if PropMap.IsIgnored then IsMapped := False;
-          if PropMap.IsNavigation and not PropMap.IsJsonColumn then IsMapped := False;
-        end;
+        if PropMap.IsIgnored then IsMapped := False;
+        if PropMap.IsNavigation and not PropMap.IsJsonColumn then IsMapped := False;
       end;
+    end;
 
-      // Auto-detection fallback for classes/interfaces (Relationship by convention)
-      if IsMapped and (PropMap = nil) and (Prop.PropertyType.TypeKind in [tkClass, tkInterface]) then
-        IsMapped := False;
+    if IsMapped and (PropMap = nil) and (Handler.GetMember() is TRttiProperty) and 
+       (TRttiProperty(Handler.GetMember()).PropertyType.TypeKind in [tkClass, tkInterface]) then
+      IsMapped := False;
 
-      for Attr in Prop.GetAttributes do
-      begin
-        if Attr is NotMappedAttribute then IsMapped := False;
+    if IsMapped and Handler.GetMember().HasAttribute(NotMappedAttribute) then IsMapped := False;
+    
+    if not IsMapped then Continue;
 
-        // Attributes like [HasMany], [BelongsTo] explicitly mark it as not a simple column
-        if (Attr is HasManyAttribute) or (Attr is BelongsToAttribute) or 
-           (Attr is HasOneAttribute) or (Attr is ManyToManyAttribute) then
-          IsMapped := False;
-
-        // [JsonColumn] always forces mapping as a simple column
-        if Attr is JsonColumnAttribute then IsMapped := True;
-
-        // [Nested] allows mapping classes as nested objects (multi-mapping)
-        if Attr is NestedAttribute then IsMapped := True;
-      end;
-      
-      if not IsMapped then Continue;
     ColName := '';
     if (PropMap <> nil) and (PropMap.ColumnName <> '') then
       ColName := PropMap.ColumnName;
+    
     if ColName = '' then
-    begin
-      for Attr in Prop.GetAttributes do
-      begin
-        if Attr is ColumnAttribute then
-          ColName := ColumnAttribute(Attr).Name;
-        if Attr is ForeignKeyAttribute then
-          ColName := ForeignKeyAttribute(Attr).ColumnName;
-      end;
-    end;
+      ColName := Handler.GetColumnName();
+
     if ColName = '' then
-      ColName := FContext.NamingStrategy.GetColumnName(Prop);
-    if (PropMap <> nil) and PropMap.IsPK then
+      if Handler.GetMember() is TRttiProperty then
+        ColName := FContext.NamingStrategy.GetColumnName(TRttiProperty(Handler.GetMember()));
+
+    if ((PropMap <> nil) and PropMap.IsPK) or Handler.GetIsPK() then
     begin
       if not FPKColumns.Contains(ColName) then
         FPKColumns.Add(ColName);
     end;
-    if (FMap = nil) or (FMap.Keys.Count = 0) then
-    begin
-      for Attr in Prop.GetAttributes do
-      begin
-        if Attr is PrimaryKeyAttribute then
-          if not FPKColumns.Contains(ColName) then
-            FPKColumns.Add(ColName);
-      end;
-    end;
 
-    // Navigation properties (Lazy<T>) should not be hydrated from DB fields directly
-    // They are handled by the Lazy Injector. We only add them to FColumns for SQL generation.
-    if not Prop.PropertyType.Name.StartsWith('Lazy<') then
-      FProps.Add(ColName.ToLower, Prop);
+    if not Handler.GetName().StartsWith('Lazy<') then
+      FProps.Add(ColName.ToLower, TRttiProperty(Handler.GetMember()));
       
-    FColumns.Add(Prop.Name, ColName);
+    FColumns.Add(Handler.GetName(), ColName);
     
-    // Check for backing field mapping - either explicit from fluent mapping or auto-detect for Smart Types
     if (PropMap <> nil) and (PropMap.FieldName <> '') then
     begin
-      Field := Typ.GetField(PropMap.FieldName);
+      Field := Meta.RttiType.GetField(PropMap.FieldName);
       if Field <> nil then
         FFields.Add(ColName.ToLower, Field);
     end
-    else
+    else if Handler.GetMember() is TRttiProperty then
     begin
-      // Auto-detect backing field for Smart Types (Prop<T>)
-      // Convention: Property "Name" has backing field "FName"
-      if (Prop.PropertyType.TypeKind = tkRecord) then
-      begin
-        var FieldName := TReflection.NormalizeFieldName(Prop.Name);
-        Field := Typ.GetField(FieldName);
-        if Field <> nil then
-          FFields.Add(ColName.ToLower, Field);
-      end;
+      FieldName := TReflection.NormalizeFieldName(Handler.GetName());
+      Field := Meta.RttiType.GetField(FieldName);
+      if Field <> nil then
+        FFields.Add(ColName.ToLower, Field);
     end;
   end;
+
   if FPKColumns.Count = 0 then
   begin
     if (FMap <> nil) and (FMap.Keys.Count > 0) then
     begin
-      for var KeyProp in FMap.Keys do
-      begin
+      for KeyProp in FMap.Keys do
         if FColumns.ContainsKey(KeyProp) then
           FPKColumns.Add(FColumns[KeyProp]);
-      end;
     end;
     if FPKColumns.Count = 0 then
     begin
@@ -724,20 +687,21 @@ end;
 
 function TDbSet<T>.GetRelatedId(const AObject: TObject): TValue;
 var
-  Typ: TRttiType;
-  Prop: TRttiProperty;
-  Attr: TCustomAttribute;
+  Meta: TTypeMetadata;
+  Handler: IPropertyHandler;
 begin
-  Typ := TReflection.Context.GetType(AObject.ClassType);
-  for Prop in Typ.GetProperties do
+  Meta := TReflection.GetMetadata(AObject.ClassInfo);
+  for Handler in Meta.GetPropertyHandlers do
   begin
-    for Attr in Prop.GetAttributes do
-      if Attr is PrimaryKeyAttribute then
-        Exit(Prop.GetValue(AObject));
+    if Handler.GetIsPK then
+      Exit(Handler.GetValue(AObject));
   end;
-  Prop := Typ.GetProperty('Id');
-  if Prop <> nil then
-    Exit(Prop.GetValue(AObject));
+  
+  // Fallback to 'Id'
+  Handler := Meta.GetHandler('Id');
+  if Handler <> nil then
+    Exit(Handler.GetValue(AObject));
+    
   raise Exception.Create('Could not determine Primary Key for related entity ' + AObject.ClassName);
 end;
 
@@ -1283,13 +1247,16 @@ end;
 procedure TDbSet<T>.PersistUpdate(const AEntity: TObject);
 var
   Generator: TSqlGenerator<T>;
-  Sql: string;
+  Sql, Id: string;
   Cmd: IDbCommand;
   RowsAffected: Integer;
   Prop: TRttiProperty;
-  Attr: TCustomAttribute;
   Val: TValue;
   NewVer: Integer;
+  Meta: TTypeMetadata;
+  Handler: IPropertyHandler;
+  SW: TStopwatch;
+  Payload: TJSONObject;
 begin
   HandleTimestamps(AEntity, False);
   Generator := CreateGenerator;
@@ -1304,41 +1271,42 @@ begin
       else
         Cmd.AddParam(Pair.Key, Pair.Value);
     end;
-    var SW := TStopwatch.StartNew;
+    SW := TStopwatch.StartNew;
     try
       RowsAffected := Cmd.ExecuteNonQuery;
-      var Payload := TJSONObject.Create;
+      Payload := TJSONObject.Create;
       Payload.AddPair('sql', Sql);
       Payload.AddPair('rows', RowsAffected);
       TDiagnosticSource.Instance.Write('SQL.Update', Payload, 'SQL', SW.ElapsedMilliseconds);
     except
       on E: Exception do
       begin
-        var Payload := TJSONObject.Create;
+        Payload := TJSONObject.Create;
         Payload.AddPair('sql', Sql);
         Payload.AddPair('rows', 0);
         TDiagnosticSource.Instance.Write('SQL.Update', Payload, 'SQL', SW.ElapsedMilliseconds, 'Error', E.Message);
         raise;
       end;
     end;
+    
     if RowsAffected = 0 then
       raise EOptimisticConcurrencyException.Create('Concurrency violation: The record has been modified or deleted by another user.');
-    for Prop in TReflection.Context.GetType(T).GetProperties do
+    
+    Meta := TReflection.GetMetadata(TypeInfo(T));
+    for Handler in Meta.GetPropertyHandlers() do
     begin
-      for Attr in Prop.GetAttributes do
+      if Handler.GetMember().HasAttribute(VersionAttribute) then
       begin
-        if Attr is VersionAttribute then
-        begin
-          Val := Prop.GetValue(Pointer(AEntity));
-          if Val.IsEmpty then NewVer := 1 else NewVer := Val.AsInteger + 1;
-          TReflection.SetValue(Pointer(AEntity), Prop, NewVer);
-          Break;
-        end;
+        Prop := TRttiProperty(Handler.GetMember());
+        Val := Prop.GetValue(Pointer(AEntity));
+        if Val.IsEmpty then NewVer := 1 else NewVer := Val.AsInteger + 1;
+        TReflection.SetValue(Pointer(AEntity), Prop, NewVer);
+        Break;
       end;
     end;
 
     // After successful update, ensure it's in the Identity Map and not in Orphans
-    var Id := GetEntityId(T(AEntity));
+    Id := GetEntityId(T(AEntity));
     if not FIdentityMap.ContainsKey(Id) then
     begin
        if FOrphans.Contains(T(AEntity)) then
@@ -1926,7 +1894,7 @@ begin
   for Ent in AEntities do
   begin
     Val := FKProp.GetValue(Pointer(Ent));
-    if TryUnwrapAndValidateFK(Val, TReflection.Context) then
+    if TryUnwrapAndValidateFK(Val) then
     begin
       if not IDs.Contains(Val) then
         IDs.Add(Val);
@@ -2163,7 +2131,7 @@ begin
           TargetFKValue := ObjProp.GetValue(Obj);
           
           // CRITICAL: Must unwrap if it is Prop<T> or Nullable
-          if not TryUnwrapAndValidateFK(TargetFKValue, TReflection.Context) then Continue;
+          if not TryUnwrapAndValidateFK(TargetFKValue) then Continue;
 
           TargetFKStr := TValueToKeyString(TargetFKValue);
           

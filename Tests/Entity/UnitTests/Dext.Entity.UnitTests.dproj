@@ -1,4 +1,4 @@
-﻿<Project xmlns="http://schemas.microsoft.com/developer/msbuild/2003">
+<Project xmlns="http://schemas.microsoft.com/developer/msbuild/2003">
     <PropertyGroup>
         <ProjectGuid>{9736A181-3D26-4EC1-A966-DAACF43D73C4}</ProjectGuid>
         <MainSource>Dext.Entity.UnitTests.dpr</MainSource>

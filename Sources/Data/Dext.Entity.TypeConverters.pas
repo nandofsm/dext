@@ -912,6 +912,14 @@ begin
       on E: Exception do
         UnwrappedValue := AValue;
     end;
+
+    // Align PTypeInfo for records across DCU boundaries to avoid EInvalidCast in native RTTI SetValue
+    if (UnwrappedValue.TypeInfo <> ValPropType) and (UnwrappedValue.TypeInfo <> nil) and (ValPropType <> nil) and
+       (UnwrappedValue.TypeInfo.Kind = tkRecord) and (ValPropType.Kind = tkRecord) and
+       SameText(string(UnwrappedValue.TypeInfo.Name), string(ValPropType.Name)) then
+    begin
+      TValue.Make(UnwrappedValue.GetReferenceToRawData, ValPropType, UnwrappedValue);
+    end;
       
     Field.SetValue(Result.GetReferenceToRawData, UnwrappedValue);
   end;

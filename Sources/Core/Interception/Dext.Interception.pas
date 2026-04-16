@@ -1,4 +1,4 @@
-﻿{***************************************************************************}
+{***************************************************************************}
 {                                                                           }
 {           Dext Framework                                                  }
 {                                                                           }
@@ -153,6 +153,7 @@ type
 implementation
 
 uses
+  Dext.Core.Reflection,
   Dext.Interception.Proxy;
 
 { TProxy }
@@ -166,7 +167,6 @@ class function TProxy.CreateInterface<T>(const Interceptors: TArray<IInterceptor
 var
   Proxy: IInterface;
   TypeInfo: PTypeInfo;
-  RttiCtx: TRttiContext;
   RttiType: TRttiType;
 begin
   TypeInfo := System.TypeInfo(T);
@@ -174,7 +174,7 @@ begin
     raise EInterceptionException.CreateFmt('Type %s is not an interface', [TypeInfo.Name]);
 
   // Verify interface has RTTI (requires {$M+} directive)
-  RttiType := RttiCtx.GetType(TypeInfo);
+  RttiType := TReflection.Context.GetType(TypeInfo);
   if (RttiType = nil) or (Length(RttiType.GetMethods) = 0) then
     raise EInterceptionException.CreateFmt(
       'Interface %s has no RTTI. Add {$M+} directive before interface declaration.',

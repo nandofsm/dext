@@ -205,5 +205,23 @@ Validação:
 Regras:
 - NÃO use prefixo L em variáveis locais
 - Mensagens de commit em inglês, sem paths locais
+- Mensagens de commit em inglês, sem paths locais
 - Mantenha todos os comentários e docstrings existentes
 ```
+
+---
+
+## 5. Próxima Etapa: Fase 5 — Concorrência (Thread-Safety) nos Caches
+
+### 5.1 O Custo do "Lazy-Loading" Desprotegido
+Durante a execução do *High-Performance Reflection*, identificamos uma limitação crítica que pode comprometer aplicações e servidores Web sob estresse. As instâncias nativas de `IDictionary<K,V>` criadas com `TCollections.CreateDictionary` **não são thread-safe** para concorrência de escrita.
+
+* **O Problema em `TTypeMetadata`:** O cache primário `TReflection.Context` utiliza um lock (`FLock`), mas o preenchimento dos dicionários `FHandlers` e `FSnakeMap` acontece sob demanda (via "Lazy-Loading") **sem bloqueios**. Múltiplas threads Web que invocam APIs e serializam a mesma entidade, pela primeira vez, esbarram no mesmo dicionário, causando `Access Violations`.
+* **O Problema no `TActivator`:** As listas que governam o container de Injeção de Dependências (`FConstructorCache` e `FHybridConstructorCache`) não possuem `TMonitor` nem `TCriticalSection` em volta do `AddOrSetValue`.
+
+### 5.2 Recomendações Implementacionais
+Para erradicar qualquer possibilidade de concorrência destrutiva, as seguintes recomendações devem guiar a Fase 5:
+
+1. **Uso de `TMREWSync` ou `TMonitor` (Delphi Native):** Integrar e inicializar travas exclusivas nos pontos exatos de `GetHandler`, bem como no registro dinâmico via Singleton ou Caches de escopo transacional. O lock `TMultiReadExclusiveWriteSynchronizer` é ideal aqui, já que teremos uma altíssima carga de leituras contra apenas algumas raras inicializações bloqueantes por Tipo.
+2. **Avaliação Fina de Performance:** Executar rodadas no `Web.FrameworkTests` injetando requisições paralelas simultâneas (`TParallel.For` testando `TReflection.GetHandler`) pós-implementação dos blockings para garantir que a lentidão da trava seja mitigada.
+3. **Escopo Centralizado:** Evitar instanciar `TCriticalSection` em cada Tipo se pudermos utilizar Global Locks ou `TMonitor.Enter`/`TMonitor.Exit` diretamente no objeto `TTypeMetadata`.

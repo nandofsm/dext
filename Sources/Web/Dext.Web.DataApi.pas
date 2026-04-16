@@ -442,16 +442,14 @@ end;
 
 function TDataApiHandler.ResolvePropertyName(const ASnakeName: string): string;
 var
-  Typ: TRttiType;
-  Prop: TRttiProperty;
+  Meta: TTypeMetadata;
+  Handler: IPropertyHandler;
 begin
   Result := '';
-  Typ := TReflection.Context.GetType(FEntityClass);
-  for Prop in Typ.GetProperties do
-  begin
-     if SameText(Prop.Name, ASnakeName) then Exit(Prop.Name);
-     if SameText(ASnakeName.Replace('_', ''), Prop.Name) then Exit(Prop.Name);
-  end;
+  Meta := TReflection.GetMetadata(FEntityClass.ClassInfo);
+  Handler := Meta.GetHandlerBySnakeCase(ASnakeName);
+  if Handler <> nil then
+    Result := Handler.Name;
 end;
 
 procedure TDataApiHandler.RegisterRoutes(const ABuilder: IApplicationBuilder);

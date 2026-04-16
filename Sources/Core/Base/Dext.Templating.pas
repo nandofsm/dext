@@ -368,6 +368,51 @@ begin
       else
         Result := LowerCase(Copy(Pascal, 1, 1)) + Copy(Pascal, 2, MaxInt);
     end);
+
+  RegisterFilter('ToSnakeCase',
+    function(S: string): string
+    var
+      I: Integer;
+      C: Char;
+    begin
+      Result := '';
+      for I := 1 to Length(S) do
+      begin
+        C := S[I];
+        if (I > 1) and C.IsUpper then
+          Result := Result + '_';
+        Result := Result + C.ToLower;
+      end;
+    end);
+
+  RegisterFilter('Pluralize',
+    function(S: string): string
+    begin
+      Result := S;
+      if S = '' then Exit;
+      
+      if S.EndsWith('y', True) and not S.EndsWith('ay', True) and not S.EndsWith('ey', True) and 
+         not S.EndsWith('iy', True) and not S.EndsWith('oy', True) and not S.EndsWith('uy', True) then
+        Result := S.Substring(0, S.Length - 1) + 'ies'
+      else if S.EndsWith('s', True) or S.EndsWith('x', True) or S.EndsWith('ch', True) or S.EndsWith('sh', True) then
+        Result := S + 'es'
+      else
+        Result := S + 's';
+    end);
+
+  RegisterFilter('Singularize',
+    function(S: string): string
+    begin
+      Result := S;
+      if S = '' then Exit;
+
+      if S.EndsWith('ies', True) then
+        Result := S.Substring(0, S.Length - 3) + 'y'
+      else if S.EndsWith('es', True) then
+        Result := S.Substring(0, S.Length - 2)
+      else if S.EndsWith('s', True) and not S.EndsWith('ss', True) then
+        Result := S.Substring(0, S.Length - 1);
+    end);
 end;
 
 destructor TDextTemplateEngine.Destroy;
@@ -455,42 +500,73 @@ function TDextTemplateEngine.ResolveExpression(const AExpr: string;
   const AContext: ITemplateContext): string;
 var
   Expr: string;
-  DotPos: Integer;
+  Parts: TArray<string>;
+  I, LParen: Integer;
   Obj: TObject;
-  ObjKey, PropPath: string;
+  ObjKey, PropPath, FilterName: string;
 begin
   Expr := System.SysUtils.Trim(AExpr);
+  if Expr = '' then Exit('');
 
-  if Expr.EndsWith('.ToPascalCase()', True) then
-  begin
-    Result := ApplyFilter('ToPascalCase', ResolveExpression(Expr.Substring(0, Expr.Length - 15), AContext));
-    Exit;
-  end;
+  // Handle chained filters like @Model.Name.ToPascalCase().Pluralize()
+  // We split by '.' but need to be careful with property paths vs filters
+  Parts := Expr.Split(['.']);
   
-  if Expr.EndsWith('.ToCamelCase()', True) then
+  // Start resolution
+  if Length(Parts) > 0 then
   begin
-    Result := ApplyFilter('ToCamelCase', ResolveExpression(Expr.Substring(0, Expr.Length - 14), AContext));
-    Exit;
-  end;
-
-  DotPos := System.Pos('.', Expr);
-  if DotPos > 0 then
-  begin
-    ObjKey := System.Copy(Expr, 1, DotPos - 1);
-    PropPath := System.Copy(Expr, DotPos + 1, MaxInt);
-    
+    ObjKey := Parts[0];
     Obj := AContext.GetObject(ObjKey);
+    
     if Assigned(Obj) then
-      Result := ResolveObjectProperty(Obj, PropPath)
+    begin
+      // It's an object property path
+      I := 1;
+      Result := ''; // Initial value if it was just the object
+      
+      // Resolve properties until we hit a filter (ends with ())
+      PropPath := '';
+      while (I < Length(Parts)) and not Parts[I].Contains('(') do
+      begin
+        if PropPath <> '' then PropPath := PropPath + '.';
+        PropPath := PropPath + Parts[I];
+        Inc(I);
+      end;
+      
+      if PropPath <> '' then
+        Result := ResolveObjectProperty(Obj, PropPath)
+      else
+        Result := Obj.ToString;
+        
+      // Now apply filters for remaining parts
+      while I < Length(Parts) do
+      begin
+        FilterName := Parts[I];
+        LParen := System.Pos('(', FilterName);
+        if LParen > 0 then
+          FilterName := System.Copy(FilterName, 1, LParen - 1);
+          
+        Result := ApplyFilter(FilterName, Result);
+        Inc(I);
+      end;
+    end
     else
     begin
-      if not AContext.TryGetValue(Expr, Result) then
+      // It's a context value or a filter applied to a context value
+      if not AContext.TryGetValue(Parts[0], Result) then
         Result := '';
+        
+      for I := 1 to High(Parts) do
+      begin
+        FilterName := Parts[I];
+        LParen := System.Pos('(', FilterName);
+        if LParen > 0 then
+          FilterName := System.Copy(FilterName, 1, LParen - 1);
+          
+        Result := ApplyFilter(FilterName, Result);
+      end;
     end;
-    Exit;
   end;
-
-  Result := AContext.GetValue(Expr);
 end;
 
 function TDextTemplateEngine.EvaluateCondition(const ACond: string;

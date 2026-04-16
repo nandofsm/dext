@@ -30,7 +30,7 @@ interface
 
 uses
   System.Rtti, System.SysUtils, System.TypInfo,
-  Dext.Web.Interfaces, Dext.DI.Interfaces, Dext.Core.Activator;
+  Dext.Web.Interfaces, Dext.DI.Interfaces, Dext.Core.Activator, Dext.Core.Reflection;
 
 type
   /// <summary>
@@ -48,15 +48,13 @@ implementation
 class procedure THandlerInjector.ExecuteHandler(AHandler: TValue;
   AContext: IHttpContext; AServiceProvider: IServiceProvider);
 var
-  Context: TRttiContext;
   Method: TRttiMethod;
   Parameters: TArray<TRttiParameter>;
   Arguments: TArray<TValue>;
   I: Integer;
 begin
-  Context := TActivator.GetRttiContext;
-  // Get the anonymous method's 'Invoke' method via RTTI
-  Method := Context.GetType(AHandler.TypeInfo).GetMethod('Invoke');
+  // Get the anonymous method's 'Invoke' method via RTTI from communal context
+  Method := TReflection.Context.GetType(AHandler.TypeInfo).GetMethod('Invoke');
 
   Parameters := Method.GetParameters;
   SetLength(Arguments, Length(Parameters));

@@ -26,6 +26,10 @@ type
     [Test] procedure Test_Whitespace_Handling;
     [Test] procedure Test_Nested_Loops;
     [Test] procedure Test_Complex_Path_Resolution;
+    [Test] procedure Test_Filters_SnakeCase;
+    [Test] procedure Test_Filters_Pluralize;
+    [Test] procedure Test_Filters_Singularize;
+    [Test] procedure Test_Chained_Filters;
   end;
 
 implementation
@@ -334,6 +338,70 @@ begin
   finally
     Model.Free;
   end;
+end;
+
+procedure TTemplatingTests.Test_Filters_SnakeCase;
+var
+  Engine: ITemplateEngine;
+  Context: ITemplateContext;
+  Output: string;
+begin
+  Engine := TTemplating.CreateEngine;
+  Context := TTemplating.CreateContext;
+  Context.SetValue('Name', 'UserProfile');
+  Output := Engine.Render('@Name.ToSnakeCase()', Context);
+  Should(Output).Be('user_profile');
+end;
+
+procedure TTemplatingTests.Test_Filters_Pluralize;
+var
+  Engine: ITemplateEngine;
+  Context: ITemplateContext;
+begin
+  Engine := TTemplating.CreateEngine;
+  Context := TTemplating.CreateContext;
+  
+  Context.SetValue('S1', 'User');
+  Context.SetValue('S2', 'Category');
+  Context.SetValue('S3', 'Box');
+  
+  Should(Engine.Render('@S1.Pluralize()', Context)).Be('Users');
+  Should(Engine.Render('@S2.Pluralize()', Context)).Be('Categories');
+  Should(Engine.Render('@S3.Pluralize()', Context)).Be('Boxes');
+end;
+
+procedure TTemplatingTests.Test_Filters_Singularize;
+var
+  Engine: ITemplateEngine;
+  Context: ITemplateContext;
+begin
+  Engine := TTemplating.CreateEngine;
+  Context := TTemplating.CreateContext;
+  
+  Context.SetValue('S1', 'Users');
+  Context.SetValue('S2', 'Categories');
+  Context.SetValue('S3', 'Order'); // Already singular
+  
+  Should(Engine.Render('@S1.Singularize()', Context)).Be('User');
+  Should(Engine.Render('@S2.Singularize()', Context)).Be('Category');
+  Should(Engine.Render('@S3.Singularize()', Context)).Be('Order');
+end;
+
+procedure TTemplatingTests.Test_Chained_Filters;
+var
+  Engine: ITemplateEngine;
+  Context: ITemplateContext;
+  Output: string;
+begin
+  Engine := TTemplating.CreateEngine;
+  Context := TTemplating.CreateContext;
+  
+  Context.SetValue('Name', 'user_category');
+  
+  // @Name.ToPascalCase().Pluralize() -> UserCategory -> UserCategories
+  Output := Engine.Render('@Name.ToPascalCase().Pluralize()', Context);
+  
+  Should(Output).Be('UserCategories');
 end;
 
 initialization

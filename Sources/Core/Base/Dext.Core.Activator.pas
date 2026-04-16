@@ -35,8 +35,12 @@ uses
   Dext.Collections.Dict,
   Dext.DI.Interfaces,
   Dext.DI.Attributes;
-
 type
+  TConstructorEntry = record
+    Method: TRttiMethod;
+    ParamTypes: TArray<PTypeInfo>;
+  end;
+
   /// <summary>
   ///   Central activation and dynamic instantiation service for Dext.
   ///   Manages object creation through RTTI, supporting dependency injection via constructor,
@@ -78,6 +82,8 @@ type
   private
     class var FDefaultImplementations: IDictionary<TClass, TClass>;
     class var FInterfaceDefaultImpl: IDictionary<PTypeInfo, TClass>;
+    class var FConstructorCache: IDictionary<TClass, TConstructorEntry>;
+    class var FHybridConstructorCache: IDictionary<string, TConstructorEntry>;
     class constructor Create;
     class destructor Destroy;
     class function TryResolveService(AProvider: IServiceProvider; AParamType: TRttiType; out AResolvedService: TValue): Boolean;
@@ -96,6 +102,8 @@ class constructor TActivator.Create;
 begin
   FDefaultImplementations := TCollections.CreateDictionary<TClass, TClass>;
   FInterfaceDefaultImpl := TCollections.CreateDictionary<PTypeInfo, TClass>;
+  FConstructorCache := TCollections.CreateDictionary<TClass, TConstructorEntry>;
+  FHybridConstructorCache := TCollections.CreateDictionary<string, TConstructorEntry>;
   // Default framework mappings
   RegisterDefault(TStrings, TStringList);
 end;
@@ -104,6 +112,8 @@ class destructor TActivator.Destroy;
 begin
   FDefaultImplementations := nil;
   FInterfaceDefaultImpl := nil;
+  FConstructorCache := nil;
+  FHybridConstructorCache := nil;
 end;
 
 class function TActivator.GetRttiContext: TRttiContext;
@@ -136,7 +146,11 @@ end;
 
 class function TActivator.TryResolveService(AProvider: IServiceProvider; AParamType: TRttiType; out AResolvedService: TValue): Boolean;
 var
-  ServiceType: TServiceType;
+  LServiceType: TServiceType;
+  LGuid: TGUID;
+  LIntf: IInterface;
+  LCls: TClass;
+  LObj: TObject;
 begin
   AResolvedService := TValue.Empty;
   Result := False;
@@ -146,26 +160,26 @@ begin
 
   if AParamType.TypeKind = tkInterface then
   begin
-    var Guid := TRttiInterfaceType(AParamType).GUID;
-    if not Guid.IsEmpty then
+    LGuid := TRttiInterfaceType(AParamType).GUID;
+    if not LGuid.IsEmpty then
     begin
-      ServiceType := TServiceType.FromInterface(Guid);
-      var Intf := AProvider.GetServiceAsInterface(ServiceType);
-      if Intf <> nil then
+      LServiceType := TServiceType.FromInterface(LGuid);
+      LIntf := AProvider.GetServiceAsInterface(LServiceType);
+      if LIntf <> nil then
       begin
-        TValue.Make(@Intf, AParamType.Handle, AResolvedService);
+        TValue.Make(@LIntf, AParamType.Handle, AResolvedService);
         Result := True;
       end;
     end;
   end
   else if AParamType.TypeKind = tkClass then
   begin
-    var Cls := TRttiInstanceType(AParamType).MetaclassType;
-    ServiceType := TServiceType.FromClass(Cls);
-    var Obj := AProvider.GetService(ServiceType);
-    if Obj <> nil then
+    LCls := TRttiInstanceType(AParamType).MetaclassType;
+    LServiceType := TServiceType.FromClass(LCls);
+    LObj := AProvider.GetService(LServiceType);
+    if LObj <> nil then
     begin
-      AResolvedService := TValue.From(Obj);
+      AResolvedService := TValue.From(LObj);
       Result := True;
     end;
   end;
@@ -250,15 +264,27 @@ var
   BestMethod: TRttiMethod;
   BestArgs: TArray<TValue>;
   TargetClass: TClass;
+  Entry: TConstructorEntry;
 begin
   TargetClass := ResolveImplementation(AClass);
+  
+  // 0. Check cache for parameterless constructor
+  if (Length(AArgs) = 0) and FConstructorCache.TryGetValue(TargetClass, Entry) then
+  begin
+    if Length(Entry.ParamTypes) = 0 then
+    begin
+      Result := Entry.Method.Invoke(TargetClass, []).AsObject;
+      Exit;
+    end;
+  end;
+
   BestMethod := nil;
+
   Context := GetRttiContext;
   try
     TypeObj := Context.GetType(TargetClass);
     if TypeObj = nil then
       raise EArgumentException.CreateFmt('RTTI information not found for class %s', [TargetClass.ClassName]);
-
     for Method in TypeObj.GetMethods do
     begin
       if Method.IsConstructor then
@@ -325,7 +351,15 @@ begin
 
     if BestMethod <> nil then
     begin
-       Result := BestMethod.Invoke(AClass, BestArgs).AsObject;
+       // Only cache if it is a parameterless constructor
+       if Length(AArgs) = 0 then
+       begin
+         Entry.Method := BestMethod;
+         Entry.ParamTypes := nil;
+         FConstructorCache.AddOrSetValue(TargetClass, Entry);
+       end;
+
+       Result := BestMethod.Invoke(TargetClass, BestArgs).AsObject;
        Exit;
     end;
 
@@ -353,8 +387,34 @@ var
   MaxParams: Integer;
   HasServiceConstructorAttr: Boolean;
   TargetClass: TClass;
+  Entry: TConstructorEntry;
+  Attr: TCustomAttribute;
 begin
   TargetClass := ResolveImplementation(AClass);
+
+  // 0. Check Cache
+  if FConstructorCache.TryGetValue(TargetClass, Entry) then
+  begin
+    SetLength(Args, Length(Entry.ParamTypes));
+    Matched := True;
+    for I := 0 to High(Entry.ParamTypes) do
+    begin
+      if not TryResolveService(AProvider, TReflection.Context.GetType(Entry.ParamTypes[I]), ResolvedService) then
+      begin
+        Matched := False;
+        Break;
+      end;
+      Args[I] := ResolvedService;
+    end;
+    
+    if Matched then
+    begin
+      Result := Entry.Method.Invoke(TargetClass, Args).AsObject;
+      InjectFields(AProvider, Result, TReflection.Context.GetType(TargetClass));
+      Exit;
+    end;
+  end;
+
   Context := GetRttiContext;
   try
     TypeObj := Context.GetType(TargetClass);
@@ -370,7 +430,7 @@ begin
       if Method.IsConstructor then
       begin
         HasServiceConstructorAttr := False;
-        for var Attr in Method.GetAttributes do
+        for Attr in Method.GetAttributes do
         begin
           if Attr is ServiceConstructorAttribute then
           begin
@@ -398,8 +458,15 @@ begin
 
           if Matched then
           begin
-            // Use this constructor (marked with [ServiceConstructor])
-            Result := Method.Invoke(AClass, Args).AsObject;
+            // Cache the result for next time
+            Entry.Method := Method;
+            SetLength(Entry.ParamTypes, Length(Params));
+            for I := 0 to High(Params) do
+              Entry.ParamTypes[I] := Params[I].ParamType.Handle;
+            FConstructorCache.AddOrSetValue(TargetClass, Entry);
+
+            // Use this constructor
+            Result := Method.Invoke(TargetClass, Args).AsObject;
             InjectFields(AProvider, Result, TypeObj);
             Exit;
           end;
@@ -442,6 +509,14 @@ begin
 
     if BestMethod <> nil then
     begin
+      // Cache the winner
+      Entry.Method := BestMethod;
+      var WinnerParams := BestMethod.GetParameters;
+      SetLength(Entry.ParamTypes, Length(WinnerParams));
+      for I := 0 to High(WinnerParams) do
+        Entry.ParamTypes[I] := WinnerParams[I].ParamType.Handle;
+      FConstructorCache.AddOrSetValue(TargetClass, Entry);
+
       Result := BestMethod.Invoke(AClass, BestArgs).AsObject;
       InjectFields(AProvider, Result, TypeObj);
     end
@@ -459,7 +534,6 @@ end;
 // 3. Hybrid Instantiation (Manual Args + DI)
 class function TActivator.CreateInstance(AProvider: IServiceProvider; AClass: TClass; const AArgs: array of TValue): TObject;
 var
-  Context: TRttiContext;
   TypeObj: TRttiType;
   Method: TRttiMethod;
   Params: TArray<TRttiParameter>;
@@ -468,62 +542,99 @@ var
   Matched: Boolean;
   ResolvedService: TValue;
   TargetClass: TClass;
+  CacheKey: string;
+  Entry: TConstructorEntry;
 begin
   TargetClass := ResolveImplementation(AClass);
   // If no args provided, delegate to Pure DI overload
   if Length(AArgs) = 0 then
     Exit(CreateInstance(AProvider, TargetClass));
 
-  Context := GetRttiContext;
-  try
-    TypeObj := Context.GetType(TargetClass);
-    if TypeObj = nil then
-      raise EArgumentException.CreateFmt('RTTI not found for %s', [TargetClass.ClassName]);
-
-    for Method in TypeObj.GetMethods do
+  // 0. Check Hybrid Cache
+  CacheKey := TargetClass.ClassName + '-' + Length(AArgs).ToString;
+  if FHybridConstructorCache.TryGetValue(CacheKey, Entry) then
+  begin
+    SetLength(Args, Length(Entry.ParamTypes));
+    Matched := True;
+    for I := 0 to High(Entry.ParamTypes) do
     begin
-      if Method.IsConstructor then
+      // Initial params are manual (positional)
+      if I < Length(AArgs) then
       begin
-        Params := Method.GetParameters;
-        
-        // Must have at least enough params for explicit args
-        if Length(Params) < Length(AArgs) then
-          Continue;
-          
-        SetLength(Args, Length(Params));
-        Matched := True;
-
-        for I := 0 to High(Params) do
-        begin
-          // 1. Check explicit args (positional)
-          if I < Length(AArgs) then
-          begin
-             Args[I] := AArgs[I];
-             Continue;
-          end;
-
-          // 2. Resolve remaining from DI
-          if not TryResolveService(AProvider, Params[I].ParamType, ResolvedService) then
-          begin
-            Matched := False;
-            Break;
-          end;
-          Args[I] := ResolvedService;
-        end;
-
-        if Matched then
-        begin
-          Result := Method.Invoke(AClass, Args).AsObject;
-          InjectFields(AProvider, Result, TypeObj);
-          Exit;
-        end;
+        Args[I] := AArgs[I];
+        Continue;
       end;
+
+      // Remaining are resolved from DI
+      if not TryResolveService(AProvider, TReflection.Context.GetType(Entry.ParamTypes[I]), ResolvedService) then
+      begin
+        Matched := False;
+        Break;
+      end;
+      Args[I] := ResolvedService;
     end;
 
-    raise EArgumentException.CreateFmt('No compatible constructor found for %s using Hybrid Injection', [AClass.ClassName]);
-  finally
-  ;
+    if Matched then
+    begin
+      Result := Entry.Method.Invoke(TargetClass, Args).AsObject;
+      InjectFields(AProvider, Result, TReflection.Context.GetType(TargetClass));
+      Exit;
+    end;
   end;
+
+  TypeObj := TReflection.Context.GetType(TargetClass);
+  if TypeObj = nil then
+    raise EArgumentException.CreateFmt('RTTI not found for %s', [TargetClass.ClassName]);
+
+  for Method in TypeObj.GetMethods do
+  begin
+    if Method.IsConstructor then
+    begin
+      Params := Method.GetParameters;
+      
+      // Must have at least enough params for explicit args
+      if Length(Params) < Length(AArgs) then
+        Continue;
+        
+      SetLength(Args, Length(Params));
+      Matched := True;
+
+      for I := 0 to High(Params) do
+      begin
+        // 1. Check explicit args (positional)
+        if I < Length(AArgs) then
+        begin
+           Args[I] := AArgs[I];
+           Continue;
+        end;
+
+        // 2. Resolve remaining from DI
+        if not TryResolveService(AProvider, Params[I].ParamType, ResolvedService) then
+        begin
+          Matched := False;
+          Break;
+        end;
+        Args[I] := ResolvedService;
+      end;
+
+      if Matched then
+      begin
+        // Cache the found constructor for this Hybrid configuration
+        Entry.Method := Method;
+        SetLength(Entry.ParamTypes, Length(Params));
+        for I := 0 to High(Params) do
+          Entry.ParamTypes[I] := Params[I].ParamType.Handle;
+        
+        FHybridConstructorCache.AddOrSetValue(CacheKey, Entry);
+
+        Result := Method.Invoke(TargetClass, Args).AsObject;
+        InjectFields(AProvider, Result, TypeObj);
+        Exit;
+      end;
+    end;
+  end;
+
+  raise EArgumentException.CreateFmt('No compatible constructor found for %s using Hybrid Injection', [AClass.ClassName]);
 end;
 
 class function TActivator.CreateInstance(AProvider: IServiceProvider; AType: PTypeInfo): TValue;
@@ -725,230 +836,28 @@ begin
 end;
 
 class function TActivator.IsListType(AType: PTypeInfo): Boolean;
-var
-  TypeName: string;
-  Ctx: TRttiContext;
-  RttiType: TRttiType;
-  IntfType: TRttiInterfaceType;
-  ImplIntf: TRttiInterfaceType;
 begin
-  if AType = nil then Exit(False);
-  TypeName := string(AType^.Name);
-  
-  Result := ((AType.Kind = tkClass) or (AType.Kind = tkInterface)) and
-            (TypeName.Contains('IList<') or TypeName.Contains('IEnumerable<') or
-             TypeName.Contains('TList<') or TypeName.Contains('TSmartList<') or
-            (TypeName.EndsWith('List')));
-            
-  if Result then Exit;
-
-  if (AType.Kind = tkClass) or (AType.Kind = tkInterface) then
-  begin
-    Ctx := GetRttiContext;
-    try
-      RttiType := Ctx.GetType(AType);
-      
-      if RttiType is TRttiInterfaceType then
-      begin
-        IntfType := TRttiInterfaceType(RttiType);
-        while IntfType <> nil do
-        begin
-          if IntfType.Name.Contains('IList<') or IntfType.Name.Contains('IEnumerable<') then
-            Exit(True);
-          if IntfType.BaseType is TRttiInterfaceType then
-            IntfType := TRttiInterfaceType(IntfType.BaseType)
-          else
-            IntfType := nil;
-        end;
-      end
-      else if RttiType is TRttiInstanceType then
-      begin
-        for ImplIntf in TRttiInstanceType(RttiType).GetImplementedInterfaces do
-        begin
-          if ImplIntf.Name.Contains('IList<') or ImplIntf.Name.Contains('IEnumerable<') then
-            Exit(True);
-        end;
-      end;
-
-      if RttiType <> nil then
-      begin
-        for var Method in RttiType.GetMethods do
-          if (Method.Name = 'Add') and (Length(Method.GetParameters) = 1) then
-            Exit(True);
-      end;
-    finally
-    ;
-    end;
-  end;
+  Result := TReflection.IsListType(AType);
 end;
 
 class function TActivator.IsDictionaryType(AType: PTypeInfo): Boolean;
-var
-  TypeName: string;
 begin
-  if AType = nil then Exit(False);
-  TypeName := string(AType^.Name);
-  Result := (AType.Kind = tkInterface) and (TypeName.Contains('IDictionary<'));
-end;
-
-class function TActivator.GetDictionaryKeyType(AType: PTypeInfo): PTypeInfo;
-var
-  Context: TRttiContext;
-  RttiType: TRttiType;
-  IntfType, ImplIntf: TRttiInterfaceType;
-  
-  function TryGetKeyType(ATgt: TRttiType): PTypeInfo;
-  var M: TRttiMethod;
-  begin
-    Result := nil;
-    if ATgt = nil then Exit;
-    M := ATgt.GetMethod('ContainsKey');
-    if Assigned(M) and (Length(M.GetParameters) = 1) then
-      Result := M.GetParameters[0].ParamType.Handle;
-  end;
-
-begin
-  Result := nil;
-  Context := GetRttiContext;
-  try
-    RttiType := Context.GetType(AType);
-    if RttiType = nil then Exit;
-    
-    Result := TryGetKeyType(RttiType);
-    if Result <> nil then Exit;
-    
-    if RttiType is TRttiInterfaceType then
-    begin
-      IntfType := TRttiInterfaceType(RttiType);
-      while IntfType <> nil do
-      begin
-        Result := TryGetKeyType(IntfType);
-        if Result <> nil then Exit;
-        if IntfType.BaseType is TRttiInterfaceType then IntfType := TRttiInterfaceType(IntfType.BaseType) else IntfType := nil;
-      end;
-    end
-    else if RttiType is TRttiInstanceType then
-    begin
-      for ImplIntf in TRttiInstanceType(RttiType).GetImplementedInterfaces do
-      begin
-        Result := TryGetKeyType(ImplIntf);
-        if Result <> nil then Exit;
-      end;
-    end;
-  finally
-  ;
-  end;
-end;
-
-class function TActivator.GetDictionaryValueType(AType: PTypeInfo): PTypeInfo;
-var
-  Context: TRttiContext;
-  RttiType: TRttiType;
-  IntfType, ImplIntf: TRttiInterfaceType;
-  
-  function TryGetValueType(ATgt: TRttiType): PTypeInfo;
-  var M: TRttiMethod;
-  begin
-    Result := nil;
-    if ATgt = nil then Exit;
-    M := ATgt.GetMethod('TryGetValue');
-    if Assigned(M) and (Length(M.GetParameters) = 2) then
-      Result := M.GetParameters[1].ParamType.Handle;
-  end;
-
-begin
-  Result := nil;
-  Context := GetRttiContext;
-  try
-    RttiType := Context.GetType(AType);
-    if RttiType = nil then Exit;
-    
-    Result := TryGetValueType(RttiType);
-    if Result <> nil then Exit;
-    
-    if RttiType is TRttiInterfaceType then
-    begin
-      IntfType := TRttiInterfaceType(RttiType);
-      while IntfType <> nil do
-      begin
-        Result := TryGetValueType(IntfType);
-        if Result <> nil then Exit;
-        if IntfType.BaseType is TRttiInterfaceType then IntfType := TRttiInterfaceType(IntfType.BaseType) else IntfType := nil;
-      end;
-    end
-    else if RttiType is TRttiInstanceType then
-    begin
-      for ImplIntf in TRttiInstanceType(RttiType).GetImplementedInterfaces do
-      begin
-        Result := TryGetValueType(ImplIntf);
-        if Result <> nil then Exit;
-      end;
-    end;
-  finally
-  ;
-  end;
+  Result := TReflection.IsDictionaryType(AType);
 end;
 
 class function TActivator.GetListElementType(AType: PTypeInfo): PTypeInfo;
-var
-  Context: TRttiContext;
-  RttiType: TRttiType;
-  IntfType, ImplIntf: TRttiInterfaceType;
-  
-  function TryGetElementType(ATgt: TRttiType): PTypeInfo;
-  var 
-    M: TRttiMethod;
-    P: TRttiProperty;
-  begin
-    Result := nil;
-    if ATgt = nil then Exit;
-    
-    M := ATgt.GetMethod('GetItem');
-    if Assigned(M) and (M.MethodKind = mkFunction) and (Length(M.GetParameters) = 1) then
-      Exit(M.ReturnType.Handle);
-
-    for M in ATgt.GetMethods do
-    begin
-      if (M.Name = 'Add') and (Length(M.GetParameters) = 1) then
-        Exit(M.GetParameters[0].ParamType.Handle);
-    end;
-    
-    P := ATgt.GetProperty('Items');
-    if Assigned(P) then
-      Exit(P.PropertyType.Handle);
-  end;
-
 begin
-  Result := nil;
-  Context := GetRttiContext;
-  try
-    RttiType := Context.GetType(AType);
-    if RttiType = nil then Exit;
-    
-    Result := TryGetElementType(RttiType);
-    if Result <> nil then Exit;
-    
-    if RttiType is TRttiInterfaceType then
-    begin
-      IntfType := TRttiInterfaceType(RttiType);
-      while IntfType <> nil do
-      begin
-        Result := TryGetElementType(IntfType);
-        if Result <> nil then Exit;
-        if IntfType.BaseType is TRttiInterfaceType then IntfType := TRttiInterfaceType(IntfType.BaseType) else IntfType := nil;
-      end;
-    end
-    else if RttiType is TRttiInstanceType then
-    begin
-      for ImplIntf in TRttiInstanceType(RttiType).GetImplementedInterfaces do
-      begin
-        Result := TryGetElementType(ImplIntf);
-        if Result <> nil then Exit;
-      end;
-    end;
-  finally
-  ;
-  end;
+  Result := TReflection.GetListElementType(AType);
+end;
+
+class function TActivator.GetDictionaryKeyType(AType: PTypeInfo): PTypeInfo;
+begin
+  Result := TReflection.GetDictionaryKeyType(AType);
+end;
+
+class function TActivator.GetDictionaryValueType(AType: PTypeInfo): PTypeInfo;
+begin
+  Result := TReflection.GetDictionaryValueType(AType);
 end;
 
 class function TActivator.CreateInstance<T>: T;
@@ -958,23 +867,17 @@ end;
 
 class function TActivator.CreateInstance<T>(const AArgs: array of TValue): T;
 var
-  Ctx: TRttiContext;
   TypeObj: TRttiType;
 begin
-  Ctx := GetRttiContext;
-  try
-    var TI := TypeInfo(T);
-    if TI = nil then
-      raise EArgumentException.Create('Type information not found for T');
+  var TI := TypeInfo(T);
+  if TI = nil then
+    raise EArgumentException.Create('Type information not found for T');
 
-    TypeObj := Ctx.GetType(TI);
-    if (TypeObj <> nil) and (TypeObj.IsInstance) then
-      Result := T(CreateInstance(TypeObj.AsInstance.MetaclassType, AArgs))
-    else
-      raise EArgumentException.Create('Type parameter T must be a class type');
-  finally
-  ;
-  end;
+  TypeObj := TReflection.Context.GetType(TI);
+  if (TypeObj <> nil) and (TypeObj.IsInstance) then
+    Result := T(CreateInstance(TypeObj.AsInstance.MetaclassType, AArgs))
+  else
+    raise EArgumentException.Create('Type parameter T must be a class type');
 end;
 
 end.

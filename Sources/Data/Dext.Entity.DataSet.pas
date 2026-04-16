@@ -2119,20 +2119,20 @@ end;
 
 procedure TEntityDataSet.InternalInitFieldDefs;
 
-  function MapTypeToFieldType(ATypeInfo: PTypeInfo): TFieldType;
+  function MapTypeToFieldType(ATypeInfo: PTypeInfo; ADepth: Integer = 0): TFieldType;
   var
     TypeName: string;
     InnerInfo: PTypeInfo;
     LTypeName: string;
   begin
-    if ATypeInfo = nil then Exit(ftUnknown);
+    if (ATypeInfo = nil) or (ADepth > 10) then Exit(ftUnknown);
     
     // Check for Proxy<T>, Lazy<T>, etc using centralized Reflection
     if TReflection.IsSmartProp(ATypeInfo) then
     begin
       InnerInfo := TReflection.GetUnderlyingType(ATypeInfo);
-      if InnerInfo <> nil then
-        Exit(MapTypeToFieldType(InnerInfo));
+      if (InnerInfo <> nil) and (InnerInfo <> ATypeInfo) then
+        Exit(MapTypeToFieldType(InnerInfo, ADepth + 1));
     end;
 
     case ATypeInfo^.Kind of
@@ -2166,7 +2166,7 @@ procedure TEntityDataSet.InternalInitFieldDefs;
       begin
         InnerInfo := TReflection.GetUnderlyingType(ATypeInfo);
         if (InnerInfo <> nil) and (InnerInfo <> ATypeInfo) then
-          Exit(MapTypeToFieldType(InnerInfo))
+          Exit(MapTypeToFieldType(InnerInfo, ADepth + 1))
         else
         begin
           LTypeName := string(ATypeInfo^.Name);

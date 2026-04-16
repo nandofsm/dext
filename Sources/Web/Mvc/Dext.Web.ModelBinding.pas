@@ -151,9 +151,6 @@ type
   ///   Converts data from various HTTP sources to native Delphi types using RTTI.
   /// </summary>
   TModelBinder = class(TInterfacedObject, IModelBinder)
-  private
-    function ConvertStringToType(const AValue: string; AType: PTypeInfo): TValue;
-    function GetValueOrDefault(AObj: TRttiObject; const AValue: string; AType: PTypeInfo): TValue;
   public
     constructor Create;
     destructor Destroy; override;
@@ -208,10 +205,6 @@ type
     function GetBindingName(Param: TRttiParameter): string; overload;
   end;
 
-/// <summary>
-///   Returns a per-thread shared RTTI context for high-frequency web binding paths.
-/// </summary>
-function GetWebSharedRttiContext: TRttiContext;
 
 implementation
 
@@ -225,10 +218,6 @@ uses
   Dext.Core.Activator,
   Dext.Core.Reflection;
 
-function GetWebSharedRttiContext: TRttiContext;
-begin
-  Result := TReflection.Context;
-end;
 
 { BindingAttribute }
 
@@ -424,92 +413,90 @@ end;
 
 function TModelBinder.BindQuery(AType: PTypeInfo; Context: IHttpContext): TValue;
 var
-  ContextRtti: TRttiContext;
   RttiType: TRttiType;
-  Field: TRttiField;
   QueryParams: IStringDictionary;
   FieldName: string;
   FieldValue: string;
+  Field: TRttiField;
+  Prop: TRttiProperty;
+  Attr: TCustomAttribute;
+  M: TRttiMethod;
+  MetaClass: TClass;
+  FoundCreate: Boolean;
+  SourceProvider: TBindingSourceProvider;
 begin
   if (AType.Kind <> tkRecord) and (AType.Kind <> tkClass) then
     raise EBindingException.Create('BindQuery currently only supports records and classes');
 
-  ContextRtti := GetWebSharedRttiContext;
-  try
-    RttiType := ContextRtti.GetType(AType);
-    QueryParams := Context.Request.Query;
+  RttiType := TReflection.Context.GetType(AType);
+  QueryParams := Context.Request.Query;
 
-    // 1. Initialize Result
-    if AType.Kind = tkClass then
+  // 1. Initialize Result
+  if AType.Kind = tkClass then
+  begin
+    MetaClass := (RttiType as TRttiInstanceType).MetaclassType;
+    FoundCreate := False;
+    
+    // Robustly searching for parameterless constructor
+    for M in RttiType.GetMethods do
     begin
-       var MetaClass := (RttiType as TRttiInstanceType).MetaclassType;
-       var FoundCreate := False;
-       
-       // Robustly searching for parameterless constructor
-       for var M in RttiType.GetMethods do
-       begin
-         if (SameText(M.Name, 'Create')) and (M.MethodKind = mkConstructor) and (Length(M.GetParameters) = 0) then
-         begin
-           Result := M.Invoke(MetaClass, []);
-           FoundCreate := True;
-           Break;
-         end;
-       end;
-       
-       if not FoundCreate then
-         raise EBindingException.CreateFmt('Cannot find parameterless constructor "Create" for %s in BindQuery.', [AType.Name]);
-    end
-    else
-    begin
-       TValue.Make(nil, AType, Result);
-    end;
-
-    // 2. Bind Fields (Records)
-    if AType.Kind = tkRecord then
-    begin
-      var SourceProvider := TBindingSourceProvider.Create;
-      try
-        for Field in RttiType.GetFields do
-        begin
-          FieldName := SourceProvider.GetBindingName(Field);
-
-          if QueryParams.TryGetValue(FieldName, FieldValue) then
-            Field.SetValue(Result.GetReferenceToRawData, ConvertStringToType(FieldValue, Field.FieldType.Handle))
-          else
-            Field.SetValue(Result.GetReferenceToRawData, GetValueOrDefault(Field, '', Field.FieldType.Handle));
-        end;
-      finally
-        SourceProvider.Free;
+      if (SameText(M.Name, 'Create')) and (M.MethodKind = mkConstructor) and (Length(M.GetParameters) = 0) then
+      begin
+        Result := M.Invoke(MetaClass, []);
+        FoundCreate := True;
+        Break;
       end;
-    end
-    // 3. Bind Properties (Classes)
-    else if AType.Kind = tkClass then
-    begin
-       for var Prop in RttiType.GetProperties do
-       begin
-          if not Prop.IsWritable then Continue;
-          
-          FieldName := Prop.Name;
-          for var Attr in Prop.GetAttributes do
-             if Attr is FromQueryAttribute then
-             begin
-                var AttrName := FromQueryAttribute(Attr).Name;
-                if AttrName <> '' then FieldName := AttrName;
-             end;
-
-           if QueryParams.TryGetValue(FieldName, FieldValue) then
-             Prop.SetValue(Result.AsObject, ConvertStringToType(FieldValue, Prop.PropertyType.Handle))
-           else
-             Prop.SetValue(Result.AsObject, GetValueOrDefault(Prop, '', Prop.PropertyType.Handle));
-       end;
     end;
+    
+    if not FoundCreate then
+      raise EBindingException.CreateFmt('Cannot find parameterless constructor "Create" for %s in BindQuery.', [AType.Name]);
+  end
+  else
+  begin
+    TValue.Make(nil, AType, Result);
+  end;
 
-  finally
-  ;
+  // 2. Bind Fields (Records)
+  if AType.Kind = tkRecord then
+  begin
+    SourceProvider := TBindingSourceProvider.Create;
+    try
+      for Field in RttiType.GetFields do
+      begin
+        FieldName := SourceProvider.GetBindingName(Field);
+
+        if QueryParams.TryGetValue(FieldName, FieldValue) then
+          Field.SetValue(Result.GetReferenceToRawData, TReflection.CastFromString(FieldValue, Field.FieldType.Handle))
+        else
+          Field.SetValue(Result.GetReferenceToRawData, TReflection.GetDefaultValue(Field, Field.FieldType.Handle));
+      end;
+    finally
+      SourceProvider.Free;
+    end;
+  end
+  // 3. Bind Properties (Classes)
+  else if AType.Kind = tkClass then
+  begin
+    for Prop in RttiType.GetProperties do
+    begin
+      if not Prop.IsWritable then Continue;
+      
+      FieldName := Prop.Name;
+      for Attr in Prop.GetAttributes do
+      begin
+        if Attr is FromQueryAttribute then
+        begin
+          if FromQueryAttribute(Attr).Name <> '' then FieldName := FromQueryAttribute(Attr).Name;
+        end;
+      end;
+
+      if QueryParams.TryGetValue(FieldName, FieldValue) then
+        Prop.SetValue(Result.AsObject, TReflection.CastFromString(FieldValue, Prop.PropertyType.Handle))
+      else
+        Prop.SetValue(Result.AsObject, TReflection.GetDefaultValue(Prop, Prop.PropertyType.Handle));
+    end;
   end;
 end;
-
-
 
 function TModelBinder.BindQuery<T>(Context: IHttpContext): T;
 begin
@@ -519,15 +506,15 @@ end;
 
 function TModelBinder.BindRoute(AType: PTypeInfo; Context: IHttpContext): TValue;
 var
-  ContextRtti: TRttiContext;
   RttiType: TRttiType;
-  Field: TRttiField;
   RouteParams: TRouteValueDictionary;
+  Field: TRttiField;
   FieldName: string;
   FieldValue: string;
   SingleParamValue: string;
+  SourceProvider: TBindingSourceProvider;
 begin
-  // âœ… SUPPORT FOR PRIMITIVES (Single Route Param Inference)
+  // ✅ SUPPORT FOR PRIMITIVES (Single Route Param Inference)
   if (AType.Kind in [tkInteger, tkInt64, tkFloat, tkString, tkLString, tkWString, tkUString, tkEnumeration]) or
      ((AType.Kind = tkRecord) and ((AType = TypeInfo(TGUID)) or (AType = TypeInfo(TUUID)))) then
   begin
@@ -538,7 +525,7 @@ begin
       SingleParamValue := RouteParams.GetValueByIndex(0);
       
       try
-        Result := ConvertStringToType(SingleParamValue, AType);
+        Result := TReflection.CastFromString(SingleParamValue, AType);
         Exit;
       except
         on E: Exception do
@@ -554,30 +541,24 @@ begin
 
   TValue.Make(nil, AType, Result);
 
-  ContextRtti := GetWebSharedRttiContext;
+  RttiType := TReflection.Context.GetType(AType);
+  RouteParams := Context.Request.RouteParams;
+
+  SourceProvider := TBindingSourceProvider.Create;
   try
-    RttiType := ContextRtti.GetType(AType);
-    RouteParams := Context.Request.RouteParams;
+    for Field in RttiType.GetFields do
+    begin
+      // Obter nome do campo (com suporte a atributos [FromRoute])
+      FieldName := SourceProvider.GetBindingName(Field);
 
-    var SourceProvider := TBindingSourceProvider.Create;
-    try
-      for Field in RttiType.GetFields do
-      begin
-        // Obter nome do campo (com suporte a atributos [FromRoute])
-        FieldName := SourceProvider.GetBindingName(Field);
-
-        // Buscar valor do route parameter
-        if RouteParams.TryGetValue(FieldName, FieldValue) then
-          Field.SetValue(Result.GetReferenceToRawData, ConvertStringToType(FieldValue, Field.FieldType.Handle))
-        else
-          Field.SetValue(Result.GetReferenceToRawData, GetValueOrDefault(Field, '', Field.FieldType.Handle));
-      end; // for each field
-    finally
-      SourceProvider.Free;
-    end;
-
+      // Buscar valor do route parameter
+      if RouteParams.TryGetValue(FieldName, FieldValue) then
+        Field.SetValue(Result.GetReferenceToRawData, TReflection.CastFromString(FieldValue, Field.FieldType.Handle))
+      else
+        Field.SetValue(Result.GetReferenceToRawData, TReflection.GetDefaultValue(Field, Field.FieldType.Handle));
+    end; // for each field
   finally
-  ;
+    SourceProvider.Free;
   end;
 end;
 
@@ -589,53 +570,47 @@ end;
 
 function TModelBinder.BindHeader(AType: PTypeInfo; Context: IHttpContext): TValue;
 var
-  ContextRtti: TRttiContext;
   RttiType: TRttiType;
-  Field: TRttiField;
   Headers: IStringDictionary;
+  Field: TRttiField;
   FieldName: string;
   FieldValue: string;
+  SourceProvider: TBindingSourceProvider;
 begin
   if AType.Kind <> tkRecord then
     raise EBindingException.Create('BindHeader currently only supports records');
 
   TValue.Make(nil, AType, Result);
 
-  ContextRtti := GetWebSharedRttiContext;
+  RttiType := TReflection.Context.GetType(AType);
+  Headers := Context.Request.Headers;
+
+  SourceProvider := TBindingSourceProvider.Create;
   try
-    RttiType := ContextRtti.GetType(AType);
-    Headers := Context.Request.Headers;
+    for Field in RttiType.GetFields do
+    begin
+      // Obter nome do campo (com suporte a atributos [FromHeader])
+      FieldName := SourceProvider.GetBindingName(Field);
 
-    var SourceProvider := TBindingSourceProvider.Create;
-    try
-      for Field in RttiType.GetFields do
+      // Get header value (case-insensitive via GetHeader)
+      FieldValue := Context.Request.GetHeader(FieldName);
+      if FieldValue <> '' then
       begin
-        // Obter nome do campo (com suporte a atributos [FromHeader])
-        FieldName := SourceProvider.GetBindingName(Field);
-
-        // Get header value (case-insensitive via GetHeader)
-        FieldValue := Context.Request.GetHeader(FieldName);
-        if FieldValue <> '' then
-        begin
-          // USE ROBUST CONVERSION
-          try
-            var Val := ConvertStringToType(FieldValue, Field.FieldType.Handle);
-            Field.SetValue(Result.GetReferenceToRawData, Val);
-          except
-            on E: Exception do
-            begin
-              SafeWriteln(Format('âš ï¸ BindHeader warning: Error converting field "%s" value "%s": %s',
-                [FieldName, FieldValue, E.Message]));
-            end;
-          end; // try
-        end; // if header exists
-      end; // for each field
-    finally
-      SourceProvider.Free;
-    end;
-
+        // USE ROBUST CONVERSION
+        try
+          var Val := TReflection.CastFromString(FieldValue, Field.FieldType.Handle);
+          Field.SetValue(Result.GetReferenceToRawData, Val);
+        except
+          on E: Exception do
+          begin
+            SafeWriteln(Format('⚠️ BindHeader warning: Error converting field "%s" value "%s": %s',
+              [FieldName, FieldValue, E.Message]));
+          end;
+        end; // try
+      end; // if header exists
+    end; // for each field
   finally
-  ;
+    SourceProvider.Free;
   end;
 end;
 
@@ -676,7 +651,7 @@ begin
       var QueryParams := AContext.Request.Query;
       var QueryValue: string;
       if QueryParams.TryGetValue(ParamName, QueryValue) then
-        Result := ConvertStringToType(QueryValue, AParam.ParamType.Handle)
+        Result := TReflection.CastFromString(QueryValue, AParam.ParamType.Handle)
       else
       begin
         // 1. Try DefaultValueAttribute
@@ -691,7 +666,7 @@ begin
         
         // 2. Fallback to standard conversion
         if not FoundDefault then
-          Result := ConvertStringToType('', AParam.ParamType.Handle);
+          Result := TReflection.CastFromString('', AParam.ParamType.Handle);
       end;
       Exit;
     end
@@ -703,7 +678,7 @@ begin
       var RouteParams := AContext.Request.RouteParams;
       var RouteValue: string;
       if RouteParams.TryGetValue(ParamName, RouteValue) then
-        Result := ConvertStringToType(RouteValue, AParam.ParamType.Handle)
+        Result := TReflection.CastFromString(RouteValue, AParam.ParamType.Handle)
       else
         raise EBindingException.CreateFmt('Route parameter not found: %s', [ParamName]);
       Exit;
@@ -725,7 +700,7 @@ begin
 
       var HeaderValue := AContext.Request.GetHeader(ParamName);
       if HeaderValue <> '' then
-        Result := ConvertStringToType(HeaderValue, AParam.ParamType.Handle)
+        Result := TReflection.CastFromString(HeaderValue, AParam.ParamType.Handle)
       else
       begin
         var FoundDefault := False;
@@ -737,7 +712,7 @@ begin
              Break;
           end;
         if not FoundDefault then
-          Result := ConvertStringToType('', AParam.ParamType.Handle);
+          Result := TReflection.CastFromString('', AParam.ParamType.Handle);
       end;
       Exit;
     end;
@@ -782,14 +757,14 @@ begin
     
     if RouteParams.TryGetValue(ParamName, RouteValue) then
     begin
-      Result := ConvertStringToType(RouteValue, AParam.ParamType.Handle);
+      Result := TReflection.CastFromString(RouteValue, AParam.ParamType.Handle);
     end
     else
     begin
       var QueryParams := AContext.Request.Query;
       var QueryValue: string;
       if QueryParams.TryGetValue(ParamName, QueryValue) then
-        Result := ConvertStringToType(QueryValue, AParam.ParamType.Handle)
+        Result := TReflection.CastFromString(QueryValue, AParam.ParamType.Handle)
       else
       begin
         var FoundDefault := False;
@@ -801,7 +776,7 @@ begin
              Break;
           end;
         if not FoundDefault then
-          Result := ConvertStringToType('', AParam.ParamType.Handle);
+          Result := TReflection.CastFromString('', AParam.ParamType.Handle);
       end;
     end;
   end;
@@ -809,30 +784,30 @@ end;
 
 function TModelBinder.BindServices(AType: PTypeInfo; Context: IHttpContext): TValue;
 var
-  ContextRtti: TRttiContext;
   RttiType: TRttiType;
-  Field: TRttiField;
   Services: IServiceProvider;
+  Field: TRttiField;
   ServiceInstance: TValue;
   ServiceType: TServiceType;
 begin
   if (AType.Kind <> tkRecord) and (AType.Kind <> tkInterface) and (AType.Kind <> tkClass) then
     raise EBindingException.Create('BindServices currently only supports records, classes or interfaces');
 
-  ContextRtti := GetWebSharedRttiContext;
-  try
+  RttiType := TReflection.Context.GetType(AType);
+  Services := Context.GetServices;
+
     Services := Context.GetServices;
     
     // Class Support (Root Level)
     if AType.Kind = tkClass then
     begin
-       var ClassType := (ContextRtti.GetType(AType) as TRttiInstanceType).MetaclassType;
+       var ClassType := (RttiType as TRttiInstanceType).MetaclassType;
        ServiceType := TServiceType.FromClass(ClassType);
        var ClassInstance := Services.GetService(ServiceType);
        
        if Assigned(ClassInstance) then
        begin
-         Result := TValue.From<TObject>(ClassInstance);
+         Result := TValue.From(ClassInstance);
          Exit;
        end
        else
@@ -842,7 +817,7 @@ begin
     // NEW: Direct support for interfaces
     if AType.Kind = tkInterface then
     begin
-      var InterfaceType := ContextRtti.GetType(AType) as TRttiInterfaceType;
+      var InterfaceType := RttiType as TRttiInterfaceType;
       ServiceType := TServiceType.FromInterface(InterfaceType.GUID);
       var InterfaceInstance := Services.GetServiceAsInterface(ServiceType);
       
@@ -856,7 +831,6 @@ begin
     end;
 
     TValue.Make(nil, AType, Result);
-    RttiType := ContextRtti.GetType(AType);
     // Services already initialized above
 
     for Field in RttiType.GetFields do
@@ -906,7 +880,7 @@ begin
                 var ClassInstance := Services.GetService(ServiceType);
                 if Assigned(ClassInstance) then
                 begin
-                  ServiceInstance := TValue.From<TObject>(ClassInstance);
+                  ServiceInstance := TValue.From(ClassInstance);
                   Field.SetValue(Result.GetReferenceToRawData, ServiceInstance);
                 end;
               end;
@@ -923,9 +897,6 @@ begin
         end;
       end;
     end;
-  finally
-  ;
-  end;
 end;
 
 function TModelBinder.BindRecordHybrid(AType: PTypeInfo; Context: IHttpContext): TValue;
@@ -951,7 +922,7 @@ begin
   TValue.Make(nil, AType, Result);
   BodyJsonObj := nil;
 
-  ContextRtti := GetWebSharedRttiContext;
+  ContextRtti := TReflection.Context;
   try
     RttiType := ContextRtti.GetType(AType);
     SourceProvider := TBindingSourceProvider.Create;
@@ -1009,25 +980,25 @@ begin
                 // Headers are case-insensitive (GetHeader already handles this)
                 HeaderVal := Context.Request.GetHeader(FieldName);
                 if HeaderVal <> '' then
-                  FieldValue := ConvertStringToType(HeaderVal, Field.FieldType.Handle)
+                  FieldValue := TReflection.CastFromString(HeaderVal, Field.FieldType.Handle)
                 else
-                  FieldValue := GetValueOrDefault(Field, '', Field.FieldType.Handle);
+                  FieldValue := TReflection.GetDefaultValue(Field, Field.FieldType.Handle);
               end;
 
             bsQuery:
               begin
                 if QueryParams.TryGetValue(FieldName, QueryVal) then
-                   FieldValue := ConvertStringToType(QueryVal, Field.FieldType.Handle)
+                   FieldValue := TReflection.CastFromString(QueryVal, Field.FieldType.Handle)
                 else
-                   FieldValue := GetValueOrDefault(Field, '', Field.FieldType.Handle);
+                   FieldValue := TReflection.GetDefaultValue(Field, Field.FieldType.Handle);
               end;
 
             bsRoute:
               begin
                 if RouteParams.TryGetValue(FieldName, RouteVal) then
-                  FieldValue := ConvertStringToType(RouteVal, Field.FieldType.Handle)
+                  FieldValue := TReflection.CastFromString(RouteVal, Field.FieldType.Handle)
                 else
-                  FieldValue := GetValueOrDefault(Field, '', Field.FieldType.Handle);
+                  FieldValue := TReflection.GetDefaultValue(Field, Field.FieldType.Handle);
               end;
 
             bsServices:
@@ -1091,7 +1062,7 @@ begin
                                   (Field.FieldType.Handle = TypeInfo(TTime)) then
                           begin                            
                             var DateStr := BodyJsonObj.GetString(JsonFieldName);
-                            FieldValue := ConvertStringToType(DateStr, Field.FieldType.Handle);
+                            FieldValue := TReflection.CastFromString(DateStr, Field.FieldType.Handle);
                           end
                           else
                           begin
@@ -1109,13 +1080,13 @@ begin
                           else
                           begin
                             var EnumStr := BodyJsonObj.GetString(JsonFieldName);
-                            FieldValue := ConvertStringToType(EnumStr, Field.FieldType.Handle);
+                            FieldValue := TReflection.CastFromString(EnumStr, Field.FieldType.Handle);
                           end;
                         end;
                     else
                       // String and other types
                       var StrVal := BodyJsonObj.GetString(JsonFieldName);
-                      FieldValue := ConvertStringToType(StrVal, Field.FieldType.Handle);
+                      FieldValue := TReflection.CastFromString(StrVal, Field.FieldType.Handle);
                     end;
                   end;
                 end;
@@ -1125,7 +1096,7 @@ begin
                 begin
                   if RouteParams.TryGetValue(FieldName, RouteVal) then
                   begin
-                    FieldValue := ConvertStringToType(RouteVal, Field.FieldType.Handle);
+                    FieldValue := TReflection.CastFromString(RouteVal, Field.FieldType.Handle);
                     FoundInBody := True; // Mark as found
                   end;
                 end;
@@ -1135,17 +1106,17 @@ begin
                 begin
                   if QueryParams.TryGetValue(FieldName, QueryVal) then
                   begin
-                    FieldValue := ConvertStringToType(QueryVal, Field.FieldType.Handle);
+                    FieldValue := TReflection.CastFromString(QueryVal, Field.FieldType.Handle);
                   end
                   else
-                    FieldValue := GetValueOrDefault(Field, '', Field.FieldType.Handle);
+                    FieldValue := TReflection.GetDefaultValue(Field, Field.FieldType.Handle);
                 end;
               end;
 
             bsForm:
               begin
                 // Form data not implemented yet
-                FieldValue := ConvertStringToType('', Field.FieldType.Handle);
+                FieldValue := TReflection.CastFromString('', Field.FieldType.Handle);
               end;
           end;
 
@@ -1171,120 +1142,7 @@ end;
 
 function TModelBinder.BindValue(const AValue: string; AType: PTypeInfo): TValue;
 begin
-  Result := ConvertStringToType(AValue, AType);
-end;
-
-function TModelBinder.GetValueOrDefault(AObj: TRttiObject; const AValue: string; AType: PTypeInfo): TValue;
-var
-  Attr: TCustomAttribute;
-begin
-  if AValue <> '' then
-  begin
-    Result := ConvertStringToType(AValue, AType);
-    Exit;
-  end;
-
-  // Try DefaultValueAttribute
-  for Attr in AObj.GetAttributes do
-    if Attr is DefaultValueAttribute then
-    begin
-      Result := ConvertStringToType(VarToStr(DefaultValueAttribute(Attr).Value), AType);
-      Exit;
-    end;
-
-  // Final fallback
-  Result := ConvertStringToType('', AType);
-end;
-
-function TModelBinder.ConvertStringToType(const AValue: string; AType: PTypeInfo): TValue;
-var
-  Dt: TDateTime;
-  G: TGUID;
-  DecodedValue: string;
-begin
-  if AValue = '' then
-  begin
-    TValue.Make(nil, AType, Result);
-    Exit;
-  end;
-
-  // Auto URL Decode for query/header values
-  DecodedValue := TNetEncoding.URL.Decode(AValue);
-
-  try
-    case AType.Kind of
-      tkInteger, tkInt64: Result := TValue.FromOrdinal(AType, StrToInt64Def(DecodedValue, 0));
-      tkFloat:
-        begin
-          if (AType = TypeInfo(TDateTime)) or (AType = TypeInfo(TDate)) or (AType = TypeInfo(TTime)) then
-          begin
-            if TryParseCommonDate(DecodedValue, Dt) then
-              TValue.Make(@Dt, AType, Result)
-            else
-              TValue.Make(nil, AType, Result);
-          end
-          else
-          begin
-            var F: Double;
-            if TryStrToFloat(DecodedValue, F, TFormatSettings.Invariant) then
-              Result := TValue.From<Double>(F)
-            else if TryParseCommonDate(DecodedValue, Dt) then
-              Result := TValue.From<TDateTime>(Dt)
-            else
-              Result := TValue.From<Double>(0);
-          end;
-        end;
-      tkString, tkLString, tkWString, tkUString: Result := TValue.From<string>(DecodedValue);
-      tkEnumeration:
-        begin
-          if AType = TypeInfo(Boolean) then
-          begin
-            var S := DecodedValue.Trim.ToLower;
-            var B := (S = 'true') or (S = '1') or (S = 'on') or (S = 'yes');
-            Result := TValue.From<Boolean>(B);
-          end
-          else
-            Result := TValue.FromOrdinal(AType, StrToIntDef(DecodedValue, 0));
-        end;
-      tkRecord:
-        begin
-          if AType = TypeInfo(TGUID) then
-          begin
-            var GuidStr := DecodedValue.Trim;
-            if GuidStr = '' then
-              Result := TValue.From<TGUID>(TGUID.Empty)
-            else
-            begin
-              if not GuidStr.StartsWith('{') then
-                GuidStr := '{' + GuidStr + '}';
-              try
-                G := StringToGUID(GuidStr);
-                TValue.Make(@G, AType, Result);
-              except
-                Result := TValue.From<TGUID>(TGUID.Empty);
-              end;
-            end;
-          end
-          else if AType = TypeInfo(TUUID) then
-          begin
-            var GuidStr := DecodedValue.Trim;
-            if GuidStr = '' then
-              Result := TValue.From<TUUID>(TUUID.Null)
-            else
-            begin
-              var U := TUUID.FromString(GuidStr);
-              TValue.Make(@U, TypeInfo(TUUID), Result);
-            end;
-          end
-          else
-            TValue.Make(nil, AType, Result);
-        end;
-      else
-        TValue.Make(nil, AType, Result);
-    end;
-  except
-    TValue.Make(nil, AType, Result);
-  end;
+  Result := TReflection.CastFromString(AValue, AType);
 end;
 
 { TModelBinderHelper }

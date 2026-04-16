@@ -8,6 +8,7 @@ uses
   System.Rtti,
   System.TypInfo,
   Dext.Collections,
+  Dext.Core.Reflection,
   Dext.Core.ValueConverters,
   Dext.Specifications.Types,
   Dext.Specifications.Interfaces; // For IPredicate/IExpression
@@ -23,6 +24,7 @@ type
     FPropInfo: PPropInfo;
     FPropTypeInfo: PTypeInfo;
     FConverter: IValueConverter;
+    FHandler: IPropertyHandler; // Cached handler for high-performance access
   public
     constructor Create(const AName: string; APropInfo: PPropInfo; APropTypeInfo: PTypeInfo; AConverter: IValueConverter = nil);
     
@@ -147,9 +149,6 @@ type
 
 implementation
 
-uses
-  Dext.Core.Reflection;
-
 { TPropertyInfo }
 
 constructor TPropertyInfo.Create(const AName: string; APropInfo: PPropInfo;
@@ -163,22 +162,22 @@ end;
 
 function TPropertyInfo.GetValue(Instance: TObject): TValue;
 begin
-  var RttiType := TReflection.Context.GetType(Instance.ClassType);
-  if RttiType = nil then Exit(TValue.Empty);
-  var RttiProp := RttiType.GetProperty(FName);
-  if RttiProp <> nil then
-    Result := RttiProp.GetValue(Instance)
+  if FHandler = nil then
+    FHandler := TReflection.GetHandler(Instance.ClassInfo, FName);
+    
+  if FHandler <> nil then
+    Result := FHandler.GetValue(Instance)
   else
     Result := TValue.Empty;
 end;
 
 procedure TPropertyInfo.SetValue(Instance: TObject; const Value: TValue);
 begin
-  var RttiType := TReflection.Context.GetType(Instance.ClassType);
-  if RttiType = nil then Exit;
-  var RttiProp := RttiType.GetProperty(FName);
-  if RttiProp <> nil then
-    RttiProp.SetValue(Instance, Value);
+  if FHandler = nil then
+    FHandler := TReflection.GetHandler(Instance.ClassInfo, FName);
+
+  if FHandler <> nil then
+    FHandler.SetValue(Instance, Value);
 end;
 
 { TProp<T> }
