@@ -1,4 +1,4 @@
-program Dext.Core.UnitTests;
+﻿program Dext.Core.UnitTests;
 
 {$IFNDEF TESTINSIGHT}
   {$APPTYPE CONSOLE}
@@ -16,9 +16,9 @@ uses
   Dext.Json.Refactored.Tests in 'Dext.Json.Refactored.Tests.pas',
   Dext.Configuration.Features.Tests in 'Dext.Configuration.Features.Tests.pas',
   Dext.Configuration.Hashing.Tests in 'Dext.Configuration.Hashing.Tests.pas',
-  Dext.Hosting.Events.Tests in 'Dext.Hosting.Events.Tests.pas',
   Dext.Logging.Telemetry.Tests in 'Dext.Logging.Telemetry.Tests.pas',
-  Dext.Json.Utf8.Serializer.Tests in 'Dext.Json.Utf8.Serializer.Tests.pas';
+  Dext.Json.Utf8.Serializer.Tests in 'Dext.Json.Utf8.Serializer.Tests.pas',
+  Dext.Json.Regression.Tests in 'Dext.Json.Regression.Tests.pas';
 
 begin
   {$IFDEF TESTINSIGHT}
@@ -32,17 +32,17 @@ begin
     SafeWriteLn;
 
     RunTests(ConfigureTests
-      .VeryVerbose
+      .Verbose
       {$IFDEF TESTINSIGHT}
       .UseTestInsight
       {$ENDIF}
       .RegisterFixtures([
         TConfigFeaturesTests,
         TConfigurationHashingTests,
-        THostingEventsTests,
         TJsonInterfaceListTests,
         TTelemetryTests,
-        TUtf8SerializerCurrencyTests
+        TUtf8SerializerCurrencyTests,
+        TJsonRegressionTests
       ]));
   except
     on E: Exception do

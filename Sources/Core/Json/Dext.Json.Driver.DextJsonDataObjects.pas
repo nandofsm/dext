@@ -203,13 +203,14 @@ begin
 end;
 
 function TJsonPrimitiveAdapter.ToJson(Indented: Boolean): string;
-function BoolToStr(B: Boolean; UseWords: Boolean): string;
-begin
-  if UseWords then
-    if B then Result := 'True' else Result := 'False'
-  else
-    if B then Result := '-1' else Result := '0';
-end;
+
+  function BoolToStr(B: Boolean; UseWords: Boolean): string;
+  begin
+    if UseWords then
+      if B then Result := 'True' else Result := 'False'
+    else
+      if B then Result := '-1' else Result := '0';
+  end;
 begin
   if FNodeType = jntString then
     Result := '"' + VarToStrDef(FValue, '') + '"' // Simple escaping needed? JsonDataObjects handles this usually.
@@ -277,7 +278,7 @@ end;
 
 function TJsonDataObjectAdapter.ToJson(Indented: Boolean): string;
 begin
-  Result := FObj.ToJSON(Indented);
+  Result := FObj.ToJSON(not Indented);
 end;
 
 function TJsonDataObjectAdapter.Contains(const Name: string): Boolean;
@@ -516,7 +517,7 @@ end;
 
 function TJsonDataArrayAdapter.ToJson(Indented: Boolean): string;
 begin
-  Result := FArr.ToJSON(Indented);
+  Result := FArr.ToJSON(not Indented);
 end;
 
 function TJsonDataArrayAdapter.GetCount: NativeInt;
