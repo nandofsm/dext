@@ -2340,8 +2340,13 @@ var
         
         if Length(AEndMarkers) > 0 then
         begin
-          var LExpectedList := string.Join(' or @', AEndMarkers);
-          raise ETemplateException.Create('Missing closing marker @' + LExpectedList, ABeginPos);
+          if AEndMarkers[Length(AEndMarkers)-1] = 'endif' then
+            raise ETemplateException.Create('Missing closing marker @else or @endif', ABeginPos, '')
+          else
+          begin
+            var LExpectedList := string.Join(' or @', AEndMarkers);
+            raise ETemplateException.Create('Missing closing marker @' + LExpectedList, ABeginPos, '');
+          end;
         end;
         Exit;
       end;
@@ -2435,6 +2440,7 @@ var
         UpdatePos(LOldPos, LPos);
         LNode := TConditionalNode.CreateAt(Self, LDirectivePos, LContent);
         ATarget.Add(LNode);
+        SkipLineBreak(ATemplate, LPos);
         ParseBlock(LNode.TrueNodes, ['else', 'endif'], LDirectivePos, ATrimNext);
         if MatchCommand('@else', True, False) then
         begin
@@ -2462,7 +2468,7 @@ var
           raise EInvalidOpException.CreateFmt('Invalid for expression: %s', [LContent]);
  
         ATarget.Add(LLoopNode);
-        SkipWhitespace(ATemplate, LPos);
+        SkipLineBreak(ATemplate, LPos);
         ParseBlock(LLoopNode.Nodes, ['else', 'endfor'], LDirectivePos, ATrimNext);
         if MatchCommand('@else', True, False) then
         begin
@@ -2494,7 +2500,7 @@ var
           raise EInvalidOpException.CreateFmt('Invalid foreach expression: %s', [LContent]);
 
         ATarget.Add(LLoopNode);
-        SkipWhitespace(ATemplate, LPos);
+        SkipLineBreak(ATemplate, LPos);
         ParseBlock(LLoopNode.Nodes, ['else', 'endforeach'], LDirectivePos, ATrimNext);
         if MatchCommand('@else', True, False) then
         begin
@@ -2700,6 +2706,9 @@ var
         var LChar := ATemplate[LPos];
         // Stop at delimiters
         if CharInSet(LChar, [#13, #10, ' ', '<', '>', '/', '\', ';', ':', ',', '=', '+', '-', '*', '!', '?', '|', '~']) then
+           Break;
+
+        if (LPos > LOldPos) and (LChar = '@') then
            Break;
 
         if (LChar = '(') then
