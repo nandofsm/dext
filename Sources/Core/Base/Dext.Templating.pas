@@ -736,11 +736,12 @@ begin
           begin
             LDataSet.DisableControls;
             try
+              var LTotalCount := LDataSet.RecordCount;
               LDataSet.First;
               I := 1;
               while not LDataSet.Eof do
               begin
-                RenderItem(TValue.From<TDataSet>(LDataSet), I, I = 1, False);
+                RenderItem(TValue.From<TDataSet>(LDataSet), I, I = 1, I = LTotalCount);
                 LDataSet.Next;
                 Inc(I);
               end;
@@ -1817,15 +1818,25 @@ var
         Continue;
       end;
       if S[P] = '(' then Inc(LDepth)
-      else if S[P] = ')' then Dec(LDepth);
+      else if S[P] = ')' then
+      begin
+        // Outer context's closing paren (depth 0 before the ')') — stop without consuming
+        if LDepth = 0 then
+          Break;
+        Dec(LDepth);
+        // After closing a filter call (depth back to 0), include ')' and check for chain
+        if LDepth = 0 then
+        begin
+          Inc(P); // consume the ')'
+          // If next char is '.' this is a chained call like .trim().uppercase() — continue
+          if (P <= Length(S)) and (S[P] = '.') then
+            Continue;
+          Break; // no chain, stop here
+        end;
+      end;
 
       if LDepth = 0 then
       begin
-        if S[P] = ')' then
-        begin
-          Inc(P);
-          Continue;
-        end;
         if not CharInSet(S[P], ['A'..'Z', 'a'..'z', '0'..'9', '_', '.', '@']) then
           Break;
       end;
@@ -2340,13 +2351,23 @@ var
         
         if Length(AEndMarkers) > 0 then
         begin
-          if AEndMarkers[Length(AEndMarkers)-1] = 'endif' then
-            raise ETemplateException.Create('Missing closing marker @else or @endif', ABeginPos, '')
-          else
+          // When both 'else' and 'endif' are markers, only report 'endif'
+          // because @else is optional — the user must close with @endif
+          var LReportMarkers := AEndMarkers;
+          var LHasElse := System.StrUtils.MatchStr('else', LReportMarkers);
+          var LHasEndif := System.StrUtils.MatchStr('endif', LReportMarkers);
+          if LHasElse and LHasEndif then
           begin
-            var LExpectedList := string.Join(' or @', AEndMarkers);
-            raise ETemplateException.Create('Missing closing marker @' + LExpectedList, ABeginPos, '');
+            SetLength(LReportMarkers, 0);
+            for var LM in AEndMarkers do
+              if LM <> 'else' then
+              begin
+                SetLength(LReportMarkers, Length(LReportMarkers) + 1);
+                LReportMarkers[High(LReportMarkers)] := LM;
+              end;
           end;
+          var LExpectedList := string.Join(' or @', LReportMarkers);
+          raise ETemplateException.Create('Missing closing marker @' + LExpectedList, ABeginPos, '');
         end;
         Exit;
       end;
@@ -2451,6 +2472,14 @@ var
         if MatchCommand('@endif', True, False) then
         begin
           ATrimNext := ConsumeTrimRight(ATemplate, LPos);
+          if ATrimNext then
+          begin
+            // Also trim the trailing whitespace inside the last rendered block
+            if LNode.FalseNodes.Count > 0 then
+              TrimTrailingWhitespaceFromLastText(LNode.FalseNodes)
+            else
+              TrimTrailingWhitespaceFromLastText(LNode.TrueNodes);
+          end;
           SkipLineBreak(ATemplate, LPos);
         end;
         ATrimNext := ConsumeTrimRight(ATemplate, LPos);
@@ -2705,11 +2734,31 @@ var
       begin
         var LChar := ATemplate[LPos];
         // Stop at delimiters
-        if CharInSet(LChar, [#13, #10, ' ', '<', '>', '/', '\', ';', ':', ',', '=', '+', '-', '*', '!', '?', '|', '~']) then
+        if CharInSet(LChar, [#13, #10, ' ', '<', '>', '/', '\', ';', ':', ',', '=', '+', '-', '*', '!', '?', '|', '~', ')', ']']) then
            Break;
 
         if (LPos > LOldPos) and (LChar = '@') then
-           Break;
+        begin
+          // Allow @@pseudo-names (e.g. @@index, @@first, @@last) to be part of the path
+          if (LPos < Length(ATemplate)) and (ATemplate[LPos + 1] = '@') then
+          begin
+            var LPseudoStart := LPos + 2;
+            var LPseudoName := '';
+            while (LPseudoStart <= Length(ATemplate)) and CharInSet(ATemplate[LPseudoStart], ['a'..'z', 'A'..'Z']) do
+            begin
+              LPseudoName := LPseudoName + ATemplate[LPseudoStart];
+              Inc(LPseudoStart);
+            end;
+            if SameText(LPseudoName, 'index') or SameText(LPseudoName, 'count') or
+               SameText(LPseudoName, 'first') or SameText(LPseudoName, 'last') or
+               SameText(LPseudoName, 'odd') or SameText(LPseudoName, 'even') then
+            begin
+              Inc(LPos); // skip first @
+              Continue; // will continue and process second @ + name
+            end;
+          end;
+          Break;
+        end;
 
         if (LChar = '(') then
         begin
