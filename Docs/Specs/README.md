@@ -18,6 +18,7 @@ ID | Title | Status | Goal
 **S11** | [Migration Audit & Finalization](S11-Migration-Finalization.md) | ✅ Finalized | Safe schema evolution with renaming detection and CLI automation.
 **S12** | [Advanced Template Engine](S12-Template-Engine-Advanced.md) | ✅ Finalized | Phases 1-6 complete: layouts, partials, inheritance, AST cache, smart positions, @encoded, and high-performance TDataSet/Streaming iterators.
 **S13** | [Redis Client](S13-Redis-Client.md) | 📝 Draft | High-performance async Redis client with RESP3 and RedisJSON support.
+**S14** | [SOA via Interfaces](S14-SOA-Interfaces.md) | 📝 Draft | Code-First RPC exposing Delphi interfaces via gRPC natively.
 
 ---
 
