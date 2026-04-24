@@ -1127,6 +1127,9 @@ end;
 
 procedure TFireDACConnection.Connect;
 begin
+  // Performance optimization for metadata discovery
+  FConnection.FetchOptions.Cache := FConnection.FetchOptions.Cache - [fiMeta];
+  FConnection.ResourceOptions.AutoConnect := False;
   FConnection.Connected := True;
 end;
 
@@ -1140,7 +1143,9 @@ begin
   begin
     LSchema := FConnection.Params.Values['Schema'];
     if LSchema = '' then
-      LSchema := FConnection.Params.Values['MetaDefSchema']; // Alternative FireDAC parameter
+      LSchema := FConnection.Params.Values['MetaCurSchema']; // Preferred for current schema
+    if LSchema = '' then
+      LSchema := FConnection.Params.Values['MetaDefSchema']; // Fallback
     if LSchema = '' then
       LSchema := FConnection.Params.Values['SearchPath']; // Another common parameter
       
@@ -1149,8 +1154,17 @@ begin
        LDialect := TDialectFactory.CreateDialect(ddPostgreSQL);
        if LDialect <> nil then
        begin
-         // Use ExecSQL directly for speed and simplicity
-         FConnection.ExecSQL(Format('SET search_path TO %s, public;', [LDialect.QuoteIdentifier(LSchema)]));
+         // Use the exact syntax that works in your console
+         var LSQL := Format('SET search_path = %s, public;', [LSchema]);
+         if Assigned(FOnLog) then
+           FOnLog('Applying schema: ' + LSQL);
+         try
+           FConnection.ExecSQL(LSQL);
+         except
+           on E: Exception do
+             if Assigned(FOnLog) then
+               FOnLog('Error applying schema: ' + E.Message);
+         end;
        end;
     end;
   end;
@@ -1270,9 +1284,11 @@ var
 begin
   if FDialect <> ddUnknown then Exit;
 
-  DriverID := FConnection.DriverName.ToLower;
-  
-  FDialect := TDialectFactory.DetectDialect(DriverID);
+  DriverID := FConnection.DriverName;
+  if DriverID = '' then
+    DriverID := FConnection.Params.DriverID;
+    
+  FDialect := TDialectFactory.DetectDialect(DriverID.ToLower);
 end;
 
 function TFireDACConnection.GetDialect: TDatabaseDialect;

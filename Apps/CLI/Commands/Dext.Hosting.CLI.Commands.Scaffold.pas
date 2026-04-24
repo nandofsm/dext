@@ -33,6 +33,7 @@ uses
   System.IOUtils,
   System.StrUtils,
   System.Generics.Collections,
+  System.Diagnostics,
   FireDAC.Comp.Client,
   FireDAC.Stan.Def,
   FireDAC.Stan.Async,
@@ -84,8 +85,12 @@ begin
   SafeWriteLn('  --output, -o       Output file path (default: Entities.pas)');
   SafeWriteLn('  --unit, -u         Unit name (default: derived from output file)');
   SafeWriteLn('  --fluent           Use fluent mapping instead of attributes');
-  SafeWriteLn('  --tables, -t       Comma-separated table names (default: all)');
-  SafeWriteLn('  --help             Show this help message');
+  SafeWriteLn('  -t, --tables <names>     Comma-separated list of tables to include');
+  SafeWriteLn('  -s, --schema <name>      Database schema/search path');
+  SafeWriteLn('  --smart            Use Dext Smart Properties (default)');
+  SafeWriteLn('  --poco             Use native Delphi types + Metadata Classes');
+  SafeWriteLn('  --no-metadata      Explicitly skip TEntityType classes');
+  SafeWriteLn('  --with-metadata    Explicitly include TEntityType classes');
   SafeWriteLn('');
   SafeWriteLn('Examples:');
   SafeWriteLn('  dext scaffold -c "mydb.db" -d sqlite -o MyEntities.pas');
@@ -112,6 +117,8 @@ var
   MetaList: TArray<TMetaTable>;
   Code: string;
   MappingStyle: TMappingStyle;
+  PropertyStyle: TPropertyStyle;
+  GenerateMetadata: Boolean;
   I: Integer;
 begin
   // Check for help
@@ -147,18 +154,29 @@ begin
   UnitName := Args.GetOption('unit');
   if UnitName.IsEmpty then
     UnitName := Args.GetOption('u');
-  if UnitName.IsEmpty then
-    UnitName := TPath.GetFileNameWithoutExtension(OutputFile);
+
+  // If a custom unit name (with namespace) is provided but no output file,
+  // use the unit name as the filename base.
+  if (not UnitName.IsEmpty) and (Args.GetOption('output').IsEmpty and Args.GetOption('o').IsEmpty) then
+     OutputFile := UnitName + '.pas';
+
+  // The Unit Name MUST match the physical filename in Delphi
+  UnitName := TPath.GetFileNameWithoutExtension(OutputFile);
     
-  UseFluent := Args.HasOption('fluent');
-  
   TableFilter := Args.GetOption('tables');
   if TableFilter.IsEmpty then
     TableFilter := Args.GetOption('t');
+    
   if not TableFilter.IsEmpty then
     TableList := TableFilter.Split([','])
   else
     TableList := [];
+
+  var SchemaName := Args.GetOption('schema');
+  if SchemaName.IsEmpty then
+    SchemaName := Args.GetOption('s');
+    
+  UseFluent := Args.HasOption('fluent');
     
   // Determine mapping style
   if UseFluent then
@@ -166,13 +184,46 @@ begin
   else
     MappingStyle := msAttributes;
     
+  // Default Logic:
+  // 1. If nothing specified -> Smart Properties, No Metadata
+  // 2. If --smart -> Smart Properties, No Metadata
+  // 3. If --poco -> POCO Style, With Metadata
+  
+  if Args.HasOption('poco') then
+  begin
+    PropertyStyle := psPOCO;
+    GenerateMetadata := True;
+  end
+  else
+  begin
+    PropertyStyle := psSmart;
+    GenerateMetadata := False;
+  end;
+  
+  // Explicit overrides
+  if Args.HasOption('no-metadata') then GenerateMetadata := False;
+  if Args.HasOption('with-metadata') then GenerateMetadata := True;
+  if Args.HasOption('smart') then PropertyStyle := psSmart;
+
+    
+  var MappingStr: string;
+  var PropertyStr: string;
+  var MetadataStr: string;
+  
+  if UseFluent then MappingStr := 'Fluent' else MappingStr := 'Attributes';
+  if PropertyStyle = psSmart then PropertyStr := 'Smart Properties' else PropertyStr := 'POCO';
+  if GenerateMetadata then MetadataStr := 'Enabled' else MetadataStr := 'Disabled';
+
   SafeWriteLn('');
   SafeWriteLn('Dext Scaffold');
   SafeWriteLn('=============');
   SafeWriteLn('Driver: ' + DriverName);
-  SafeWriteLn('Connection: ' + ConnectionStr);
+  if SchemaName <> '' then
+    SafeWriteLn('Schema: ' + SchemaName);
   SafeWriteLn('Output: ' + OutputFile);
-  SafeWriteLn('Mapping: ' + IfThen(UseFluent, 'Fluent', 'Attributes'));
+  SafeWriteLn('Mapping: ' + MappingStr);
+  SafeWriteLn('Properties: ' + PropertyStr);
+  SafeWriteLn('Metadata: ' + MetadataStr);
   SafeWriteLn('');
   
   // Create FireDAC connection
@@ -180,30 +231,36 @@ begin
   try
     FDConnection.LoginPrompt := False;
     
+    // Enable extended metadata to get AutoInc, PK, etc.
+    FDConnection.Params.Values['ExtendedMetadata'] := 'True';
+    
+    if SchemaName <> '' then
+    begin
+      FDConnection.Params.Values['Schema'] := SchemaName;
+      FDConnection.Params.Values['MetaCurSchema'] := SchemaName;
+    end;
+    
     // Configure driver
     DriverName := DriverName.ToLower;
     if DriverName = 'sqlite' then
     begin
       FDConnection.DriverName := 'SQLite';
       if not ConnectionStr.Contains('=') then
-        FDConnection.Params.Add('Database=' + ConnectionStr)
+        FDConnection.Params.Values['Database'] := ConnectionStr
       else
-        FDConnection.Params.Text := ConnectionStr;
+        FDConnection.ConnectionString := 'DriverID=SQLite;' + ConnectionStr;
     end
     else if (DriverName = 'pg') or (DriverName = 'postgres') or (DriverName = 'postgresql') then
     begin
-      FDConnection.DriverName := 'PG';
-      FDConnection.Params.Text := ConnectionStr;
+      FDConnection.ConnectionString := 'DriverID=PG;' + ConnectionStr;
     end
     else if (DriverName = 'mssql') or (DriverName = 'sqlserver') then
     begin
-      FDConnection.DriverName := 'MSSQL';
-      FDConnection.Params.Text := ConnectionStr;
+      FDConnection.ConnectionString := 'DriverID=MSSQL;' + ConnectionStr;
     end
     else if (DriverName = 'fb') or (DriverName = 'firebird') then
     begin
-      FDConnection.DriverName := 'FB';
-      FDConnection.Params.Text := ConnectionStr;
+      FDConnection.ConnectionString := 'DriverID=FB;' + ConnectionStr;
     end
     else
     begin
@@ -211,9 +268,17 @@ begin
       Exit;
     end;
     
+    // Create connection interface BEFORE opening to hook AfterConnect event
+    Connection := TFireDACConnection.Create(FDConnection, False);
+    Connection.OnLog := procedure(AMsg: string)
+      begin
+        SafeWriteLn('  > ' + AMsg);
+      end;
+    
     SafeWriteLn('Connecting to database...');
     try
-      FDConnection.Open;
+      Connection.Connect;
+      SafeWriteLn('Connected!');
     except
       on E: Exception do
       begin
@@ -221,10 +286,8 @@ begin
         Exit;
       end;
     end;
-    SafeWriteLn('Connected!');
     
     // Create schema provider
-    Connection := TFireDACConnection.Create(FDConnection);
     Provider := TFireDACSchemaProvider.Create(Connection);
     
     // Get tables
@@ -266,19 +329,26 @@ begin
     
     // Get metadata for each table
     SafeWriteLn('Extracting metadata...');
-    SetLength(MetaList, Length(Tables));
-    for I := 0 to High(Tables) do
+    var SW := TStopwatch.StartNew;
+    for var TableName in Tables do
     begin
-      MetaList[I] := Provider.GetTableMetadata(Tables[I]);
-      SafeWriteLn('  ' + Tables[I] + ': ' + Length(MetaList[I].Columns).ToString + ' columns, ' + 
-                  Length(MetaList[I].ForeignKeys).ToString + ' FKs');
+      var TableSW := TStopwatch.StartNew;
+      SafeWrite('  Reading metadata: ' + TableName + '...');
+      try
+        MetaList := MetaList + [Provider.GetTableMetadata(TableName)];
+        SafeWriteLn(' Done in ' + TableSW.ElapsedMilliseconds.ToString + ' ms');
+      except
+        on E: Exception do
+          SafeWriteLn(' ❌ Error: ' + E.Message);
+      end;
     end;
+    SafeWriteLn(Format('Total metadata extraction time: %d ms', [SW.ElapsedMilliseconds]));
     
     // Generate code
     SafeWriteLn('');
     SafeWriteLn('Generating Delphi code...');
     Generator := TDelphiEntityGenerator.Create;
-    Code := Generator.GenerateUnit(UnitName, MetaList, MappingStyle);
+    Code := Generator.GenerateUnit(UnitName, MetaList, MappingStyle, PropertyStyle, GenerateMetadata);
     
     // Write to file
     TFile.WriteAllText(OutputFile, Code);

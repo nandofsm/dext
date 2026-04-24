@@ -40,9 +40,21 @@ dext doc
 dext doc --output ./Docs
 ```
 
-## Instalação
+## Instalação e Compilação
 
-O CLI está embutido na sua aplicação. Adicione Dext.Hosting.CLI aos uses:
+O CLI do Dext pode ser utilizado de duas formas:
+
+### 1. Ferramenta Global (dext.exe)
+O framework inclui um projeto chamado **DextTool.dpr** localizado em `Apps\CLI`.
+- Este projeto possui um **script de pós-build** que copia e renomeia automaticamente o executável gerado para `$(DEXT)\Apps\dext.exe`.
+- Para utilizá-lo globalmente, adicione a pasta `$(DEXT)\Apps` à variável de ambiente **PATH** do Windows.
+- Você pode compilá-lo usando a IDE do Delphi ou via linha de comando:
+  ```bash
+  msbuild Apps\CLI\DextTool.dproj /p:Configuration=Release
+  ```
+
+### 2. Embutido na sua aplicação
+Você também pode embutir o CLI diretamente na sua aplicação. Adicione `Dext.Hosting.CLI` aos seus uses:
 
 ```pascal
 uses

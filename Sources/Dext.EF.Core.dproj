@@ -1,4 +1,4 @@
-<Project xmlns="http://schemas.microsoft.com/developer/msbuild/2003">
+﻿<Project xmlns="http://schemas.microsoft.com/developer/msbuild/2003">
     <PropertyGroup>
         <ProjectGuid>{4E4AC89E-3AE7-42E3-BC30-DA50C065D579}</ProjectGuid>
         <MainSource>Dext.EF.Core.dpk</MainSource>
@@ -155,6 +155,7 @@
         <DCCReference Include="Data\Dext.Entity.LazyLoader.pas"/>
         <DCCReference Include="Data\Dext.Entity.TemplatedScaffolding.pas"/>
         <DCCReference Include="Data\Dext.Scaffolding.Models.pas"/>
+        <DCCReference Include="Data\Dext.Entity.Scaffolding.Processor.pas"/>
         <BuildConfiguration Include="Base">
             <Key>Base</Key>
         </BuildConfiguration>

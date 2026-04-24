@@ -1,150 +1,104 @@
-# CLI Scaffolding
+# CLI: Scaffolding (Reverse Engineering)
 
-Generate entity classes from existing database schema using the built-in AST-based template engine.
+The Dext CLI features a powerful reverse engineering engine that automates entity creation by mapping tables from a live database. It is designed to generate clean, modern, production-ready Delphi code.
 
-## Quick Start
+> [!TIP]
+> The official CLI executable is `dext.exe`. It is built from the `Apps\CLI\DextTool.dproj` Delphi project. When building from source, use this project to generate the latest version of the utility.
 
-### Scaffold Entire Database
-```bash
-dext scaffold db -c "mydb.db" -d sqlite
-```
+---
 
-### Add Specific Entity
-```bash
-dext add entity User -c "mydb.db" -d sqlite
-```
+## Generation Styles
 
-## Template Resolution
+Dext currently supports two primary property styles, catering to both high-performance needs and traditional native type preferences.
 
-The CLI uses a 3-level resolution strategy to find templates:
-1. **Local**: `./Templates/` folder in your project.
-2. **User Global**: `~/.dext/Templates/` (Home directory).
-3. **Framework**: `$(DEXT)/Templates/` (Installation directory).
-
-## Options (scaffold db / add entity)
-
-| Option | Alias | Description |
-|--------|-------|-------------|
-| `--connection` | `-c` | Connection string or file path |
-| `--driver` | `-d` | Database driver: `sqlite`, `pg`, `mssql`, `firebird` |
-| `--output` | `-o` | Output directory or file |
-| `--template` | `-t` | Custom template name (e.g., `entity.pas.template`) |
-| `--fluent` | | Generate fluent mapping instead of attributes |
-| `--tables` | `-t` | Specific tables (comma-separated for scaffold db) |
-
-## Examples
-
-### SQLite
+### 1. Smart Properties (Default)
+Uses Dext's intelligent types (`IntType`, `StringType`, etc.).
+- **Advantage**: Encapsulates Lazy Loading and Dirty Checking logic directly within the type, resulting in cleaner and more performant entities.
+- **Metadata**: By default, it **does not generate** `TEntityType` metadata classes (Expressions), as Smart Properties are self-describing to the query engine.
 
 ```bash
-dext scaffold -c "myapp.db" -d sqlite -o Models/Entities.pas
+dext scaffold -c "Server=localhost;Database=vendas" -d pg
 ```
 
-### PostgreSQL
+### 2. POCO Style
+Uses standard Delphi native types (`Integer`, `string`, `Nullable<T>`).
+- **Advantage**: Full compatibility with 3rd-party libraries and frameworks that expect primitive types.
+- **Metadata**: Automatically generates metadata classes (`TEntityType`) to enable Fluent API and Strongly Typed Expressions.
 
 ```bash
-dext scaffold \
-  -c "Server=localhost;Port=5432;Database=myapp;User_Name=postgres;Password=secret" \
-  -d pg \
-  -o Entities.pas
+dext scaffold -c "Server=localhost;Database=vendas" -d pg --poco
 ```
 
-### SQL Server
+---
 
+## Command Line Options
+
+| Option | Description |
+|--------|-------------|
+| `--connection`, `-c` | FireDAC connection string or file path (SQLite). |
+| `--driver`, `-d` | Database driver: `pg` (Postgres), `sqlite`, `mssql`, `oracle`, `firebird`. |
+| `--output`, `-o` | Output filename (e.g., `Entities.pas`). |
+| `--schema`, `-s` | Database schema name (highly recommended for Postgres). |
+| `--tables`, `-t` | Comma-separated list of tables to include. |
+| `--fluent` | Generates `RegisterMappings` procedure for Fluent Mapping instead of Attributes. |
+| `--smart` | (Default) Use Dext Smart Properties. |
+| `--poco` | Use Native Delphi types + Metadata Classes. |
+| `--no-metadata` | Explicitly skip `TEntityType` class generation. |
+| `--with-metadata`| Explicitly include `TEntityType` class generation. |
+
+---
+
+## Practical Examples
+
+### PostgreSQL with Custom Schema
+If your Postgres database uses a schema other than `public`, use the `-s` flag:
 ```bash
-dext scaffold \
-  -c "Server=localhost,1433;Database=MyDB;User_Id=sa;Password=YourPassword" \
-  -d mssql \
-  --fluent
+dext scaffold -c "Server=localhost;Port=5432;Database=mydb;User_Name=postgres;Password=123" -d pg -s "finance" -o Entities.pas
 ```
 
-### Specific Tables
-
+### SQL Server (SQL Authentication)
 ```bash
-dext scaffold -c "mydb.db" -d sqlite -t "users,orders,products"
+dext scaffold -c "Server=localhost;Database=vendas;User_Id=sa;Password=123" -d mssql --fluent
 ```
 
-## Generated Code
+### SQLite (Local Database)
+Perfect for rapid prototyping:
+```bash
+dext scaffold -c "C:\data\system.db" -d sqlite --smart
+```
 
-### Attribute Mapping (Default)
+---
+
+## Robustness and Edge Cases
+
+### Reserved Keywords
+The Dext CLI automatically detects if a database column shares a name with a Delphi reserved keyword (such as `Class`, `Begin`, `End`, `Unit`). It automatically applies the identifier escape (`&`):
 
 ```pascal
-unit Entities;
-
-interface
-
-uses
-  Dext.Entity.Attributes;
-
-type
-  [Table('users')]
-  TUser = class
-  private
-    FId: Integer;
-    FName: string;
-    FEmail: string;
-  public
-    [PK, AutoInc]
-    property Id: Integer read FId write FId;
-    
-    [Column('name')]
-    property Name: string read FName write FName;
-    
-    [Column('email')]
-    property Email: string read FEmail write FEmail;
-  end;
-
-implementation
-
-end.
+property &Class: string read FClass write FClass;
 ```
 
-### Fluent Mapping (--fluent)
+### Case Sensitivity
+Many databases (like Postgres) are case-insensitive but store names in lowercase or uppercase. The Dext CLI ensures the `[Column('REAL_NAME')]` attribute is generated whenever the PascalCase property name differs from the physical name in the database, preventing "column not found" errors at runtime.
 
-```pascal
-unit Entities;
+### Fluent Mapping
+If you prefer to keep your entity classes 100% pure (POCO) without any framework-specific attributes, use the `--fluent` flag:
 
-interface
-
-type
-  TUser = class
-  public
-    Id: Integer;
-    Name: string;
-    Email: string;
-  end;
-
-procedure RegisterMappings(Builder: TModelBuilder);
-
-implementation
-
-procedure RegisterMappings(Builder: TModelBuilder);
-begin
-  Builder.Entity<TUser>
-    .Table('users')
-    .HasKey('Id').AutoIncrement
-    .Prop('Name').Column('name')
-    .Prop('Email').Column('email');
-end;
-
-end.
+```bash
+dext scaffold -c "mydb.db" -d sqlite --poco --fluent
 ```
+This will generate a `RegisterMappings` procedure containing all the configuration required for the `TModelBuilder`.
 
-## Type Mapping
+---
 
-| SQL Type | Delphi Type |
-|----------|-------------|
-| INTEGER, INT | Integer |
-| BIGINT | Int64 |
-| VARCHAR, TEXT | string |
-| BOOLEAN, BIT | Boolean |
-| FLOAT, DOUBLE | Double |
-| DECIMAL | Double |
-| DATE, DATETIME | TDateTime |
-| UUID, GUID | TGUID |
-| BLOB, BYTEA | TBytes |
+## Troubleshooting
 
-Nullable columns become `Nullable<T>`.
+### Error: "Unit X was compiled with a different version of Unit Y"
+This is a common Delphi compiler error when stale or duplicate `.dcu` files exist in your search path.
+**Solution**:
+1. Delete all `__recovery`, `Win32`, and `Win64` folders from your project.
+2. In Delphi, use the **Clean** option and then **Build All**.
+3. Ensure there are no multiple versions of Dext in your Library Path.
 
 ---
 

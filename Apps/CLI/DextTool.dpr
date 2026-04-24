@@ -1,6 +1,7 @@
 program DextTool;
 
 {$APPTYPE CONSOLE}
+{$MESSAGE HINT 'Dext CLI: This project generates the ".\Apps\dext.exe" binary used for scaffolding and migrations.'}
 
 uses
   System.SysUtils,

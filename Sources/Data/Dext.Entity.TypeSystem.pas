@@ -145,8 +145,6 @@ type
     class function Construct(const AInit: TProc<IEntityBuilder<T>>): T; static;
   end;
 
-
-
 implementation
 
 { TPropertyInfo }
