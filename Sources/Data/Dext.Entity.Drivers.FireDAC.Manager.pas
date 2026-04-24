@@ -201,6 +201,10 @@ begin
           
           // Critical: Ensure wait cursor is none and pooling stability is high
           Def.Params.MonitorBy := mbNone;
+
+          // Force Unicode for SQLite
+          if ADriverName.ToLower = 'sqlite' then
+            Def.Params.Values['StringFormat'] := 'Unicode';
         end;
       end;
       
@@ -217,6 +221,12 @@ procedure TDextFireDACManager.ApplyResourceOptions(AConnection: TFDConnection; A
 begin
   var Dialect := TDialectFactory.DetectDialect(AConnection.DriverName);
   
+  // Apply SQLite specific settings
+  if Dialect = ddSQLite then
+  begin
+    AConnection.Params.Values['StringFormat'] := 'Unicode';
+  end;
+
   // Apply optimizations if dialect is PostgreSQL (or others if added later)
   if Dialect = ddPostgreSQL then
   begin

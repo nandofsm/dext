@@ -1,4 +1,4 @@
-﻿{***************************************************************************}
+{***************************************************************************}
 {                                                                           }
 {           Dext Framework                                                  }
 {                                                                           }
@@ -117,13 +117,13 @@ end;
 procedure TContentTypeProvider.RegisterDefaults;
 begin
   // Common Web Types
-  AddOrUpdate('.html', 'text/html');
-  AddOrUpdate('.htm', 'text/html');
-  AddOrUpdate('.css', 'text/css');
-  AddOrUpdate('.js', 'application/javascript');
-  AddOrUpdate('.json', 'application/json');
-  AddOrUpdate('.xml', 'text/xml');
-  AddOrUpdate('.txt', 'text/plain');
+  AddOrUpdate('.html', 'text/html; charset=utf-8');
+  AddOrUpdate('.htm', 'text/html; charset=utf-8');
+  AddOrUpdate('.css', 'text/css; charset=utf-8');
+  AddOrUpdate('.js', 'application/javascript; charset=utf-8');
+  AddOrUpdate('.json', 'application/json; charset=utf-8');
+  AddOrUpdate('.xml', 'text/xml; charset=utf-8');
+  AddOrUpdate('.txt', 'text/plain; charset=utf-8');
   
   // Images
   AddOrUpdate('.png', 'image/png');

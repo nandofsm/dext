@@ -921,13 +921,13 @@ begin
     LFileName := TPath.Combine(FRoot, LFileName);
 
   if TFile.Exists(LFileName) then
-    Exit(TFile.ReadAllText(LFileName));
+    Exit(TFile.ReadAllText(LFileName, TEncoding.UTF8));
 
   if TFile.Exists(LFileName + '.html') then
-    Exit(TFile.ReadAllText(LFileName + '.html'));
+    Exit(TFile.ReadAllText(LFileName + '.html', TEncoding.UTF8));
 
   if TFile.Exists(LFileName + '.template') then
-    Exit(TFile.ReadAllText(LFileName + '.template'));
+    Exit(TFile.ReadAllText(LFileName + '.template', TEncoding.UTF8));
 
   raise EFileNotFoundException.CreateFmt('Template not found: %s', [ATemplateName]);
 end;

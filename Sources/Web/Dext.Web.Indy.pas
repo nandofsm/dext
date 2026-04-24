@@ -647,11 +647,11 @@ begin
     its body in stages. Single-call handlers are unaffected because appending
     to an empty ContentText is equivalent to assignment. }
   FResponseInfo.ContentText := FResponseInfo.ContentText + AContent;
-  if FResponseInfo.ContentType = '' then
-  begin
-    FResponseInfo.ContentType := 'text/plain';
+  if FResponseInfo.CharSet = '' then
     FResponseInfo.CharSet := 'utf-8';
-  end;
+    
+  if FResponseInfo.ContentType = '' then
+    FResponseInfo.ContentType := 'text/plain';
 end;
 
 procedure TDextIndyHttpResponse.Write(const ABuffer: TBytes);

@@ -769,7 +769,7 @@ begin
         else if ATypeInfo = TypeInfo(TTime) then Result := 'TIME'
         else Result := 'REAL';
       end;
-    tkChar, tkString, tkWChar, tkLString, tkWString, tkUString: Result := 'VARCHAR(255)';
+    tkChar, tkString, tkWChar, tkLString, tkWString, tkUString: Result := 'TEXT';
     tkEnumeration:
       begin
         if ATypeInfo = TypeInfo(Boolean) then Result := 'INTEGER'

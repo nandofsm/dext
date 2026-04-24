@@ -180,7 +180,7 @@ begin
       ftUnknown:
         Result := TValue.FromVariant(Field.Value);
       ftString, ftWideString, ftMemo, ftWideMemo, ftFixedChar, ftFixedWideChar:
-        Result := TValue.From<string>(Field.AsString);
+        Result := TValue.From<string>(Field.AsWideString);
       ftSmallint, ftShortint:
         Result := TValue.From<Integer>(Field.AsInteger);
       ftInteger, ftAutoInc, ftWord:
@@ -588,7 +588,10 @@ begin
             Param.AsWideMemo := ConvertedValue.AsString;
           end
           else
+          begin
+            Param.DataType := ftWideString;
             Param.AsWideString := ConvertedValue.AsString;
+          end;
         end;
         tkDynArray:
         begin
@@ -675,7 +678,10 @@ begin
           Param.AsWideMemo := AValue.AsString;
         end
         else
+        begin
+          Param.DataType := ftWideString;
           Param.AsWideString := AValue.AsString;
+        end;
       end;
       tkDynArray:
       begin

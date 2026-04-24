@@ -299,6 +299,12 @@ begin
   inherited Create;
   FContent := AContent;
   FContentType := AContentType;
+  // Ensure charset is set for text types
+  if (FContentType.ToLower.StartsWith('text/') or FContentType.ToLower.Contains('javascript') or FContentType.ToLower.Contains('json'))
+     and not FContentType.ToLower.Contains('charset=') then
+  begin
+    FContentType := FContentType + '; charset=utf-8';
+  end;
   FStatusCode := AStatusCode;
 end;
 
@@ -618,7 +624,7 @@ begin
   
   if TFile.Exists(FullPath) then
   begin
-    Content := TFile.ReadAllText(FullPath);
+    Content := TFile.ReadAllText(FullPath, TEncoding.UTF8);
     Result := TContentResult.Create(Content, 'text/html', AStatusCode);
   end
   else
@@ -634,7 +640,7 @@ begin
   FullPath := GetFullViewPath(ARelativePath);
   
   if TFile.Exists(FullPath) then
-    Result := TFile.ReadAllText(FullPath)
+    Result := TFile.ReadAllText(FullPath, TEncoding.UTF8)
   else
     Result := Format('<html><body><h1>View Not Found</h1><p>%s</p></body></html>', [FullPath]);
 end;
