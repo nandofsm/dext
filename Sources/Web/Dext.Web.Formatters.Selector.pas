@@ -97,10 +97,7 @@ begin
           var QStr := P.Substring(2);
           // Handle dot or comma decimal separator if needed, usually dot in HTTP
           // Use Val or TryStrToFloat with specific settings to be safe
-          var FormatSettings: TFormatSettings;
-          FormatSettings := TFormatSettings.Create;
-          FormatSettings.DecimalSeparator := '.';
-          MediaTypeVal.Quality := StrToFloatDef(QStr, 1.0, FormatSettings);
+          MediaTypeVal.Quality := StrToFloatDef(QStr, 1.0, TFormatSettings.Invariant);
         end;
       end;
       

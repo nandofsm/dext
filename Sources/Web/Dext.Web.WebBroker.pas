@@ -436,8 +436,7 @@ begin
       CookieStr := CookieStr + '; Domain=' + Opts.Domain;
     if Opts.Expires <> 0 then
       CookieStr := CookieStr + '; Expires=' +
-        FormatDateTime('ddd, dd mmm yyyy hh:nn:ss "GMT"', Opts.Expires,
-          TFormatSettings.Create('en-US'));
+        FormatDateTime('ddd, dd mmm yyyy hh:nn:ss "GMT"', Opts.Expires, TFormatSettings.Invariant);
     if Opts.HttpOnly then
       CookieStr := CookieStr + '; HttpOnly';
     if Opts.Secure then

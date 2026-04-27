@@ -3,26 +3,26 @@
 interface
 
 uses
-  System.SysUtils,
-  System.Classes,
   Data.DB,
   FireDAC.Comp.Client,
   FireDAC.Comp.DataSet,
+  FireDAC.DApt,
   FireDAC.Phys.SQLite,
   FireDAC.Phys.SQLiteDef,
-  FireDAC.Stan.Def,
   FireDAC.Stan.Async,
-  FireDAC.DApt,
+  FireDAC.Stan.Def,
+  System.Classes,
+  System.SysUtils,
   Dext.Assertions,
-  Dext.Testing.Attributes,
   Dext.Collections,
-  Dext.Entity, 
-  Dext.Entity.Core, 
+  Dext.Entity,
   Dext.Entity.Attributes,
-  Dext.Types.Lazy,
+  Dext.Entity.Collections,
+  Dext.Entity.Core,
   Dext.Entity.Drivers.FireDAC,
   Dext.Entity.Drivers.Interfaces,
-  Dext.Entity.Collections;
+  Dext.Testing.Attributes,
+  Dext.Types.Lazy;
 
 type
   TCourseInt = class;

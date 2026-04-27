@@ -108,7 +108,8 @@ begin
   Should(Length(Meta.ForeignKeys)).Be(2);
   Should(Meta.Columns[0].IsPrimaryKey).BeTrue;
   Should(Meta.Columns[1].IsPrimaryKey).BeTrue;
-end;
+
+  end;
 
 procedure TScaffoldingTests.Test_ManyToMany_Property_Generation;
 var
@@ -122,7 +123,8 @@ begin
   TDirectory.CreateDirectory(OutputDir);
   try
     // Run generation
-    Generator.Generate(FSchema, TPath.Combine('c:\dev\Dext\DextRepository\Templates\Basic\', 'entity.pas.template'), OutputDir);
+    var LTemplatePath := TPath.GetFullPath(TPath.Combine(ExtractFilePath(ParamStr(0)), '..\..\Templates\Basic\entity.pas.template'));
+    Generator.Generate(FSchema, LTemplatePath, OutputDir);
 
     UserFile := TPath.Combine(OutputDir, 'Users.pas');
     RoleFile := TPath.Combine(OutputDir, 'Roles.pas');

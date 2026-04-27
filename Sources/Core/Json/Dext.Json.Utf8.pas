@@ -237,14 +237,9 @@ end;
 
 function GetJsonVal(const AVal: TValue; const ASettings: TJsonSettings): string;
 var
-  FS: TFormatSettings;
   Unwrapped: TValue;
 begin
    if AVal.IsEmpty then Exit('null');
-
-   // Prepare invariant format settings for JSON (dot separator)
-   FS := TFormatSettings.Create;
-   FS.DecimalSeparator := '.';
 
    // Handle Smart Properties (Prop<T>, Nullable<T>, etc.)
    if TReflection.TryUnwrapProp(AVal, Unwrapped) then
@@ -268,7 +263,7 @@ begin
        if AVal.TypeInfo = TypeInfo(TDateTime) then
          Result := '"' + DateToISO8601(AVal.AsType<TDateTime>) + '"'
        else
-         Result := FloatToStr(AVal.AsExtended, FS);
+         Result := FloatToStr(AVal.AsExtended, TFormatSettings.Invariant);
      end;
      tkString, tkUString, tkWString, tkChar, tkWChar: Result := '"' + EscapeJsonString(AVal.AsString) + '"';
      tkEnumeration:

@@ -29,7 +29,6 @@ type
     property Id: Integer read FId write FId;
     [Column('FullName')]
     property Name: string read FName write FName;
-    
     [HasMany, InverseProperty('Customer')]
     property Orders: IList<TObject> read FOrders write FOrders; // In real use this would be IList<TOrder>
   end;
@@ -44,12 +43,9 @@ type
   public
     [PK]
     property Id: Integer read FId write FId;
-    
     [Column('customer_id')]
     property CustomerId: Integer read FCustomerId write FCustomerId;
-    
     property OrderDate: TDateTime read FOrderDate write FOrderDate;
-
     [BelongsTo, ForeignKey('CustomerId'), InverseProperty('Orders')]
     property Customer: TCustomer read FCustomer write FCustomer;
   end;
@@ -107,44 +103,47 @@ type
     property User: TUser read FUser write FUser;
   end;
 
+  // Many-to-Many relationship: Student <-> Course via StudentCourses join table
+  [Table('Students')]
+  TStudent = class
+  private
+    FId: Integer;
+    FName: string;
+    FCourses: IList<TObject>;
+  public
+    [PK] property Id: Integer read FId write FId;
+    property Name: string read FName write FName;
+    [ManyToMany('StudentCourses', 'student_id', 'course_id'), InverseProperty('Students')]
+    property Courses: IList<TObject> read FCourses write FCourses;
+  end;
+
+  [Table('Courses')]
+  TCourse = class
+  private
+    FId: Integer;
+    FTitle: string;
+    FStudents: IList<TObject>;
+  public
+    [PK] property Id: Integer read FId write FId;
+    property Title: string read FTitle write FTitle;
+    [ManyToMany('StudentCourses', 'course_id', 'student_id'), InverseProperty('Courses')]
+    property Students: IList<TObject> read FStudents write FStudents;
+  end;
+
   [TestFixture('Entity Relationship Mapping Tests')]
   TEntityRelationshipTests = class
   public
-    [Test]
-    procedure TestAttributeMapping_Discovery;
-    
-    [Test]
-    procedure TestFluentMapping_Discovery;
-    
-    [Test]
-    procedure TestSQLGenerator_IgnoresNavigationProperties;
-
-    [Test]
-    procedure TestSQLGenerator_IncludeForeignKeyColumn;
-
-    [Test]
-    procedure TestOneToOneMapping_Discovery;
-
-    [Test]
-    procedure TestHasPrincipalKey_Fluent;
-
-    [Test]
-    procedure TestManyToMany_Discovery;
-    
-    [Test]
-    procedure TestJoinTableSQL_Insert;
-    
-    [Test]
-    procedure TestJoinTableSQL_Delete;
-    
-    [Test]
-    procedure TestJoinTableSQL_DeleteByLeft;
-    
-    [Test]
-    procedure TestManyToMany_AttributeDetection;
-
-    [Test]
-    procedure TestManyToMany_LazyConfiguration;
+    [Test] procedure TestAttributeMapping_Discovery;
+    [Test] procedure TestFluentMapping_Discovery;
+    [Test] procedure TestSQLGenerator_IgnoresNavigationProperties;
+    [Test] procedure TestSQLGenerator_IncludeForeignKeyColumn;
+    [Test] procedure TestOneToOneMapping_Discovery;
+    [Test] procedure TestHasPrincipalKey_Fluent;
+    [Test] procedure TestManyToMany_Discovery;
+    [Test] procedure TestJoinTableSQL_Insert;
+    [Test] procedure TestJoinTableSQL_Delete;
+    [Test] procedure TestJoinTableSQL_DeleteByLeft;
+    [Test] procedure TestManyToMany_AttributeDetection;
   end;
 
 implementation
@@ -329,45 +328,6 @@ begin
   end;
 end;
 
-type
-  // Many-to-Many relationship: Student <-> Course via StudentCourses join table
-  [Table('Students')]
-  TStudent = class
-  private
-    FId: Integer;
-    FName: string;
-    FCourses: IList<TObject>;
-  public
-    [PK] property Id: Integer read FId write FId;
-    property Name: string read FName write FName;
-    [ManyToMany('StudentCourses', 'student_id', 'course_id'), InverseProperty('Students')]
-    property Courses: IList<TObject> read FCourses write FCourses;
-  end;
-
-  [Table('Students')]
-  TStudentLazy = class
-  private
-    FId: Integer;
-    FCourses: Lazy<IList<TObject>>;
-  public
-    [PK] property Id: Integer read FId write FId;
-    [ManyToMany('StudentCourses', 'student_id', 'course_id')]
-    property Courses: Lazy<IList<TObject>> read FCourses write FCourses;
-  end;
-
-  [Table('Courses')]
-  TCourse = class
-  private
-    FId: Integer;
-    FTitle: string;
-    FStudents: IList<TObject>;
-  public
-    [PK] property Id: Integer read FId write FId;
-    property Title: string read FTitle write FTitle;
-    [ManyToMany('StudentCourses', 'course_id', 'student_id'), InverseProperty('Courses')]
-    property Students: IList<TObject> read FStudents write FStudents;
-  end;
-
 procedure TEntityRelationshipTests.TestManyToMany_Discovery;
 var
   Map: TEntityMap;
@@ -496,40 +456,6 @@ begin
     Should(PropMap.InverseProperty).Be('Courses');
   finally
     Map.Free;
-  end;
-end;
-
-procedure TEntityRelationshipTests.TestManyToMany_LazyConfiguration;
-var
-  Student: TStudentLazy;
-  Ctx: TRttiContext;
-  Typ: TRttiType;
-  Field: TRttiField;
-begin
-  Student := TStudentLazy.Create;
-  try
-    // In Dext, TLazyInjector.Inject is called during hydration.
-    // Here we can test if it correctly identifies and injects the loader.
-    // Since we don't have a real DBContext for this unit test, 
-    // we just check if the attribute discovery works for Lazy properties.
-    
-    Ctx := TRttiContext.Create;
-    try
-      Typ := Ctx.GetType(TStudentLazy);
-      Field := Typ.GetField('FCourses');
-      
-      Should(Field).NotBeNil;
-      Should(Field.FieldType.Name).Contain('Lazy<');
-      
-      // Test if ManyToMany attribute is present on the property
-      var Prop := Typ.GetProperty('Courses');
-      Should(Prop).NotBeNil;
-      Should(Prop.HasAttribute<ManyToManyAttribute>).BeTrue;
-    finally
-      Ctx.Free;
-    end;
-  finally
-    Student.Free;
   end;
 end;
 

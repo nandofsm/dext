@@ -103,11 +103,11 @@ begin
   
   Json := FDataSet.AsJsonArray;
   
-  Should(Json).Contain('"Name": "Notebook"');
-  Should(Json).Contain('"Name": "Smartphone"');
-  Should(Json).Contain('"Name": "Monitor"');
-  Should(Json).Contain('"Name": "Mouse"');
-  Should(Json).Contain('"Name": "Keyboard"');
+  Should(Json).Contain('"Name":"Notebook"');
+  Should(Json).Contain('"Name":"Smartphone"');
+  Should(Json).Contain('"Name":"Monitor"');
+  Should(Json).Contain('"Name":"Mouse"');
+  Should(Json).Contain('"Name":"Keyboard"');
 end;
 
 procedure TEntityDataSetExportTests.Test_AsJsonArray_Filtered;
@@ -121,11 +121,11 @@ begin
   
   Json := FDataSet.AsJsonArray;
   
-  Should(Json).NotContain('"Name": "Notebook"');
-  Should(Json).NotContain('"Name": "Smartphone"');
-  Should(Json).Contain('"Name": "Monitor"');
-  Should(Json).Contain('"Name": "Mouse"');
-  Should(Json).Contain('"Name": "Keyboard"');
+  Should(Json).NotContain('"Name":"Notebook"');
+  Should(Json).NotContain('"Name":"Smartphone"');
+  Should(Json).Contain('"Name":"Monitor"');
+  Should(Json).Contain('"Name":"Mouse"');
+  Should(Json).Contain('"Name":"Keyboard"');
 end;
 
 procedure TEntityDataSetExportTests.Test_AsJsonArray_Sorted;
@@ -179,7 +179,7 @@ begin
   
   Json := FDataSet.AsJsonObject;
   
-  Should(Json).Contain('"Name": "Smartphone"');
+  Should(Json).Contain('"Name":"Smartphone"');
   Should(Json).NotContain('Notebook');
 end;
 

@@ -1,4 +1,4 @@
-﻿{***************************************************************************}
+{***************************************************************************}
 {                                                                           }
 {           Dext Framework                                                  }
 {                                                                           }
@@ -34,10 +34,19 @@ function TryParseISODateTime(const Value: string; out DateTime: TDateTime): Bool
 
 /// <summary>
 ///   Tries to parse a date/time string using common formats (ISO, dd/mm/yyyy, etc).
+///   Uses the system's default FormatSettings.
 /// </summary>
-function TryParseCommonDate(const Value: string; out DateTime: TDateTime): Boolean;
+function TryParseCommonDate(const Value: string; out DateTime: TDateTime): Boolean; overload;
+
+/// <summary>
+///   Tries to parse a date/time string using the provided FormatSettings.
+/// </summary>
+function TryParseCommonDate(const Value: string; out DateTime: TDateTime; const AFormatSettings: TFormatSettings): Boolean; overload;
 
 implementation
+
+var
+  GlobalFormatSettings: TFormatSettings;
 
 function TryParseISODateTime(const Value: string; out DateTime: TDateTime): Boolean;
 var
@@ -102,18 +111,21 @@ begin
       end;
     end;
 
-    try
-      DateTime := ISO8601ToDate(Value);
-      Result := True;
-    except
+    if TryISO8601ToDate(Value, DateTime, False) then
+      Result := True
+    else
       Result := False;
-    end;
   except
     Result := False;
   end;
 end;
 
 function TryParseCommonDate(const Value: string; out DateTime: TDateTime): Boolean;
+begin
+  Result := TryParseCommonDate(Value, DateTime, GlobalFormatSettings);
+end;
+
+function TryParseCommonDate(const Value: string; out DateTime: TDateTime; const AFormatSettings: TFormatSettings): Boolean;
 var
   FormatSettings: TFormatSettings;
   Parts: TArray<string>;
@@ -122,7 +134,15 @@ begin
   if TryParseISODateTime(Value, DateTime) then
     Exit(True);
 
-  FormatSettings := TFormatSettings.Create;
+  FormatSettings := AFormatSettings;
+
+  // Try System native format first (handles OS locales like German dd.mm.yyyy)
+  if TryStrToDateTime(Value, DateTime, FormatSettings) then
+    Exit(True);
+  if TryStrToTime(Value, DateTime, FormatSettings) then
+    Exit(True);
+  if TryStrToDate(Value, DateTime, FormatSettings) then
+    Exit(True);
 
   FormatSettings.DateSeparator := '/';
   FormatSettings.ShortDateFormat := 'dd/mm/yyyy';
@@ -137,7 +157,7 @@ begin
   if TryStrToDateTime(Value, DateTime, FormatSettings) then
     Exit(True);
 
-  Parts := Value.Split(['/', '-']);
+  Parts := Value.Split(['/', '-', '.']);
   if Length(Parts) = 3 then
   begin
     try
@@ -164,5 +184,8 @@ begin
 
   Result := False;
 end;
+
+initialization
+  GlobalFormatSettings := TFormatSettings.Create;
 
 end.

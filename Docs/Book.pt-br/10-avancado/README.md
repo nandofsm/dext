@@ -9,6 +9,7 @@ Mergulhos profundos em infraestrutura e padrões avançados.
 3. [Configuração](configuracao.md) - Padrão `IOptions<T>`
 4. [API Assíncrona](async-api.md) - `TAsyncTask` e concorrência
 5. [Diagnósticos e Debugging](diagnosticos-debugging.md) - Stack traces com alocação zero e símbolos assíncronos
+6. [Serialização e Globalização](serializacao-globalizacao.md) - Lidar com locales e formatos JSON
 
 ## Exemplos Rápidos
 

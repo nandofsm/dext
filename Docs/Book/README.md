@@ -102,6 +102,7 @@
 - [Configuration](10-advanced/configuration.md) - `IOptions<T>` (JSON, YAML)
 - [Async API](10-advanced/async-api.md) - `TAsyncTask`
 - [Template Engine (S09)](10-advanced/templating.md) ⭐ **NEW** - Razor-style AST engine
+- [Serialization & Globalization](10-advanced/serialization-globalization.md) ⭐ **NEW** - Handling locales and JSON formats
 
 #### [11. Desktop UI (Dext.UI)](11-desktop-ui/README.md) ⭐ NEW
 

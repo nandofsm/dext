@@ -12,6 +12,7 @@ uses
   Dext.Entity.Context,
   Dext.Entity.Core,
   Dext.Entity.Setup,
+  Dext.Entity.Drivers.FireDAC.Links,
   Dext.Hosting.CLI,
   Dext.Hosting.CLI.Registry,
   Dext.Hosting.CLI.Commands.Configuration in 'Commands\Dext.Hosting.CLI.Commands.Configuration.pas',

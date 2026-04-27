@@ -836,7 +836,28 @@ begin
                   begin
                     case Reader.TokenType of
                       TJsonTokenType.StringValue:
-                        RttiProp.SetValue(CurrentObj, Reader.GetString);
+                      begin
+                        if RttiProp.PropertyType.Handle = TypeInfo(TDateTime) then
+                        begin
+                          var LDate: TDateTime;
+                          if TryParseISODateTime(Reader.GetString, LDate) then
+                            RttiProp.SetValue(CurrentObj, LDate);
+                        end
+                        else if RttiProp.PropertyType.Handle = TypeInfo(TDate) then
+                        begin
+                          var LDate: TDateTime;
+                          if TryParseISODateTime(Reader.GetString, LDate) then
+                            RttiProp.SetValue(CurrentObj, Trunc(LDate));
+                        end
+                        else if RttiProp.PropertyType.Handle = TypeInfo(TTime) then
+                        begin
+                          var LDate: TDateTime;
+                          if TryParseISODateTime(Reader.GetString, LDate) then
+                            RttiProp.SetValue(CurrentObj, Frac(LDate));
+                        end
+                        else
+                          RttiProp.SetValue(CurrentObj, Reader.GetString);
+                      end;
                       TJsonTokenType.Number:
                       begin
                         if RttiProp.PropertyType.Handle = TypeInfo(Integer) then

@@ -350,28 +350,21 @@ const
   ValueField = 'value';
 
 function FloatToJsonString(Value: Extended): string;
-var
-  FormatSettings: TFormatSettings;
 begin
-  FormatSettings := TFormatSettings.Create;
-  FormatSettings.DecimalSeparator := '.';
-  Result := FloatToStr(Value, FormatSettings);
+  Result := FloatToStr(Value, TFormatSettings.Invariant);
 end;
 
 function JsonStringToFloat(const Value: string): Extended;
 var
-  FormatSettings: TFormatSettings;
   CleanValue: string;
 begin
-  FormatSettings := TFormatSettings.Create;
-  FormatSettings.DecimalSeparator := '.';
 
   if Pos(',', Value) > 0 then
     CleanValue := StringReplace(Value, ',', '.', [rfReplaceAll])
   else
     CleanValue := Value;
 
-  Result := StrToFloatDef(CleanValue, 0, FormatSettings);
+  Result := StrToFloatDef(CleanValue, 0, TFormatSettings.Invariant);
 end;
 
 function IntToJsonString(Value: Int64): string;

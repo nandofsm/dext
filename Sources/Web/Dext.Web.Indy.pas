@@ -554,7 +554,7 @@ begin
   if AOptions.Domain <> '' then
     CookieStr := CookieStr + '; Domain=' + AOptions.Domain;
   if AOptions.Expires <> 0 then
-    CookieStr := CookieStr + '; Expires=' + FormatDateTime('ddd, dd mmm yyyy hh:nn:ss "GMT"', AOptions.Expires, TFormatSettings.Create('en-US'));
+    CookieStr := CookieStr + '; Expires=' + FormatDateTime('ddd, dd mmm yyyy hh:nn:ss "GMT"', AOptions.Expires, TFormatSettings.Invariant);
   if AOptions.HttpOnly then
     CookieStr := CookieStr + '; HttpOnly';
   if AOptions.Secure then

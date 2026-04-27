@@ -27,7 +27,7 @@ This example demonstrates real-time communication using Dext.Web.Hubs.
 ### Build
 
 ```powershell
-cd C:\dev\Dext\DextRepository\Examples\Hubs
+cd ..\..\Examples\04-Advanced\Hubs
 dcc32 HubsExample.dpr
 ```
 

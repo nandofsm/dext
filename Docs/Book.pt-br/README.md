@@ -93,6 +93,7 @@
 - [Background Services](10-avancado/background-services.md)
 - [Configuração](10-avancado/configuracao.md) - `IOptions<T>` (JSON, YAML)
 - [API Assíncrona](10-avancado/async-api.md) - `TAsyncTask`
+- [Serialização e Globalização](10-avancado/serializacao-globalizacao.md) ⭐ **NOVO** - Lidar com locales e formatos JSON
 
 #### [11. Desktop UI (Dext.UI)](11-desktop-ui/README.md) ⭐ NOVO
 

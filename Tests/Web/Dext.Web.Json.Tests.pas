@@ -48,7 +48,7 @@ begin
   Person.CreatedAt := EncodeDate(2026, 3, 28) + EncodeTime(9, 50, 2, 0);
   Person.UpdatedAt.Clear;
 
-  Json := TDextJson.Serialize<TPerson>(Person);
+  Json := TDextJson.Serialize<TPerson>(Person, TJsonSettings.Default.Indented);
 
   // Expected JSON should contain null for nullable fields with no value
   // Instead of 0, "", or "1899-12-30T00:00:00.000"
@@ -74,7 +74,7 @@ begin
   Person.CreatedAt := EncodeDate(2026, 3, 28) + EncodeTime(9, 50, 2, 0);
   Person.UpdatedAt := EncodeDate(2026, 3, 29) + EncodeTime(10, 0, 0, 0);
 
-  Json := TDextJson.Serialize<TPerson>(Person);
+  Json := TDextJson.Serialize<TPerson>(Person, TJsonSettings.Default.Indented);
 
   Should(Json).Contain('"PersonParentId": 10');
   Should(Json).Contain('"Email": "john@dext.com"');

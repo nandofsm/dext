@@ -11,6 +11,7 @@ Deep dives into infrastructure and advanced patterns.
 5. [Event Bus](event-bus.md) - In-process publish/subscribe with DI integration
 6. [Event Bus Comparison](event-bus-comparison.md) - Dext vs Delphi Event Bus vs NX Horizon
 7. [Diagnostics & Debugging](diagnostics-debugging.md) - Zero-allocation stack traces and async symbols
+8. [Serialization & Globalization](serialization-globalization.md) - Handling locales and JSON formats
 
 ## Quick Examples
 

@@ -11,6 +11,7 @@ A ferramenta de Scaffolding do Dext ORM permite gerar automaticamente classes de
 - **Relacionamentos**: Detecta Chaves Estrangeiras e gera propriedades de navegação para lazy loading.
 - **Detecção Many-to-Many**: Identifica automaticamente tabelas de junção e gera propriedades bidirecionais com o atributo `[ManyToMany]`.
 - **Convenções de Nomenclatura**: Converte automaticamente nomes `snake_case` do banco para `PascalCase` em Delphi (Classes no singular, Coleções no plural).
+- **Precisão SQLite**: A partir da Versão 1.1, utiliza `PRAGMA` para detectar com precisão Chaves Primárias Compostas e Chaves Estrangeiras no SQLite, contornando limitações padrão do FireDAC.
 
 ## Uso via CLI (Recomendado)
 

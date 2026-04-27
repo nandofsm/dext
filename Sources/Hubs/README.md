@@ -47,7 +47,7 @@ Sources/
 
 ```powershell
 # From Sources directory
-cd C:\dev\Dext\DextRepository\Sources
+cd ..\..\Sources
 
 # Build dependencies first
 msbuild Dext.Core.dproj /t:Build /p:Config=Debug /p:Platform=Win32
@@ -129,7 +129,7 @@ MapHub(App, '/hubs/myhub', TMyHub);
 Run the unit tests:
 
 ```powershell
-cd C:\dev\Dext\DextRepository\Tests\Hubs
+cd ..\..\Tests\Hubs
 dcc32 TestDextHubs.dpr
 TestDextHubs.exe
 ```

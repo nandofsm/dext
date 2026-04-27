@@ -13,42 +13,42 @@ uses
 type
   @Model.DelphiClassName = class
   private
-@foreach(var col in Model.Columns) {
+@foreach(var col in Model.Columns)
     F@col.DelphiName: @col.DelphiType;
-}
+@endforeach
 
-@foreach(var fk in Model.ForeignKeys) {
+@foreach(var fk in Model.ForeignKeys)
     F@fk.PropertyName: ILazy<@fk.ReferencedClass>;
     function Get@fk.PropertyName: @fk.ReferencedClass;
     procedure Set@fk.PropertyName(const Value: @fk.ReferencedClass);
-}
+@endforeach
 
-@foreach(var m2m in Model.ManyToMany) {
+@foreach(var m2m in Model.ManyToMany)
     F@m2m.PropertyName: IEntityCollection<@m2m.TargetClass>;
-}
+@endforeach
   public
     [Table('@Model.Name')]
-@foreach(var col in Model.Columns) {
+@foreach(var col in Model.Columns)
     @col.GetAttributeString
     property @col.DelphiName: @col.DelphiType read F@col.DelphiName write F@col.DelphiName;
-}
+@endforeach
 
-@foreach(var fk in Model.ForeignKeys) {
+@foreach(var fk in Model.ForeignKeys)
     [ForeignKey('@fk.ColumnName')]
     property @fk.PropertyName: @fk.ReferencedClass read Get@fk.PropertyName write Set@fk.PropertyName;
-}
+@endforeach
 
-@foreach(var m2m in Model.ManyToMany) {
+@foreach(var m2m in Model.ManyToMany)
     [ManyToMany('@m2m.JoinTable', '@m2m.SourceColumn', '@m2m.TargetColumn')]
     property @m2m.PropertyName: IEntityCollection<@m2m.TargetClass> read F@m2m.PropertyName;
-}
+@endforeach
   end;
 
 implementation
 
 { @Model.DelphiClassName }
 
-@foreach(var fk in Model.ForeignKeys) {
+@foreach(var fk in Model.ForeignKeys)
 function @Model.DelphiClassName.Get@fk.PropertyName: @fk.ReferencedClass;
 begin
   if F@fk.PropertyName <> nil then
@@ -62,6 +62,6 @@ begin
   F@fk.PropertyName := TValueLazy<@fk.ReferencedClass>.Create(Value);
 end;
 
-}
+@endforeach
 
 end.

@@ -9,8 +9,9 @@ uses
   Dext.Testing.Attributes,
   Dext.Testing.Runner,
   Dext.Testing,
+  TestManyToManyIntegration in 'TestManyToManyIntegration.pas',
   TestEntityRelationships in 'TestEntityRelationships.pas',
-  TestManyToManyIntegration in 'TestManyToManyIntegration.pas';
+  TestLazyLoadingRelationships in 'TestLazyLoadingRelationships.pas';
 
 begin
   SetConsoleCharset;
@@ -23,7 +24,11 @@ begin
       TTest
         .Configure
         .Verbose
-        .RegisterFixtures([TEntityRelationshipTests, TManyToManyIntegrationTests])
+        .RegisterFixtures([
+           TManyToManyIntegrationTests,
+           TEntityRelationshipTests,
+           TLazyLoadingRelationshipTests
+         ])
         .Run
     );
 

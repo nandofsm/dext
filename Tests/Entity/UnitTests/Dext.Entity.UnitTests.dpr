@@ -1,4 +1,4 @@
-﻿program Dext.Entity.UnitTests;
+program Dext.Entity.UnitTests;
 
 {$IFNDEF TESTINSIGHT}
   {$APPTYPE CONSOLE}
@@ -29,7 +29,8 @@ uses
   Dext.Entity.ReportedIssues.Tests in 'Dext.Entity.ReportedIssues.Tests.pas',
   Dext.Entity.Scaffolding.Tests in 'Dext.Entity.Scaffolding.Tests.pas',
   Dext.Entity.Migrations.Tests in 'Dext.Entity.Migrations.Tests.pas',
-  Dext.Entity.SnakeCaseFk.Tests in 'Dext.Entity.SnakeCaseFk.Tests.pas';
+  Dext.Entity.SnakeCaseFk.Tests in 'Dext.Entity.SnakeCaseFk.Tests.pas',
+  Dext.Entity.FormatSettings.Tests in 'Dext.Entity.FormatSettings.Tests.pas';
 
 begin
   {$IFDEF TESTINSIGHT}
@@ -71,7 +72,8 @@ begin
         TEntityReportedIssuesTests,
         TEntityArchitectureTests,
         TScaffoldingTests,
-        TMigrationTests
+        TMigrationTests,
+        TEntityFormatSettingsTests
       ]));
   except
     on E: Exception do

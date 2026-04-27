@@ -20,7 +20,7 @@ type
     FLength: Integer;
     FPrecision: Integer;
     FScale: Integer;
-  public
+  published
     property Name: string read FName write FName;
     property DelphiName: string read FDelphiName write FDelphiName;
     property DataType: string read FDataType write FDataType;
@@ -31,10 +31,11 @@ type
     property Length: Integer read FLength write FLength;
     property Precision: Integer read FPrecision write FPrecision;
     property Scale: Integer read FScale write FScale;
-    
+  public
     function GetAttributeString: string;
   end;
 
+  {$M+}
   TManyToManyViewModel = class
   private
     FPropertyName: string;
@@ -42,7 +43,7 @@ type
     FJoinTable: string;
     FSourceColumn: string;
     FTargetColumn: string;
-  public
+  published
     property PropertyName: string read FPropertyName write FPropertyName;
     property TargetClass: string read FTargetClass write FTargetClass;
     property JoinTable: string read FJoinTable write FJoinTable;
@@ -50,6 +51,7 @@ type
     property TargetColumn: string read FTargetColumn write FTargetColumn;
   end;
 
+  {$M+}
   TFKViewModel = class
   private
     FName: string;
@@ -57,7 +59,7 @@ type
     FReferencedTable: string;
     FReferencedClass: string;
     FPropertyName: string;
-  public
+  published
     property Name: string read FName write FName;
     property ColumnName: string read FColumnName write FColumnName;
     property ReferencedTable: string read FReferencedTable write FReferencedTable;
@@ -65,6 +67,7 @@ type
     property PropertyName: string read FPropertyName write FPropertyName;
   end;
 
+  {$M+}
   TTableViewModel = class
   private
     FName: string;
@@ -77,7 +80,7 @@ type
     FIsJoinTable: Boolean;
   public
     constructor Create;
-    
+  published
     property Name: string read FName write FName;
     property DelphiClassName: string read FDelphiClassName write FDelphiClassName;
     property DelphiNamespace: string read FDelphiNamespace write FDelphiNamespace;
@@ -88,6 +91,7 @@ type
     property IsJoinTable: Boolean read FIsJoinTable write FIsJoinTable;
   end;
 
+  {$M+}
   TScaffoldViewModel = class
   private
     FDelphiProjectName: string;
@@ -95,7 +99,7 @@ type
     FTables: IList<TTableViewModel>;
   public
     constructor Create;
-    
+  published
     property DelphiProjectName: string read FDelphiProjectName write FDelphiProjectName;
     property DelphiNamespace: string read FDelphiNamespace write FDelphiNamespace;
     property Tables: IList<TTableViewModel> read FTables;

@@ -11,6 +11,7 @@ The Dext ORM Scaffolding tool allows you to automatically generate Delphi Entity
 - **Relationships**: Detects Foreign Keys and generates navigation properties for lazy loading.
 - **Many-to-Many Detection**: Automatically identifies junction tables and generates bidirectional `[ManyToMany]` properties.
 - **Naming Conventions**: Automatically converts `snake_case` database names to `PascalCase` Delphi names (Singularized Classes, Pluralized Collections).
+- **SQLite Precision**: Since Version 1.1, uses `PRAGMA` to accurately detect Composite Primary Keys and Foreign Keys in SQLite, bypassing standard FireDAC metadata limitations.
 
 ## CLI Usage (Recommended)
 

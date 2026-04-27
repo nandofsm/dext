@@ -7,6 +7,7 @@ program Core.TestHttpParser;
 uses
   System.SysUtils,
   System.Classes,
+  System.IOUtils,
   Dext.Http.Request,
   Dext.Http.Parser,
   Dext.Http.Executor,
@@ -190,9 +191,10 @@ begin
   
   if not FileExists(FilePath) then
   begin
-    WriteLn('File not found: ', FilePath);
-    WriteLn('Trying alternate path...');
-    FilePath := 'C:\dev\Dext\DextRepository\Examples\example-api.http';
+    var LDir := ExtractFilePath(ParamStr(0));
+    while (Length(LDir) > 3) and not TDirectory.Exists(TPath.Combine(LDir, 'Examples')) do
+      LDir := TPath.GetDirectoryName(LDir);
+    FilePath := TPath.Combine(LDir, 'Examples\example-api.http');
   end;
   
   if FileExists(FilePath) then

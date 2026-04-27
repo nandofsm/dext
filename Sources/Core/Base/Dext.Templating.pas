@@ -2734,7 +2734,7 @@ var
       begin
         var LChar := ATemplate[LPos];
         // Stop at delimiters
-        if CharInSet(LChar, [#13, #10, ' ', '<', '>', '/', '\', ';', ':', ',', '=', '+', '-', '*', '!', '?', '|', '~', ')', ']']) then
+        if CharInSet(LChar, [#13, #10, ' ', '<', '>', '/', '\', ';', ':', ',', '=', '+', '-', '*', '!', '?', '|', '~', ')', ']', '''', '"']) then
            Break;
 
         if (LPos > LOldPos) and (LChar = '@') then

@@ -313,9 +313,59 @@ begin
         Meta.Next;
       end;
       
+      // Fetch PKs for this table (essential for composite PKs in SQLite)
+      Meta.Close;
+      Meta.MetaInfoKind := mkPrimaryKeyFields;
+      Meta.ObjectName := '';
+      Meta.BaseObjectName := TName;
+      try
+        Meta.Open;
+        while not Meta.Eof do
+        begin
+          var LColName := Meta.FieldByName('COLUMN_NAME').AsString;
+          for var i := 0 to High(LTable.Columns) do
+            if SameText(LTable.Columns[i].Name, LColName) then
+            begin
+              LTable.Columns[i].IsPrimaryKey := True;
+              Break;
+            end;
+          Meta.Next;
+        end;
+      except
+        // Some drivers might fail mkPrimaryKeyFields, ignore and continue
+      end;
+
+      // SQLite specific fallback to PRAGMA table_info for accurate composite PK detection
+      if SameText(FDConn.DriverName, 'SQLite') then
+      begin
+        var Qry := TFDQuery.Create(nil);
+        try
+          Qry.Connection := FDConn;
+          Qry.SQL.Text := 'PRAGMA table_info("' + TName + '")';
+          Qry.Open;
+          while not Qry.Eof do
+          begin
+            if Qry.FieldByName('pk').AsInteger > 0 then
+            begin
+              var LColName := Qry.FieldByName('name').AsString;
+              for var i := 0 to High(LTable.Columns) do
+                if SameText(LTable.Columns[i].Name, LColName) then
+                begin
+                  LTable.Columns[i].IsPrimaryKey := True;
+                  Break;
+                end;
+            end;
+            Qry.Next;
+          end;
+        finally
+          Qry.Free;
+        end;
+      end;
+      
       // Fetch FKs for this table
       Meta.Close;
       Meta.MetaInfoKind := mkForeignKeys;
+      Meta.BaseObjectName := '';
       Meta.ObjectName := TName;
       try
         Meta.Open;
@@ -349,6 +399,36 @@ begin
         end;
       except
         // Some drivers might fail mkForeignKeys, ignore and continue
+      end;
+
+      // SQLite specific fallback to PRAGMA foreign_key_list for accurate FK columns
+      if SameText(FDConn.DriverName, 'SQLite') then
+      begin
+        LTable.ForeignKeys := [];
+        var Qry := TFDQuery.Create(nil);
+        try
+          Qry.Connection := FDConn;
+          Qry.SQL.Text := 'PRAGMA foreign_key_list("' + TName + '")';
+          try
+            Qry.Open;
+            var FkIndex := 0;
+            while not Qry.Eof do
+            begin
+              LFK.Name := 'FK_' + TName + '_' + IntToStr(FkIndex);
+              LFK.ReferencedTable := Qry.FieldByName('table').AsString;
+              LFK.ColumnName := Qry.FieldByName('from').AsString;
+              LFK.ReferencedColumn := Qry.FieldByName('to').AsString;
+              
+              LTable.ForeignKeys := LTable.ForeignKeys + [LFK];
+              Inc(FkIndex);
+              Qry.Next;
+            end;
+          except
+            // Ignore PRAGMA errors
+          end;
+        finally
+          Qry.Free;
+        end;
       end;
 
       FCache.AddOrSetValue(TName, LTable);

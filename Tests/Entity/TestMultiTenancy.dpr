@@ -3,24 +3,25 @@ program TestMultiTenancy;
 {$APPTYPE CONSOLE}
 
 uses
-  System.SysUtils,
-  System.Classes,
-  Dext.Collections,
   FireDAC.Comp.Client,
-  Dext.Entity.Drivers.FireDAC.Links,
   FireDAC.DApt,
-  FireDAC.Stan.Def,
   FireDAC.Stan.Async,
-  Dext.MultiTenancy,
+  FireDAC.Stan.Def,
+  System.Classes,
+  System.SysUtils,
+  Dext.Collections,
+  Dext.Entity.Attributes,
   Dext.Entity.Context,
   Dext.Entity.Core,
-  Dext.Entity.Tenancy,
-  Dext.Entity.Attributes,
-  Dext.Entity.Drivers.Interfaces,
-  Dext.Entity.Drivers.FireDAC,
   Dext.Entity.Dialects,
+  Dext.Entity.Drivers.FireDAC,
+  Dext.Entity.Drivers.FireDAC.Links,
+  Dext.Entity.Drivers.Interfaces,
   Dext.Entity.Setup,
-  Dext.Specifications.SQL.Generator;
+  Dext.Entity.Tenancy,
+  Dext.MultiTenancy,
+  Dext.Specifications.SQL.Generator,
+  Dext.Utils;
 
 type
   [Table('Products')]
@@ -216,4 +217,5 @@ begin
     on E: Exception do
       WriteLn(E.ClassName, ': ', E.Message);
   end;
+  ConsolePause;
 end.
