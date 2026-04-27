@@ -126,7 +126,6 @@
         <DCCReference Include="Testing\Dext.Testing.Runner.pas"/>
         <DCCReference Include="Testing\Dext.Testing.Listeners.Telemetry.pas"/>
         <DCCReference Include="Testing\Dext.Testing.pas"/>
-        <DCCReference Include="Testing\Dext.Testing.TestInsight.pas"/>
         <DCCReference Include="Testing\Dext.Testing.Host.pas"/>
         <BuildConfiguration Include="Base">
             <Key>Base</Key>

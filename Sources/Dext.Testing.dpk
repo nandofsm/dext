@@ -28,6 +28,7 @@ package Dext.Testing;
 {$DESCRIPTION 'Dext Framework - Testing Utilities (Mocking, Interception, Assertions)'}
 {$RUNONLY}
 {$IMPLICITBUILD OFF}
+{$I Dext.inc}
 
 requires
   rtl,
@@ -40,6 +41,10 @@ requires
   Dext.Web.Core;
 
 contains
+{$IFDEF DEXT_TESTINSIGHT}
+  TestInsight.Client,
+  Dext.Testing.TestInsight in 'Testing\Dext.Testing.TestInsight.pas',
+{$ENDIF}
   Dext.Assertions in 'Testing\Dext.Assertions.pas',
   Dext.Mocks.Auto in 'Testing\Dext.Mocks.Auto.pas',
   Dext.Mocks.Interceptor in 'Testing\Dext.Mocks.Interceptor.pas',
@@ -55,8 +60,6 @@ contains
   Dext.Testing.Runner in 'Testing\Dext.Testing.Runner.pas',
   Dext.Testing.Listeners.Telemetry in 'Testing\Dext.Testing.Listeners.Telemetry.pas',
   Dext.Testing in 'Testing\Dext.Testing.pas',
-  Dext.Testing.TestInsight in 'Testing\Dext.Testing.TestInsight.pas',
-  Dext.Testing.Host in 'Testing\Dext.Testing.Host.pas',
-  TestInsight.Client;
+  Dext.Testing.Host in 'Testing\Dext.Testing.Host.pas';
 
 end.
