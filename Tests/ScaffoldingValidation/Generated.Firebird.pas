@@ -5,453 +5,371 @@ interface
 uses
   Dext.Entity,
   Dext.Entity.Mapping,
+  Dext.Core.SmartTypes,
   Dext.Types.Nullable,
   Dext.Types.Lazy,
-  Dext.Entity.TypeSystem,
-  Dext.Specifications.Types,
   System.SysUtils,
   System.Classes;
 
 type
 
-  TAttachments = class;
-  TAuditLogs = class;
-  TCategories = class;
-  TCountries = class;
-  TCustomers = class;
-  TOrders = class;
-  TProducts = class;
-  TProductMetadata = class;
-  TProductTags = class;
-  TSystemConfig = class;
-  TTags = class;
+  TCountry = class;
+  TCustomer = class;
+  TDepartment = class;
+  TEmployee = class;
+  TEmployeeProject = class;
+  TJob = class;
+  TPhoneList = class;
+  TProject = class;
+  TProjDeptBudget = class;
+  TSalaryHistory = class;
+  TSales = class;
 
-  [Table('ATTACHMENTS')]
-  TAttachments = class
+  [Table('COUNTRY')]
+  TCountry = class
   private
-    FId: string;
-    FFileName: string;
-    FContent: TBytes;
+    FCountry: StringType;
+    FCurrency: StringType;
   public
-    [PK, MaxLength(36), Column('ID')]
-    property Id: string read FId write FId;
-    [MaxLength(255), Column('FILE_NAME')]
-    property FileName: string read FFileName write FFileName;
-    [Column('CONTENT')]
-    property Content: TBytes read FContent write FContent;
+    [PK, Column('COUNTRY')]
+    property Country: StringType read FCountry write FCountry;
+    [Column('CURRENCY')]
+    property Currency: StringType read FCurrency write FCurrency;
   end;
 
-  [Table('AUDIT_LOGS')]
-  TAuditLogs = class
+  [Table('CUSTOMER')]
+  TCustomer = class
   private
-    FId: Nullable<Integer>;
-    FLogDate: Nullable<TDateTime>;
-    FOperation: string;
-    FDetails: string;
-    FUserId: Nullable<Integer>;
+    FCustNo: IntType;
+    FCustomer: StringType;
+    FContactFirst: StringType;
+    FContactLast: StringType;
+    FPhoneNo: StringType;
+    FAddressLine1: StringType;
+    FAddressLine2: StringType;
+    FCity: StringType;
+    FStateProvince: StringType;
+    FCountry: StringType;
+    FPostalCode: StringType;
+    FOnHold: StringType;
+    FNavCountry2: Lazy<TCountry>;
   public
-    [PK, Column('ID')]
-    property Id: Nullable<Integer> read FId write FId;
-    [Column('LOG_DATE')]
-    property LogDate: Nullable<TDateTime> read FLogDate write FLogDate;
-    [MaxLength(50), Column('OPERATION')]
-    property Operation: string read FOperation write FOperation;
-    [MaxLength(255), Column('DETAILS')]
-    property Details: string read FDetails write FDetails;
-    [Column('USER_ID')]
-    property UserId: Nullable<Integer> read FUserId write FUserId;
+    [PK, Column('CUST_NO')]
+    property CustNo: IntType read FCustNo write FCustNo;
+    [Column('CUSTOMER')]
+    property Customer: StringType read FCustomer write FCustomer;
+    [Column('CONTACT_FIRST')]
+    property ContactFirst: StringType read FContactFirst write FContactFirst;
+    [Column('CONTACT_LAST')]
+    property ContactLast: StringType read FContactLast write FContactLast;
+    [Column('PHONE_NO')]
+    property PhoneNo: StringType read FPhoneNo write FPhoneNo;
+    [Column('ADDRESS_LINE1')]
+    property AddressLine1: StringType read FAddressLine1 write FAddressLine1;
+    [Column('ADDRESS_LINE2')]
+    property AddressLine2: StringType read FAddressLine2 write FAddressLine2;
+    [Column('CITY')]
+    property City: StringType read FCity write FCity;
+    [Column('STATE_PROVINCE')]
+    property StateProvince: StringType read FStateProvince write FStateProvince;
+    [Column('COUNTRY')]
+    property Country: StringType read FCountry write FCountry;
+    [Column('POSTAL_CODE')]
+    property PostalCode: StringType read FPostalCode write FPostalCode;
+    [Column('ON_HOLD')]
+    property OnHold: StringType read FOnHold write FOnHold;
+    [ForeignKey('COUNTRY')]
+    property Country2: Lazy<TCountry> read FNavCountry2 write FNavCountry2;
   end;
 
-  [Table('CATEGORIES')]
-  TCategories = class
+  [Table('DEPARTMENT')]
+  TDepartment = class
   private
-    FId: Nullable<Integer>;
-    FName: string;
-    FParentId: Nullable<Integer>;
-    FNavParent: Lazy<TCategories>;
-    FNavParent2: Lazy<TCategories>;
+    FDeptNo: StringType;
+    FDepartment: StringType;
+    FHeadDept: StringType;
+    FMngrNo: IntType;
+    FBudget: CurrencyType;
+    FLocation: StringType;
+    FPhoneNo: StringType;
+    FNavHeadDept2: Lazy<TDepartment>;
+    FNavMngrNo2: Lazy<TEmployee>;
   public
-    [PK, Column('ID')]
-    property Id: Nullable<Integer> read FId write FId;
-    [MaxLength(50), Column('NAME')]
-    property Name: string read FName write FName;
-    [Column('PARENT_ID')]
-    property ParentId: Nullable<Integer> read FParentId write FParentId;
-    [ForeignKey('PARENT_ID')]
-    property Parent: Lazy<TCategories> read FNavParent write FNavParent;
-    [ForeignKey('PARENT_ID')]
-    property Parent2: Lazy<TCategories> read FNavParent2 write FNavParent2;
+    [PK, Column('DEPT_NO')]
+    property DeptNo: StringType read FDeptNo write FDeptNo;
+    [Column('DEPARTMENT')]
+    property Department: StringType read FDepartment write FDepartment;
+    [Column('HEAD_DEPT')]
+    property HeadDept: StringType read FHeadDept write FHeadDept;
+    [Column('MNGR_NO')]
+    property MngrNo: IntType read FMngrNo write FMngrNo;
+    [Column('BUDGET')]
+    property Budget: CurrencyType read FBudget write FBudget;
+    [Column('LOCATION')]
+    property Location: StringType read FLocation write FLocation;
+    [Column('PHONE_NO')]
+    property PhoneNo: StringType read FPhoneNo write FPhoneNo;
+    [ForeignKey('HEAD_DEPT')]
+    property HeadDept2: Lazy<TDepartment> read FNavHeadDept2 write FNavHeadDept2;
+    [ForeignKey('MNGR_NO')]
+    property MngrNo2: Lazy<TEmployee> read FNavMngrNo2 write FNavMngrNo2;
   end;
 
-  [Table('COUNTRIES')]
-  TCountries = class
+  [Table('EMPLOYEE')]
+  TEmployee = class
   private
-    FCode: string;
-    FName: string;
+    FEmpNo: IntType;
+    FFirstName: StringType;
+    FLastName: StringType;
+    FPhoneExt: StringType;
+    FHireDate: DateTimeType;
+    FDeptNo: StringType;
+    FJobCode: StringType;
+    FJobGrade: IntType;
+    FJobCountry: StringType;
+    FSalary: CurrencyType;
+    FFullName: StringType;
+    FNavDeptNo2: Lazy<TDepartment>;
+    FNavJobCode2: Lazy<TJob>;
+    FNavJobGrade2: Lazy<TJob>;
+    FNavJobCountry2: Lazy<TJob>;
   public
-    [PK, MaxLength(2), Column('CODE')]
-    property Code: string read FCode write FCode;
-    [MaxLength(100), Column('NAME')]
-    property Name: string read FName write FName;
+    [PK, Column('EMP_NO')]
+    property EmpNo: IntType read FEmpNo write FEmpNo;
+    [Column('FIRST_NAME')]
+    property FirstName: StringType read FFirstName write FFirstName;
+    [Column('LAST_NAME')]
+    property LastName: StringType read FLastName write FLastName;
+    [Column('PHONE_EXT')]
+    property PhoneExt: StringType read FPhoneExt write FPhoneExt;
+    [Column('HIRE_DATE')]
+    property HireDate: DateTimeType read FHireDate write FHireDate;
+    [Column('DEPT_NO')]
+    property DeptNo: StringType read FDeptNo write FDeptNo;
+    [Column('JOB_CODE')]
+    property JobCode: StringType read FJobCode write FJobCode;
+    [Column('JOB_GRADE')]
+    property JobGrade: IntType read FJobGrade write FJobGrade;
+    [Column('JOB_COUNTRY')]
+    property JobCountry: StringType read FJobCountry write FJobCountry;
+    [Column('SALARY')]
+    property Salary: CurrencyType read FSalary write FSalary;
+    [Column('FULL_NAME')]
+    property FullName: StringType read FFullName write FFullName;
+    [ForeignKey('DEPT_NO')]
+    property DeptNo2: Lazy<TDepartment> read FNavDeptNo2 write FNavDeptNo2;
+    [ForeignKey('JOB_CODE')]
+    property JobCode2: Lazy<TJob> read FNavJobCode2 write FNavJobCode2;
+    [ForeignKey('JOB_GRADE')]
+    property JobGrade2: Lazy<TJob> read FNavJobGrade2 write FNavJobGrade2;
+    [ForeignKey('JOB_COUNTRY')]
+    property JobCountry2: Lazy<TJob> read FNavJobCountry2 write FNavJobCountry2;
   end;
 
-  [Table('CUSTOMERS')]
-  TCustomers = class
+  [Table('EMPLOYEE_PROJECT')]
+  TEmployeeProject = class
   private
-    FId: Nullable<Integer>;
-    FName: string;
-    FCountryCode: string;
-    FExternalId: string;
-    FNavCountryCode2: Lazy<TCountries>;
-    FNavCountryCode3: Lazy<TCountries>;
+    FEmpNo: IntType;
+    FProjId: StringType;
+    FNavEmpNo2: Lazy<TEmployee>;
+    FNavProj: Lazy<TProject>;
   public
-    [PK, Column('ID')]
-    property Id: Nullable<Integer> read FId write FId;
-    [MaxLength(100), Column('NAME')]
-    property Name: string read FName write FName;
-    [MaxLength(2), Column('COUNTRY_CODE')]
-    property CountryCode: string read FCountryCode write FCountryCode;
-    [MaxLength(36), Column('EXTERNAL_ID')]
-    property ExternalId: string read FExternalId write FExternalId;
-    [ForeignKey('COUNTRY_CODE')]
-    property CountryCode2: Lazy<TCountries> read FNavCountryCode2 write FNavCountryCode2;
-    [ForeignKey('COUNTRY_CODE')]
-    property CountryCode3: Lazy<TCountries> read FNavCountryCode3 write FNavCountryCode3;
+    [PK, Column('EMP_NO')]
+    property EmpNo: IntType read FEmpNo write FEmpNo;
+    [PK, Column('PROJ_ID')]
+    property ProjId: StringType read FProjId write FProjId;
+    [ForeignKey('EMP_NO')]
+    property EmpNo2: Lazy<TEmployee> read FNavEmpNo2 write FNavEmpNo2;
+    [ForeignKey('PROJ_ID')]
+    property Proj: Lazy<TProject> read FNavProj write FNavProj;
   end;
 
-  [Table('ORDERS')]
-  TOrders = class
+  [Table('JOB')]
+  TJob = class
   private
-    FId: Nullable<Integer>;
-    FOrderDate: Nullable<TDateTime>;
-    FCustomerId: Nullable<Integer>;
-    FStatus: string;
-    FNavCustomer: Lazy<TCustomers>;
-    FNavCustomer2: Lazy<TCustomers>;
+    FJobCode: StringType;
+    FJobGrade: IntType;
+    FJobCountry: StringType;
+    FJobTitle: StringType;
+    FMinSalary: CurrencyType;
+    FMaxSalary: CurrencyType;
+    FJobRequirement: TBytes;
+    FLanguageReq: StringType;
+    FNavJobCountry2: Lazy<TCountry>;
   public
-    [PK, Column('ID')]
-    property Id: Nullable<Integer> read FId write FId;
+    [PK, Column('JOB_CODE')]
+    property JobCode: StringType read FJobCode write FJobCode;
+    [PK, Column('JOB_GRADE')]
+    property JobGrade: IntType read FJobGrade write FJobGrade;
+    [PK, Column('JOB_COUNTRY')]
+    property JobCountry: StringType read FJobCountry write FJobCountry;
+    [Column('JOB_TITLE')]
+    property JobTitle: StringType read FJobTitle write FJobTitle;
+    [Column('MIN_SALARY')]
+    property MinSalary: CurrencyType read FMinSalary write FMinSalary;
+    [Column('MAX_SALARY')]
+    property MaxSalary: CurrencyType read FMaxSalary write FMaxSalary;
+    [Column('JOB_REQUIREMENT')]
+    property JobRequirement: TBytes read FJobRequirement write FJobRequirement;
+    [Column('LANGUAGE_REQ')]
+    property LanguageReq: StringType read FLanguageReq write FLanguageReq;
+    [ForeignKey('JOB_COUNTRY')]
+    property JobCountry2: Lazy<TCountry> read FNavJobCountry2 write FNavJobCountry2;
+  end;
+
+  [Table('PHONE_LIST')]
+  TPhoneList = class
+  private
+    FEmpNo: IntType;
+    FFirstName: StringType;
+    FLastName: StringType;
+    FPhoneExt: StringType;
+    FLocation: StringType;
+    FPhoneNo: StringType;
+  public
+    [Column('EMP_NO')]
+    property EmpNo: IntType read FEmpNo write FEmpNo;
+    [Column('FIRST_NAME')]
+    property FirstName: StringType read FFirstName write FFirstName;
+    [Column('LAST_NAME')]
+    property LastName: StringType read FLastName write FLastName;
+    [Column('PHONE_EXT')]
+    property PhoneExt: StringType read FPhoneExt write FPhoneExt;
+    [Column('LOCATION')]
+    property Location: StringType read FLocation write FLocation;
+    [Column('PHONE_NO')]
+    property PhoneNo: StringType read FPhoneNo write FPhoneNo;
+  end;
+
+  [Table('PROJECT')]
+  TProject = class
+  private
+    FProjId: StringType;
+    FProjName: StringType;
+    FProjDesc: TBytes;
+    FTeamLeader: IntType;
+    FProduct: StringType;
+    FNavTeamLeader2: Lazy<TEmployee>;
+  public
+    [PK, Column('PROJ_ID')]
+    property ProjId: StringType read FProjId write FProjId;
+    [Column('PROJ_NAME')]
+    property ProjName: StringType read FProjName write FProjName;
+    [Column('PROJ_DESC')]
+    property ProjDesc: TBytes read FProjDesc write FProjDesc;
+    [Column('TEAM_LEADER')]
+    property TeamLeader: IntType read FTeamLeader write FTeamLeader;
+    [Column('PRODUCT')]
+    property Product: StringType read FProduct write FProduct;
+    [ForeignKey('TEAM_LEADER')]
+    property TeamLeader2: Lazy<TEmployee> read FNavTeamLeader2 write FNavTeamLeader2;
+  end;
+
+  [Table('PROJ_DEPT_BUDGET')]
+  TProjDeptBudget = class
+  private
+    FFiscalYear: IntType;
+    FProjId: StringType;
+    FDeptNo: StringType;
+    FQuartHeadCnt: IntType;
+    FProjectedBudget: CurrencyType;
+    FNavDeptNo2: Lazy<TDepartment>;
+    FNavProj: Lazy<TProject>;
+  public
+    [PK, Column('FISCAL_YEAR')]
+    property FiscalYear: IntType read FFiscalYear write FFiscalYear;
+    [PK, Column('PROJ_ID')]
+    property ProjId: StringType read FProjId write FProjId;
+    [PK, Column('DEPT_NO')]
+    property DeptNo: StringType read FDeptNo write FDeptNo;
+    [Column('QUART_HEAD_CNT')]
+    property QuartHeadCnt: IntType read FQuartHeadCnt write FQuartHeadCnt;
+    [Column('PROJECTED_BUDGET')]
+    property ProjectedBudget: CurrencyType read FProjectedBudget write FProjectedBudget;
+    [ForeignKey('DEPT_NO')]
+    property DeptNo2: Lazy<TDepartment> read FNavDeptNo2 write FNavDeptNo2;
+    [ForeignKey('PROJ_ID')]
+    property Proj: Lazy<TProject> read FNavProj write FNavProj;
+  end;
+
+  [Table('SALARY_HISTORY')]
+  TSalaryHistory = class
+  private
+    FEmpNo: IntType;
+    FChangeDate: DateTimeType;
+    FUpdaterId: StringType;
+    FOldSalary: CurrencyType;
+    FPercentChange: FloatType;
+    FNewSalary: FloatType;
+    FNavEmpNo2: Lazy<TEmployee>;
+  public
+    [PK, Column('EMP_NO')]
+    property EmpNo: IntType read FEmpNo write FEmpNo;
+    [PK, Column('CHANGE_DATE')]
+    property ChangeDate: DateTimeType read FChangeDate write FChangeDate;
+    [PK, Column('UPDATER_ID')]
+    property UpdaterId: StringType read FUpdaterId write FUpdaterId;
+    [Column('OLD_SALARY')]
+    property OldSalary: CurrencyType read FOldSalary write FOldSalary;
+    [Column('PERCENT_CHANGE')]
+    property PercentChange: FloatType read FPercentChange write FPercentChange;
+    [Column('NEW_SALARY')]
+    property NewSalary: FloatType read FNewSalary write FNewSalary;
+    [ForeignKey('EMP_NO')]
+    property EmpNo2: Lazy<TEmployee> read FNavEmpNo2 write FNavEmpNo2;
+  end;
+
+  [Table('SALES')]
+  TSales = class
+  private
+    FPoNumber: StringType;
+    FCustNo: IntType;
+    FSalesRep: IntType;
+    FOrderStatus: StringType;
+    FOrderDate: DateTimeType;
+    FShipDate: DateTimeType;
+    FDateNeeded: DateTimeType;
+    FPaid: StringType;
+    FQtyOrdered: IntType;
+    FTotalValue: CurrencyType;
+    FDiscount: FloatType;
+    FItemType: StringType;
+    FAged: CurrencyType;
+    FNavCustNo2: Lazy<TCustomer>;
+    FNavSalesRep2: Lazy<TEmployee>;
+  public
+    [PK, Column('PO_NUMBER')]
+    property PoNumber: StringType read FPoNumber write FPoNumber;
+    [Column('CUST_NO')]
+    property CustNo: IntType read FCustNo write FCustNo;
+    [Column('SALES_REP')]
+    property SalesRep: IntType read FSalesRep write FSalesRep;
+    [Column('ORDER_STATUS')]
+    property OrderStatus: StringType read FOrderStatus write FOrderStatus;
     [Column('ORDER_DATE')]
-    property OrderDate: Nullable<TDateTime> read FOrderDate write FOrderDate;
-    [Column('CUSTOMER_ID')]
-    property CustomerId: Nullable<Integer> read FCustomerId write FCustomerId;
-    [MaxLength(20), Column('STATUS')]
-    property Status: string read FStatus write FStatus;
-    [ForeignKey('CUSTOMER_ID')]
-    property Customer: Lazy<TCustomers> read FNavCustomer write FNavCustomer;
-    [ForeignKey('CUSTOMER_ID')]
-    property Customer2: Lazy<TCustomers> read FNavCustomer2 write FNavCustomer2;
-  end;
-
-  [Table('PRODUCTS')]
-  TProducts = class
-  private
-    FId: Nullable<Integer>;
-    FName: string;
-    FPrice: Nullable<Double>;
-    FWeight: Nullable<Double>;
-    FIsActive: Nullable<Boolean>;
-    FReleaseDate: Nullable<TDateTime>;
-    FCategoryId: Nullable<Integer>;
-    FNavCategory: Lazy<TCategories>;
-    FNavCategory2: Lazy<TCategories>;
-  public
-    [PK, Column('ID')]
-    property Id: Nullable<Integer> read FId write FId;
-    [MaxLength(100), Column('NAME')]
-    property Name: string read FName write FName;
-    [Column('PRICE')]
-    property Price: Nullable<Double> read FPrice write FPrice;
-    [Column('WEIGHT')]
-    property Weight: Nullable<Double> read FWeight write FWeight;
-    [Column('IS_ACTIVE')]
-    property IsActive: Nullable<Boolean> read FIsActive write FIsActive;
-    [Column('RELEASE_DATE')]
-    property ReleaseDate: Nullable<TDateTime> read FReleaseDate write FReleaseDate;
-    [Column('CATEGORY_ID')]
-    property CategoryId: Nullable<Integer> read FCategoryId write FCategoryId;
-    [ForeignKey('CATEGORY_ID')]
-    property Category: Lazy<TCategories> read FNavCategory write FNavCategory;
-    [ForeignKey('CATEGORY_ID')]
-    property Category2: Lazy<TCategories> read FNavCategory2 write FNavCategory2;
-  end;
-
-  [Table('PRODUCT_METADATA')]
-  TProductMetadata = class
-  private
-    FProductId: Nullable<Integer>;
-    FDescription: string;
-    FJsonSpecs: string;
-    FNavProduct: Lazy<TProducts>;
-    FNavProduct2: Lazy<TProducts>;
-  public
-    [PK, Column('PRODUCT_ID')]
-    property ProductId: Nullable<Integer> read FProductId write FProductId;
-    [MaxLength(255), Column('DESCRIPTION')]
-    property Description: string read FDescription write FDescription;
-    [MaxLength(255), Column('JSON_SPECS')]
-    property JsonSpecs: string read FJsonSpecs write FJsonSpecs;
-    [ForeignKey('PRODUCT_ID')]
-    property Product: Lazy<TProducts> read FNavProduct write FNavProduct;
-    [ForeignKey('PRODUCT_ID')]
-    property Product2: Lazy<TProducts> read FNavProduct2 write FNavProduct2;
-  end;
-
-  [Table('PRODUCT_TAGS')]
-  TProductTags = class
-  private
-    FProductId: Nullable<Integer>;
-    FTagId: Nullable<Integer>;
-  public
-    [PK, Column('PRODUCT_ID')]
-    property ProductId: Nullable<Integer> read FProductId write FProductId;
-    [PK, Column('TAG_ID')]
-    property TagId: Nullable<Integer> read FTagId write FTagId;
-  end;
-
-  [Table('SYSTEM_CONFIG')]
-  TSystemConfig = class
-  private
-    FConfigKey: string;
-    FConfigValue: string;
-    FLastModified: Nullable<TDateTime>;
-    FIsInternal: Nullable<Boolean>;
-    FConfigType: Nullable<Integer>;
-  public
-    [PK, MaxLength(50), Column('CONFIG_KEY')]
-    property ConfigKey: string read FConfigKey write FConfigKey;
-    [MaxLength(255), Column('CONFIG_VALUE')]
-    property ConfigValue: string read FConfigValue write FConfigValue;
-    [Column('LAST_MODIFIED')]
-    property LastModified: Nullable<TDateTime> read FLastModified write FLastModified;
-    [Column('IS_INTERNAL')]
-    property IsInternal: Nullable<Boolean> read FIsInternal write FIsInternal;
-    [Column('CONFIG_TYPE')]
-    property ConfigType: Nullable<Integer> read FConfigType write FConfigType;
-  end;
-
-  [Table('TAGS')]
-  TTags = class
-  private
-    FId: Nullable<Integer>;
-    FName: string;
-  public
-    [PK, Column('ID')]
-    property Id: Nullable<Integer> read FId write FId;
-    [MaxLength(30), Column('NAME')]
-    property Name: string read FName write FName;
-  end;
-
-  AttachmentsEntity = class(TEntityType<TAttachments>)
-  public
-    class var Id: TPropExpression;
-    class var FileName: TPropExpression;
-    class var Content: TPropExpression;
-
-    class constructor Create;
-  end;
-
-  AuditLogsEntity = class(TEntityType<TAuditLogs>)
-  public
-    class var Id: TPropExpression;
-    class var LogDate: TPropExpression;
-    class var Operation: TPropExpression;
-    class var Details: TPropExpression;
-    class var UserId: TPropExpression;
-
-    class constructor Create;
-  end;
-
-  CategoriesEntity = class(TEntityType<TCategories>)
-  public
-    class var Id: TPropExpression;
-    class var Name: TPropExpression;
-    class var ParentId: TPropExpression;
-    class var Parent: TPropExpression;
-    class var Parent2: TPropExpression;
-
-    class constructor Create;
-  end;
-
-  CountriesEntity = class(TEntityType<TCountries>)
-  public
-    class var Code: TPropExpression;
-    class var Name: TPropExpression;
-
-    class constructor Create;
-  end;
-
-  CustomersEntity = class(TEntityType<TCustomers>)
-  public
-    class var Id: TPropExpression;
-    class var Name: TPropExpression;
-    class var CountryCode: TPropExpression;
-    class var ExternalId: TPropExpression;
-    class var CountryCode2: TPropExpression;
-    class var CountryCode3: TPropExpression;
-
-    class constructor Create;
-  end;
-
-  OrdersEntity = class(TEntityType<TOrders>)
-  public
-    class var Id: TPropExpression;
-    class var OrderDate: TPropExpression;
-    class var CustomerId: TPropExpression;
-    class var Status: TPropExpression;
-    class var Customer: TPropExpression;
-    class var Customer2: TPropExpression;
-
-    class constructor Create;
-  end;
-
-  ProductsEntity = class(TEntityType<TProducts>)
-  public
-    class var Id: TPropExpression;
-    class var Name: TPropExpression;
-    class var Price: TPropExpression;
-    class var Weight: TPropExpression;
-    class var IsActive: TPropExpression;
-    class var ReleaseDate: TPropExpression;
-    class var CategoryId: TPropExpression;
-    class var Category: TPropExpression;
-    class var Category2: TPropExpression;
-
-    class constructor Create;
-  end;
-
-  ProductMetadataEntity = class(TEntityType<TProductMetadata>)
-  public
-    class var ProductId: TPropExpression;
-    class var Description: TPropExpression;
-    class var JsonSpecs: TPropExpression;
-    class var Product: TPropExpression;
-    class var Product2: TPropExpression;
-
-    class constructor Create;
-  end;
-
-  ProductTagsEntity = class(TEntityType<TProductTags>)
-  public
-    class var ProductId: TPropExpression;
-    class var TagId: TPropExpression;
-
-    class constructor Create;
-  end;
-
-  SystemConfigEntity = class(TEntityType<TSystemConfig>)
-  public
-    class var ConfigKey: TPropExpression;
-    class var ConfigValue: TPropExpression;
-    class var LastModified: TPropExpression;
-    class var IsInternal: TPropExpression;
-    class var ConfigType: TPropExpression;
-
-    class constructor Create;
-  end;
-
-  TagsEntity = class(TEntityType<TTags>)
-  public
-    class var Id: TPropExpression;
-    class var Name: TPropExpression;
-
-    class constructor Create;
+    property OrderDate: DateTimeType read FOrderDate write FOrderDate;
+    [Column('SHIP_DATE')]
+    property ShipDate: DateTimeType read FShipDate write FShipDate;
+    [Column('DATE_NEEDED')]
+    property DateNeeded: DateTimeType read FDateNeeded write FDateNeeded;
+    [Column('PAID')]
+    property Paid: StringType read FPaid write FPaid;
+    [Column('QTY_ORDERED')]
+    property QtyOrdered: IntType read FQtyOrdered write FQtyOrdered;
+    [Column('TOTAL_VALUE')]
+    property TotalValue: CurrencyType read FTotalValue write FTotalValue;
+    [Column('DISCOUNT')]
+    property Discount: FloatType read FDiscount write FDiscount;
+    [Column('ITEM_TYPE')]
+    property ItemType: StringType read FItemType write FItemType;
+    [Column('AGED')]
+    property Aged: CurrencyType read FAged write FAged;
+    [ForeignKey('CUST_NO')]
+    property CustNo2: Lazy<TCustomer> read FNavCustNo2 write FNavCustNo2;
+    [ForeignKey('SALES_REP')]
+    property SalesRep2: Lazy<TEmployee> read FNavSalesRep2 write FNavSalesRep2;
   end;
 
 implementation
-
-class constructor AttachmentsEntity.Create;
-begin
-  Id := TPropExpression.Create('Id');
-  FileName := TPropExpression.Create('FileName');
-  Content := TPropExpression.Create('Content');
-end;
-
-class constructor AuditLogsEntity.Create;
-begin
-  Id := TPropExpression.Create('Id');
-  LogDate := TPropExpression.Create('LogDate');
-  Operation := TPropExpression.Create('Operation');
-  Details := TPropExpression.Create('Details');
-  UserId := TPropExpression.Create('UserId');
-end;
-
-class constructor CategoriesEntity.Create;
-begin
-  Id := TPropExpression.Create('Id');
-  Name := TPropExpression.Create('Name');
-  ParentId := TPropExpression.Create('ParentId');
-  Parent := TPropExpression.Create('Parent');
-  Parent2 := TPropExpression.Create('Parent2');
-end;
-
-class constructor CountriesEntity.Create;
-begin
-  Code := TPropExpression.Create('Code');
-  Name := TPropExpression.Create('Name');
-end;
-
-class constructor CustomersEntity.Create;
-begin
-  Id := TPropExpression.Create('Id');
-  Name := TPropExpression.Create('Name');
-  CountryCode := TPropExpression.Create('CountryCode');
-  ExternalId := TPropExpression.Create('ExternalId');
-  CountryCode2 := TPropExpression.Create('CountryCode2');
-  CountryCode3 := TPropExpression.Create('CountryCode3');
-end;
-
-class constructor OrdersEntity.Create;
-begin
-  Id := TPropExpression.Create('Id');
-  OrderDate := TPropExpression.Create('OrderDate');
-  CustomerId := TPropExpression.Create('CustomerId');
-  Status := TPropExpression.Create('Status');
-  Customer := TPropExpression.Create('Customer');
-  Customer2 := TPropExpression.Create('Customer2');
-end;
-
-class constructor ProductsEntity.Create;
-begin
-  Id := TPropExpression.Create('Id');
-  Name := TPropExpression.Create('Name');
-  Price := TPropExpression.Create('Price');
-  Weight := TPropExpression.Create('Weight');
-  IsActive := TPropExpression.Create('IsActive');
-  ReleaseDate := TPropExpression.Create('ReleaseDate');
-  CategoryId := TPropExpression.Create('CategoryId');
-  Category := TPropExpression.Create('Category');
-  Category2 := TPropExpression.Create('Category2');
-end;
-
-class constructor ProductMetadataEntity.Create;
-begin
-  ProductId := TPropExpression.Create('ProductId');
-  Description := TPropExpression.Create('Description');
-  JsonSpecs := TPropExpression.Create('JsonSpecs');
-  Product := TPropExpression.Create('Product');
-  Product2 := TPropExpression.Create('Product2');
-end;
-
-class constructor ProductTagsEntity.Create;
-begin
-  ProductId := TPropExpression.Create('ProductId');
-  TagId := TPropExpression.Create('TagId');
-end;
-
-class constructor SystemConfigEntity.Create;
-begin
-  ConfigKey := TPropExpression.Create('ConfigKey');
-  ConfigValue := TPropExpression.Create('ConfigValue');
-  LastModified := TPropExpression.Create('LastModified');
-  IsInternal := TPropExpression.Create('IsInternal');
-  ConfigType := TPropExpression.Create('ConfigType');
-end;
-
-class constructor TagsEntity.Create;
-begin
-  Id := TPropExpression.Create('Id');
-  Name := TPropExpression.Create('Name');
-end;
 
 end.

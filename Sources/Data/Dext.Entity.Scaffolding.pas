@@ -350,18 +350,34 @@ begin
     Qry := TFDQuery.Create(nil);
     try
       Qry.Connection := FDConn;
+      // PASSO 1: Carrega colunas e PKs de cada tabela via ExtractTableMetadataInternal.
+      // As FKs carregadas aqui serão descartadas em seguida para evitar duplicação
+      // com a query global abaixo, que é a fonte definitiva para o Firebird.
       for var TName in TableList do
       begin
          var LTrimmedName := TName.Trim;
          if not FCache.TryGetValue(LTrimmedName, LTable) then
          begin
-            LTable := ExtractTableMetadataInternal(TName); 
+            LTable := ExtractTableMetadataInternal(TName);
             LTable.Name := LTrimmedName;
             FCache.AddOrSetValue(LTrimmedName, LTable);
          end;
       end;
 
-      Qry.SQL.Text := 
+      // PASSO 1b: Zerar as FKs carregadas individualmente. A query global abaixo
+      // será a única fonte de verdade para FKs no Firebird, evitando duplicação.
+      for var TName in TableList do
+      begin
+        var LTrimmedName := TName.Trim;
+        if FCache.TryGetValue(LTrimmedName, LTable) then
+        begin
+          LTable.ForeignKeys := [];
+          FCache.AddOrSetValue(LTrimmedName, LTable);
+        end;
+      end;
+
+      // PASSO 2: Query global para carregar todas as FKs do banco de uma vez.
+      Qry.SQL.Text :=
         'SELECT RC.RDB$CONSTRAINT_NAME AS constraint_name, ' +
         '       TRIM(RC.RDB$RELATION_NAME) AS table_name, ' +
         '       TRIM(ISE.RDB$FIELD_NAME) AS column_name, ' +
@@ -374,7 +390,7 @@ begin
         'JOIN RDB$INDEX_SEGMENTS REF_ISE ON REF_RC.RDB$INDEX_NAME = REF_ISE.RDB$INDEX_NAME AND ISE.RDB$FIELD_POSITION = REF_ISE.RDB$FIELD_POSITION ' +
         'WHERE RC.RDB$CONSTRAINT_TYPE = ''FOREIGN KEY'' ' +
         'ORDER BY RC.RDB$RELATION_NAME, RC.RDB$CONSTRAINT_NAME, ISE.RDB$FIELD_POSITION';
-      
+
       try
         Qry.Open;
         while not Qry.Eof do
@@ -384,28 +400,39 @@ begin
           LTable := Default(TMetaTable);
           if not FCache.TryGetValue(LLookupName, LTable) then
           begin
-            // Try again without quotes if needed, though GetTableNames usually returns what we need
-            // but for FB we might need to be more aggressive in matching
             LLookupName := LTableName.Replace('"', '');
             FCache.TryGetValue(LLookupName, LTable);
           end;
 
           if LTable.Name <> '' then
           begin
-             LFK := Default(TMetaForeignKey);
-             LFK.Name := Qry.FieldByName('constraint_name').AsString.Trim;
-             LFK.ColumnName := Qry.FieldByName('column_name').AsString.Trim;
-             LFK.ReferencedTable := Qry.FieldByName('foreign_table_name').AsString.Trim;
-             LFK.ReferencedColumn := Qry.FieldByName('foreign_column_name').AsString.Trim;
-             
-             // Basic validation to avoid broken navigation properties
-             if (LFK.ColumnName <> '') and (LFK.ReferencedTable <> '') then
-             begin
-               LTable.ForeignKeys := LTable.ForeignKeys + [LFK];
-               FCache.AddOrSetValue(LTableName, LTable);
-               if LLookupName <> LTableName then
-                 FCache.AddOrSetValue(LLookupName, LTable);
-             end;
+            LFK := Default(TMetaForeignKey);
+            LFK.Name := Qry.FieldByName('constraint_name').AsString.Trim;
+            LFK.ColumnName := Qry.FieldByName('column_name').AsString.Trim;
+            LFK.ReferencedTable := Qry.FieldByName('foreign_table_name').AsString.Trim;
+            LFK.ReferencedColumn := Qry.FieldByName('foreign_column_name').AsString.Trim;
+
+            // Validação básica + deduplicação para evitar FKs duplicadas
+            // (o Firebird pode retornar múltiplas linhas para a mesma FK em índices compostos)
+            if (LFK.ColumnName <> '') and (LFK.ReferencedTable <> '') then
+            begin
+              var LFound := False;
+              for var ExistingFK in LTable.ForeignKeys do
+                if SameText(ExistingFK.ColumnName, LFK.ColumnName) and
+                   SameText(ExistingFK.ReferencedTable, LFK.ReferencedTable) then
+                begin
+                  LFound := True;
+                  Break;
+                end;
+
+              if not LFound then
+              begin
+                LTable.ForeignKeys := LTable.ForeignKeys + [LFK];
+                FCache.AddOrSetValue(LTableName, LTable);
+                if LLookupName <> LTableName then
+                  FCache.AddOrSetValue(LLookupName, LTable);
+              end;
+            end;
           end;
           Qry.Next;
         end;
@@ -650,7 +677,18 @@ begin
               LFK.ColumnName := Qry.FieldByName('COLUMN_NAME').AsString;
               LFK.ReferencedTable := Qry.FieldByName('REF_TABLE_NAME').AsString;
               LFK.ReferencedColumn := Qry.FieldByName('REF_COLUMN_NAME').AsString;
-              Result.ForeignKeys := Result.ForeignKeys + [LFK];
+
+              var LFound := False;
+              for var ExistingFK in Result.ForeignKeys do
+                if SameText(ExistingFK.ColumnName, LFK.ColumnName) and 
+                   SameText(ExistingFK.ReferencedTable, LFK.ReferencedTable) then
+                begin
+                  LFound := True;
+                  Break;
+                end;
+
+              if not LFound then
+                Result.ForeignKeys := Result.ForeignKeys + [LFK];
               Qry.Next;
             end;
           except
